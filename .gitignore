@@ -4,6 +4,7 @@ packages/
 extracted/
 settings.json
 error_log.txt
+update_log.txt
 restored_files.txt
 __pycache__/
 *.pyc

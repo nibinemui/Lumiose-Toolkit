@@ -6,6 +6,17 @@ The first start opens "Import game files" to unpack your game dump. The window h
 Browse & extract, Mods, Map, Pokémon data and Game data. "Dark mode" (top right) switches the theme.
 README.md is the full manual (features, installing, troubleshooting).
 
+WHAT'S NEW IN 1.1.0
+-------------------
+  * Updates: the program checks GitHub for a new version when it starts. "★ Update to x.y.z"
+    (bottom right) downloads and installs it, keeping your mods and settings. "Updates…" checks by hand.
+  * Clothing colour variants: every colour the game sells is listed under each clothing item in
+    Search (in-game colour names, id, price); Try on / Open 3D viewer show exactly that variant.
+  * "Edit clothing colours…": change which palette colour each in-game colour option uses, saved
+    into your mod, with a live 3D preview. Confirmed working in-game (Lumiose Online).
+  * Game data > Clothing items: Try on, View in 3D and Edit colours… buttons.
+  * Scrollbars on the Pokémon data and Game data lists.
+
 WHAT'S NEW (2026-11-14, second round)
 -------------------------------------
   * Game data tab: table editor for Moves, Items (prices), Item shops, Clothing items (prices),

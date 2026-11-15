@@ -27,6 +27,7 @@ import za_formats as zf  # noqa: E402
 import za_names as zn  # noqa: E402
 import za_trinity as zt  # noqa: E402
 import za_modding as zm  # noqa: E402
+import za_version  # noqa: E402
 
 AUDIO_EXTS = ('.bnk', '.pck', '.wem')
 # Trinity formats converted to JSON during bulk extraction (animations/buffers only when picked directly)
@@ -66,7 +67,7 @@ THEMES = {
 
 SETTINGS_PATH = os.path.join(APP_DIR, 'settings.json')
 LOG_PATH = os.path.join(APP_DIR, 'error_log.txt')
-DEFAULT_ROOT = os.path.dirname(APP_DIR)
+DEFAULT_ROOT = ''                # no game folder until the user imports or picks one
 DEFAULT_OUT = os.path.join(APP_DIR, 'extracted')
 
 TYPE_FILTERS = {
@@ -274,7 +275,7 @@ def save_png(img, path):
 class App(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title('Lumiose Toolkit')
+        self.title('Lumiose Toolkit %s' % za_version.VERSION)
         try:
             self.iconbitmap(default=os.path.join(APP_DIR, 'lumiose_toolkit.ico'))
         except tk.TclError:
@@ -372,12 +373,47 @@ class App(tk.Tk):
             'wav': self.wav_var.get(), 'mod': self.mod_var.get(), 'game_romfs': self.game_romfs_var.get(),
             'pkg_out': self.pkg_out_var.get(), 'targets': [k for k, v in self.tgt_vars.items() if v.get()],
             'recomp': self.recomp_var.get(), 'text_lang': self.text_lang.get(),
+            'check_updates': self.settings.get('check_updates', True),
+            'skip_version': self.settings.get('skip_version', ''),
         }
         try:
             with open(SETTINGS_PATH, 'w', encoding='utf-8') as f:
                 json.dump(s, f, indent=2)
         except OSError:
             pass
+
+    # ---------------- updates ----------------
+    def check_updates(self):
+        """Background thread at startup: is there a newer release on GitHub? (quiet if offline)"""
+        try:
+            import za_update
+            rel = za_update.check()
+        except Exception:  # noqa: BLE001 - offline, rate-limited, repository not public...
+            return
+        self.q.put(lambda: self.update_found(rel))
+
+    def update_found(self, rel):
+        """Show 'Update to X' on the top bar when rel is newer than this version and not skipped."""
+        import za_update
+        new = (rel is not None and za_update.is_newer(rel['version'])
+               and rel['version'] != self.settings.get('skip_version'))
+        self.update_rel = rel if new else None
+        self.update_btn.configure(text='★ Update to %s' % rel['version'] if new else 'Updates…')
+        if new:
+            self.status_var.set('Lumiose Toolkit %s is available - click "Update to %s" at the bottom right.'
+                                % (rel['version'], rel['version']))
+
+    def open_updates(self):
+        import za_update
+        w = za_update.UpdateWindow(self, self.update_rel)
+        if self.update_rel is None:
+            w.recheck()
+
+    def theme_colours(self):
+        return THEMES['dark' if self.dark_var.get() else 'light']
+
+    def extract_busy(self):
+        return ['the extraction'] if self.extracting else []
 
     def on_close(self):
         self.save_settings()
@@ -509,6 +545,9 @@ class App(tk.Tk):
         stat.pack(side='bottom', fill='x', padx=4, pady=(0, 4))
         self.progress = ttk.Progressbar(stat, mode='determinate', length=260)
         self.progress.pack(side='right')
+        self.update_btn = ttk.Button(stat, text='Updates…', command=self.open_updates)
+        self.update_btn.pack(side='right', padx=(0, 8))
+        self.update_rel = None          # newer release found on GitHub (see check_updates)
         ttk.Label(stat, textvariable=self.status_var).pack(side='left')
 
         self.nb = ttk.Notebook(self)
@@ -699,6 +738,9 @@ class App(tk.Tk):
             except Exception:  # noqa: BLE001
                 log_error(traceback.format_exc())
         threading.Thread(target=fetch_pokedocs, daemon=True).start()
+
+        if self.settings.get('check_updates', True):
+            threading.Thread(target=self.check_updates, daemon=True).start()
 
         def find_installs():          # in the background: list ZA Recomp / Lumiose Online installs
             try:
@@ -1134,8 +1176,11 @@ class App(tk.Tk):
         return exts is None or name.lower().endswith(exts)
 
     def reload_root(self, reindex=True):
-        root = os.path.normpath(self.root_var.get())
         self.tree.delete(*self.tree.get_children())
+        if not self.root_var.get().strip():
+            self.status_var.set('No game folder yet - click "Import game files…" or Browse… at the top.')
+            return
+        root = os.path.normpath(self.root_var.get())
         if reindex:
             self.arc_cache.clear()
         if not os.path.isdir(root):

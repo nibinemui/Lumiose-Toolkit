@@ -16,6 +16,7 @@ on it), a modded Switch (Atmosphere) or an emulator.
 - [Features](#features)
 - [Requirements](#requirements)
 - [Installation](#installation)
+- [Updating](#updating)
 - [Importing your game files](#importing-your-game-files)
 - [First steps](#first-steps)
 - [Using the program](#using-the-program)
@@ -94,6 +95,8 @@ on it), a modded Switch (Atmosphere) or an emulator.
 ### Extras
 - Dark mode.
 - **Import game files** unpacks your dump right inside the program (see [below](#importing-your-game-files)).
+- **Built-in updater**: checks GitHub for a new version when the program starts and installs it with one click,
+  keeping your mods and settings (see [Updating](#updating)).
 - Unnamed hash files are identified by their contents.
 
 ---
@@ -124,6 +127,28 @@ on it), a modded Switch (Atmosphere) or an emulator.
 On the first start the program downloads two small data files from
 [PokeDocs](https://github.com/pkZukan/PokeDocs) (the file-name list and some data layouts). This needs an
 internet connection once.
+
+---
+
+## Updating
+
+Lumiose Toolkit checks this repository's [Releases page](https://github.com/nibinemui/Lumiose-Toolkit/releases)
+when it starts. When a newer version is out, a **★ Update to x.y.z** button appears at the bottom right.
+
+1. Click **★ Update to x.y.z** (or **Updates…** to check by hand). The window shows what's new.
+2. Click **Download and install**. The program downloads the release zip from GitHub and checks it
+   (size and SHA-256 checksum).
+3. Confirm. Lumiose Toolkit closes, copies the new files into its folder and starts again.
+
+Your `mods`, `packages`, `extracted` folders, `settings.json`, imported game files and downloaded PokeDocs
+files are kept: the update only replaces the program's own files. **Skip this version** hides the button
+until the next release, and the check at startup can be turned off in the same window. The check sends no
+data about you; it only asks GitHub for the latest release. A log of each update is written to
+`update_log.txt` in the program folder.
+
+To update by hand instead, download the new zip, unzip it, and move your `mods` folder and `settings.json`
+into the new folder. When [running from source](#running-from-source-developers), use `git pull`; the update
+window then only links to the release page.
 
 ---
 
@@ -251,6 +276,8 @@ That index is made for exactly the mods in the package, so **build one combined 
 | Import: "No arc\data.trpfd …" | Pick the dump's `romfs` folder, the one that contains the `arc` folder. |
 | Pokémon data tab won't load / "PokeDocs" message | The program couldn't download the PokeDocs files. Connect to the internet and restart it. |
 | 3D viewer window is blank | Install the WebView2 Runtime. |
+| "Couldn't check for updates" | You're offline, or GitHub is limiting requests for a while. Click **Check again** later, or download the new version from the Releases page. |
+| An update didn't finish | See `update_log.txt` in the program folder. Close any 3D viewer windows and update again, or install the new zip by hand (see [Updating](#updating)). |
 | "No schema known for …" | That data file has no known layout yet; it can still be extracted as raw bytes. |
 | No sound / audio list empty | The game's `audio` folder is missing from the game folder. Run **Import game files…** again; it copies it. |
 | Something else | Program errors are written to `error_log.txt` in the program folder; extraction errors go to `_extract_errors.txt` in the output folder. |
@@ -311,6 +338,9 @@ Lumiose Toolkit/
   za_pokedit.py           Pokémon data tab
   za_map.py               Map tab
   za_mated.py             material colour editor
+  za_colours.py           clothing colour editor (which palette colour each in-game option uses)
+  za_update.py            updater (checks GitHub releases, installs a new version)
+  za_version.py           version number and release repository
   za_textedit.py          in-app text editor
   za_history.py           mod history / compare / restore window
   za_import.py            experimental glTF → model import
