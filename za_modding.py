@@ -5,6 +5,7 @@ vgmstream-cli (vgmstream, ISC-style). Trinity knowledge from pkZukan/gftool (GPL
 """
 import json
 import os
+import sys
 import re
 import shutil
 import struct
@@ -17,7 +18,7 @@ from PIL import Image
 
 import za_formats as zf
 
-APP_DIR = os.path.dirname(os.path.abspath(__file__))
+APP_DIR = os.path.dirname(sys.executable) if getattr(sys, 'frozen', False) else os.path.dirname(os.path.abspath(__file__))   # the .exe's folder when frozen
 TOOLS = os.path.join(APP_DIR, 'tools')
 FLATC = os.path.join(TOOLS, 'flatc', 'flatc.exe')
 TEXCONV = os.path.join(TOOLS, 'texconv', 'texconv.exe')

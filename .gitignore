@@ -21,3 +21,7 @@ tools/icon_render/luxuryball.glb
 # files from pkZukan/PokeDocs (no licence): downloaded on first start by za_deps.py, never committed
 names/za_hashes_inside_fd.txt
 tools/schemas/pokedocs/
+
+# PyInstaller output (see build_exe.py)
+build/
+dist/

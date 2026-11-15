@@ -12,6 +12,7 @@ import glob
 import json
 import math
 import os
+import sys
 import re
 import threading
 import traceback
@@ -39,7 +40,7 @@ LAYER_STYLE = {   # file stem -> (label, colour)
 DEFAULT_ON = {'pokemon_spawner_transform_array', 'itemball_spawner_transform_array'}
 
 
-APP_DIR = os.path.dirname(os.path.abspath(__file__))
+APP_DIR = os.path.dirname(sys.executable) if getattr(sys, 'frozen', False) else os.path.dirname(os.path.abspath(__file__))   # the .exe's folder when frozen
 CAL_FILE = os.path.join(APP_DIR, 'map_calibration.json')
 CITY = 'Lumiose City'
 # points outside the city belong to interiors / dungeons / zones that all reuse coordinates near the

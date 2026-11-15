@@ -42,9 +42,13 @@ are in the vgmstream repository. You may replace these DLLs with your own builds
 libraries. On request we will provide a copy of the corresponding source code for at least three
 years from the date of each release.
 
-## Python packages (installed by the user, not bundled)
+## Python and Python packages
 
-`requirements.txt` installs these from PyPI; they are not shipped with Lumiose Toolkit.
+The **release .exe bundles** the Python runtime (PSF licence), Tcl/Tk (BSD-style) and the packages below,
+plus their own dependencies (in the `_internal` folder). The build copies every one of their licence files to
+`licenses/bundled-python/` in the release, with a list in `licenses/bundled-python/README.txt`.
+The .exe itself is made with PyInstaller, whose bootloader licence (GPL with an exception) allows this.
+When running from source, `requirements.txt` installs these from PyPI instead.
 
 | Package | Licence | Source |
 |---|---|---|

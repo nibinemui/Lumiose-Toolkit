@@ -1,10 +1,10 @@
 Lumiose Toolkit
 ===============
 
-Double-click "Lumiose Toolkit.bat" (or the desktop shortcut). Needs Python 3 with numpy, Pillow
-and pywebview (all installed). The window has five tabs: Browse & extract, Mods, Map,
-Pokémon data and Game data. "Dark mode" (top right) switches the theme.
-README.md is the full manual (all features + installing from scratch, for a GitHub page).
+Double-click "Lumiose Toolkit.exe" (release download) or "Lumiose Toolkit.bat" (running from source).
+The first start opens "Import game files" to unpack your game dump. The window has five tabs:
+Browse & extract, Mods, Map, Pokémon data and Game data. "Dark mode" (top right) switches the theme.
+README.md is the full manual (features, installing, troubleshooting).
 
 WHAT'S NEW (2026-11-14, second round)
 -------------------------------------

@@ -15,15 +15,17 @@ on it), a modded Switch (Atmosphere) or an emulator.
 
 - [Features](#features)
 - [Requirements](#requirements)
-- [Installation (from a fresh download)](#installation-from-a-fresh-download)
-- [Preparing the game files](#preparing-the-game-files)
-- [First start](#first-start)
+- [Installation](#installation)
+- [Importing your game files](#importing-your-game-files)
+- [First steps](#first-steps)
 - [Using the program](#using-the-program)
 - [Making and sharing mods](#making-and-sharing-mods)
 - [Troubleshooting](#troubleshooting)
 - [Known limits](#known-limits)
+- [Running from source (developers)](#running-from-source-developers)
 - [Project layout](#project-layout)
 - [Credits and licences](#credits-and-licences)
+- [AI disclosure](#ai-disclosure)
 
 ---
 
@@ -89,107 +91,75 @@ on it), a modded Switch (Atmosphere) or an emulator.
 
 ### Extras
 - Dark mode.
-- `restore_missing.py` extracts every file directly from the game's `data.trpfs` (see below).
+- **Import game files** unpacks your dump right inside the program (see [below](#importing-your-game-files)).
 - Unnamed hash files are identified by their contents.
 
 ---
 
 ## Requirements
 
-| What | Version | Notes |
-|---|---|---|
-| Windows | 10 or 11 (64-bit) | The bundled tools are Windows builds. |
-| [Python](https://www.python.org/downloads/windows/) | 3.10 – 3.12 (tested on 3.11) | Tick **"Add python.exe to PATH"** during setup. |
-| Python packages | numpy, Pillow, pywebview | Installed from `requirements.txt` (see below). |
-| [Microsoft Edge WebView2 Runtime](https://developer.microsoft.com/microsoft-edge/webview2/) | any | Already present on Windows 11 and up-to-date Windows 10; needed for the 3D viewer window. |
-| Oodle DLL (`oo2core_8_win64.dll`) | – | Only for extracting the game archive the first time (see below). Not included. |
-| Disk space | ~25 GB | For the extracted game files. |
-
-The `tools/` folder contains the helper programs the editor uses. Release downloads include them:
-
-| Tool | Used for | Licence |
-|---|---|---|
-| `tools/flatc/flatc.exe` ([FlatBuffers](https://github.com/google/flatbuffers/releases)) | data ⇄ JSON | Apache-2.0 |
-| `tools/texconv/texconv.exe` ([DirectXTex](https://github.com/microsoft/DirectXTex/releases)) | texture compression | MIT |
-| `tools/vgmstream/vgmstream-cli.exe` + DLLs ([vgmstream](https://github.com/vgmstream/vgmstream/releases), win64 build) | audio decoding | ISC-style |
-| `tools/three/` ([three.js](https://github.com/mrdoob/three.js) r160) | 3D viewer | MIT |
-| `tools/schemas/` | data formats (generated, see credits) | – |
-| `tools/gftool_src/` ([GFTool](https://github.com/pkZukan/gftool) source) | regenerating the Trinity schemas | GPL-2.0 |
+| What | Notes |
+|---|---|
+| Windows 10 or 11 (64-bit) | Nothing else to install: Python and every helper tool are inside the download. |
+| Your own dump of Pokémon Legends: Z-A | The RomFS of the game (title ID `0100F43008C44000`), dumped from your own Switch. |
+| Oodle DLL (`oo2core_8_win64.dll`) | Needed once, to unpack the game archive. It can't be shipped with Lumiose Toolkit (see [below](#importing-your-game-files)); the program looks for it on your PC by itself. |
+| About 25 GB of free space | For the unpacked game files. |
+| [Microsoft Edge WebView2 Runtime](https://developer.microsoft.com/microsoft-edge/webview2/) | For the 3D viewer window. Already part of Windows 11 and up-to-date Windows 10. |
 
 ---
 
-## Installation (from a fresh download)
+## Installation
 
-1. **Install Python** from python.org (3.11 recommended). On the first installer page tick
-   **"Add python.exe to PATH"**, then click *Install Now*.
+1. Go to the **[Releases page](https://github.com/nibinemui/Lumiose-Toolkit/releases)** and download
+   `Lumiose-Toolkit-<version>-windows.zip`.
+2. Unzip it anywhere you like, for example `D:\Lumiose Toolkit`.
+   Keep the folder together: the `.exe` needs the `_internal` and `tools` folders next to it.
+3. Double-click **`Lumiose Toolkit.exe`**.
+   - Windows may show *"Windows protected your PC"* the first time, because the program isn't code-signed.
+     Click **More info → Run anyway**.
+   - To get a desktop shortcut: right-click `Lumiose Toolkit.exe` → *Send to* → *Desktop (create shortcut)*.
 
-2. **Download Lumiose Toolkit.** On the [GitHub page](https://github.com/nibinemui/Lumiose-Toolkit) click **Code → Download ZIP** and unzip it, or clone it:
-   ```bash
-   git clone https://github.com/nibinemui/Lumiose-Toolkit.git
-   ```
-   You should now have a folder (called `Lumiose Toolkit` below) containing `za_extractor.py`, `Lumiose Toolkit.bat` and `tools/`.
-
-3. **Install the Python packages.** Open a Command Prompt in that folder (type `cmd` in the Explorer address bar and press Enter), then run:
-   ```bash
-   python -m pip install -r requirements.txt
-   ```
-   Then download the PokeDocs data files (file-name list and data schemas; they are fetched from
-   [pkZukan/PokeDocs](https://github.com/pkZukan/PokeDocs) instead of being shipped, and the program also does this by
-   itself on first start):
-   ```bash
-   python za_deps.py
-   ```
-
-4. **Check the tools folder.** If you downloaded a release zip, `tools/` is complete. If you cloned the source and the tools are missing, download them from the links in the table above and place them exactly like this:
-   ```
-   tools/flatc/flatc.exe
-   tools/texconv/texconv.exe
-   tools/vgmstream/vgmstream-cli.exe   (plus all the .dll files from the same zip)
-   tools/three/three.module.js                       (three@0.160.0  build/three.module.js)
-   tools/three/addons/controls/OrbitControls.js      (examples/jsm/controls/)
-   tools/three/addons/loaders/GLTFLoader.js          (examples/jsm/loaders/)
-   tools/three/addons/utils/BufferGeometryUtils.js   (examples/jsm/utils/)
-   tools/viewer/viewer.html                          (part of this repository)
-   ```
-
-5. **WebView2**: on Windows 10, install the *Evergreen* WebView2 Runtime if the 3D viewer window stays blank.
+On the first start the program downloads two small data files from
+[PokeDocs](https://github.com/pkZukan/PokeDocs) (the file-name list and some data layouts). This needs an
+internet connection once.
 
 ---
 
-## Preparing the game files
+## Importing your game files
 
-Lumiose Toolkit works on an **extracted** copy of the game's `romfs`.
+The first time you start Lumiose Toolkit, the **Import game files** window opens. You can also open it
+any time with **Import game files…** in the top bar.
 
-1. **Dump the game** from your own Switch with a homebrew dumping tool. Dump the RomFS of the base game (title ID `0100F43008C44000`; apply the latest update if your tool supports it).
-   You need the folder that contains `arc\data.trpfd` and `arc\data.trpfs`.
+1. **Game dump (RomFS):** pick your dump's `romfs` folder, the one that has an `arc` folder inside with
+   `data.trpfd` and `data.trpfs`. Picking the folder above it works too.
+2. **Put the game files in:** a folder with about 25 GB free. A suggestion is filled in for you.
+3. **Oodle DLL:** found automatically if it's on your PC. If not, click **Browse…** and pick
+   `oo2core_8_win64.dll` (or `oo2core_9_win64.dll`).
+   - Oodle is a proprietary compression library owned by Epic Games (RAD Game Tools), so it can't be included
+     here. It comes with several Pokémon modding tools (for example pkNX) and with many PC games.
+4. Click **Import**. It unpacks all 238,546 files, then copies the dump's other folders (audio, …).
+   - It never overwrites anything.
+   - You can press **Stop** and continue later; Import picks up where it stopped.
 
-2. **Get the Oodle DLL** `oo2core_8_win64.dll`. It cannot be redistributed. Several Pokémon modding tools (for example pkNX) ship it alongside their program; copy it from there.
+When it's done, Lumiose Toolkit switches to the new folder by itself.
 
-3. **Make an export folder**, for example `D:\ZA EXPORT`, and **put the `Lumiose Toolkit` folder inside it**:
-   ```
-   D:\ZA EXPORT\
-       Lumiose Toolkit\      <- this program
-   ```
-   The program treats its parent folder as the game folder by default. You can choose another folder later with *Browse…* in the top bar.
+Already unpacked the game with another tool? Click **I already have the files – choose the folder…** instead.
 
-4. **Extract the archive** with the included script. It writes every file from `data.trpfs` into the export folder, never overwrites anything, and can be run again safely:
-   ```bash
-   python restore_missing.py "D:\Dump\romfs\arc" "D:\ZA EXPORT" "C:\path\to\oo2core_8_win64.dll" names\za_hashes_inside_fd.txt
-   ```
-   Add `--dry-run` first to see how many files it would write. Files without a known name are saved as `<HASH>.bin`; the program labels what they are.
-
-5. **Copy the loose folders** that are not inside the archive: copy `romfs\audio` (and `romfs\system`, if present) into the export folder, so you get `D:\ZA EXPORT\audio\…`.
+> Command-line alternative: `restore_missing.exe` in the program folder does the same unpacking.
+> Run it without arguments to see how to use it.
 
 ---
 
-## First start
+## First steps
 
-- Double-click **`Lumiose Toolkit.bat`**. It starts the program without a console window.
-  To make a desktop shortcut, right-click the .bat → *Send to* → *Desktop (create shortcut)*. You can set `lumiose_toolkit.ico` as its icon in the shortcut's Properties.
-- The first start indexes the files and names, which takes a few seconds. The first *Game text* search builds a text index.
-- In the top bar, check **Game folder** (the export folder) and **Output** (where extractions go; default `Lumiose Toolkit\extracted`).
-- Click **New mod…** before editing anything. All edits go into the *current mod*.
-- On the **Mods** tab, set **Game romfs** to your unmodified dump's `romfs` folder (needed for Switch/emulator packages). If you use ZA Recomp, also pick the **ZA Recomp / Lumiose Online folder** there (the folder with `lasrecomp.exe`) so "Install to Recomp" and the launch buttons work. Its drop-down lists every install found on your drives, so if you have a separate dev and player copy, choose the one you want the mod in.
+- The first start indexes the files and names (a few seconds). The first *Game text* search builds a text index.
+- In the top bar, **Game folder** is where your game files are, and **Output** is where exported files go
+  (default: the `extracted` folder next to the program).
+- Click **New mod…** before editing anything. Every edit goes into the *current mod*, never into the game files.
+- On the **Mods** tab:
+  - **Game romfs** is filled in by the import (your unmodified dump's `romfs` folder). Switch and emulator packages need it.
+  - **ZA Recomp / Lumiose Online folder** is found automatically if you have ZA Recomp installed. If you have
+    several installs, pick the one you want mods in.
 
 ---
 
@@ -272,15 +242,16 @@ That index is made for exactly the mods in the package, so **build one combined 
 
 | Problem | Fix |
 |---|---|
-| Double-clicking the .bat does nothing | Python isn't on PATH. Reinstall Python with "Add python.exe to PATH", or run `python za_extractor.py` in a Command Prompt to see the error. |
-| `ModuleNotFoundError: numpy / PIL / webview` | Run `python -m pip install -r requirements.txt` again. |
+| "Windows protected your PC" when starting | The program isn't code-signed. Click **More info → Run anyway**. |
+| Antivirus deletes or blocks `Lumiose Toolkit.exe` | Some antivirus programs flag Python programs packed into an .exe (a known false positive). Allow the file, or [run from source](#running-from-source-developers). |
+| The program doesn't start | Make sure the whole unzipped folder is kept together (`_internal` and `tools` next to the .exe). Errors are written to `error_log.txt` in the program folder. |
+| Import: "Pick the Oodle DLL" | The Oodle DLL wasn't found on your PC. Pick `oo2core_8_win64.dll` (or `oo2core_9_win64.dll`) with **Browse…**; it comes with tools like pkNX and many PC games. |
+| Import: "No arc\data.trpfd …" | Pick the dump's `romfs` folder, the one that contains the `arc` folder. |
+| Pokémon data tab won't load / "PokeDocs" message | The program couldn't download the PokeDocs files. Connect to the internet and restart it. |
 | 3D viewer window is blank | Install the WebView2 Runtime. |
 | "No schema known for …" | That data file has no known layout yet; it can still be extracted as raw bytes. |
-| Data/texture import fails | Check that `tools/flatc/flatc.exe` and `tools/texconv/texconv.exe` exist. |
-| No sound / audio list empty | `tools/vgmstream/vgmstream-cli.exe` and its DLLs must be present; copy `romfs\audio` into the export folder. |
-| "names\za_hashes_inside_fd.txt not found" / Pokémon data tab won't load | Run `python za_deps.py` while online (downloads the PokeDocs files). |
-| `restore_missing.py` fails | Point it at the `arc` folder (the one containing `data.trpfd`/`data.trpfs`) and at a 64-bit `oo2core_8_win64.dll`. |
-| Something else | Program errors are written to `Lumiose Toolkit\error_log.txt`; extraction errors go to `_extract_errors.txt` in the output folder. |
+| No sound / audio list empty | The game's `audio` folder is missing from the game folder. Run **Import game files…** again; it copies it. |
+| Something else | Program errors are written to `error_log.txt` in the program folder; extraction errors go to `_extract_errors.txt` in the output folder. |
 
 ---
 
@@ -294,34 +265,66 @@ That index is made for exactly the mods in the package, so **build one combined 
 
 ---
 
+## Running from source (developers)
+
+The release .exe is built from this repository. To run or change the Python source instead:
+
+1. Install [Python](https://www.python.org/downloads/windows/) 3.10–3.12 (tested on 3.11) and tick **"Add python.exe to PATH"**.
+2. Clone the repository and install the packages:
+   ```bash
+   git clone https://github.com/nibinemui/Lumiose-Toolkit.git
+   ```
+   ```bash
+   python -m pip install -r requirements.txt
+   ```
+3. Start it with **`Lumiose Toolkit.bat`** (or `python za_extractor.py`).
+   The helper programs in `tools/` are part of the repository. If any are missing, get them from the links in
+   [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) and put them back at the same paths
+   (`tools/flatc/flatc.exe`, `tools/texconv/texconv.exe`, `tools/vgmstream/…`, `tools/three/…`).
+4. Build the .exe release yourself:
+   ```bash
+   python -m pip install pyinstaller
+   ```
+   ```bash
+   python build_exe.py
+   ```
+   This creates `dist/Lumiose Toolkit/` and `dist/Lumiose-Toolkit-<version>-windows.zip`.
+
+---
+
 ## Project layout
 
 ```
 Lumiose Toolkit/
-  Lumiose Toolkit.bat     start the program
-  za_extractor.py      main window (Browse & extract, Mods tabs)
-  za_formats.py        BNTX textures, message text, SARC archives, file detection
-  za_trinity.py        Trinity models, materials, skeletons, animations, glTF export, clothing colours
-  za_viewer.py         3D viewer (local web server + pywebview window)
-  za_modding.py        JSON ⇄ data, text/texture import, mods, history, packaging, Recomp install
-  za_dataedit.py       Game data tab (schema-driven table editor)
-  za_pokedit.py        Pokémon data tab
-  za_map.py            Map tab
-  za_mated.py          material colour editor
-  za_textedit.py       in-app text editor
-  za_history.py        mod history / compare / restore window
-  za_import.py         experimental glTF → model import
-  za_audio.py          experimental WAV → Wwise import
-  za_names.py          name index (Pokémon, clothing)
-  restore_missing.py   extract files from data.trpfs
-  za_deps.py           downloads the PokeDocs files (hash list, schemas) on first start
-  gen_trinity_fbs.py   build Trinity schemas from GFTool's sources
-  bfbs_dump.py         print a binary schema (.bfbs) as text
-  names/               fallback name lists (+ the PokeDocs hash list, downloaded)
-  LICENSE              GPL-2.0
+  Lumiose Toolkit.exe     the program (release download; also starts itself as the 3D viewer)
+  restore_missing.exe     command-line game unpacker (release download)
+  Lumiose Toolkit.bat     start the program from source
+  za_extractor.py         main window (Browse & extract, Mods tabs)
+  za_setup.py             Import game files window
+  za_formats.py           BNTX textures, message text, SARC archives, file detection
+  za_trinity.py           Trinity models, materials, skeletons, animations, glTF export, clothing colours
+  za_viewer.py            3D viewer (local web server + pywebview window)
+  za_modding.py           JSON ⇄ data, text/texture import, mods, history, packaging, Recomp install
+  za_dataedit.py          Game data tab (schema-driven table editor)
+  za_pokedit.py           Pokémon data tab
+  za_map.py               Map tab
+  za_mated.py             material colour editor
+  za_textedit.py          in-app text editor
+  za_history.py           mod history / compare / restore window
+  za_import.py            experimental glTF → model import
+  za_audio.py             experimental WAV → Wwise import
+  za_names.py             name index (Pokémon, clothing)
+  za_deps.py              downloads the PokeDocs files (hash list, schemas) on first start
+  restore_missing.py      unpacks data.trpfs (used by Import game files and restore_missing.exe)
+  build_exe.py            builds the .exe release with PyInstaller
+  gen_trinity_fbs.py      builds Trinity schemas from GFTool's sources
+  bfbs_dump.py            prints a binary schema (.bfbs) as text
+  names/                  fallback name lists (+ the PokeDocs hash list, downloaded)
+  tools/                  helper programs, schemas, 3D viewer page, icon builder
+  LICENSE                 GPL-2.0
   THIRD_PARTY_NOTICES.md, licenses/   licences of everything bundled
-  tools/               helper programs and schemas (see Requirements)
-  mods/                your mods (created on first use)
+  source/                 (release download only) the complete source of that version
+  mods/                   your mods (created on first use)
 ```
 
 ---
@@ -336,5 +339,30 @@ Every bundled component, its licence and its source is listed in
 - **Hash list and Scarlet/Violet schemas**: [pkZukan/PokeDocs](https://github.com/pkZukan/PokeDocs).
 - **Gen 9 species numbering** (reference data): [kwsch/PKHeX](https://github.com/kwsch/PKHeX).
 - **Move / item / shop / clothing-colour layouts**: reverse-engineered for this project.
-- **Bundled tools**: FlatBuffers `flatc` (Google, Apache-2.0), `texconv` (Microsoft DirectXTex, MIT), vgmstream (ISC; its FFmpeg/mpg123 DLLs are LGPL-2.1, its Xiph codec DLLs are BSD), three.js (MIT). **Python packages** (installed separately): NumPy (BSD), Pillow (MIT-CMU), pywebview (BSD).
+- **Bundled tools**: FlatBuffers `flatc` (Google, Apache-2.0), `texconv` (Microsoft DirectXTex, MIT), vgmstream (ISC; its FFmpeg/mpg123 DLLs are LGPL-2.1, its Xiph codec DLLs are BSD), three.js (MIT). **Python packages** (bundled in the .exe, installed separately when running from source): NumPy (BSD), Pillow (MIT-CMU), pywebview (BSD).
 - *Pokémon* and *Pokémon Legends: Z-A* are trademarks of Nintendo / Creatures Inc. / GAME FREAK inc. This is an unofficial fan tool for use with your own legally obtained copy of the game; no game files are included.
+
+---
+
+## AI disclosure
+
+Lumiose Toolkit was made with the help of AI. It was developed by nibinemui together with **Claude**
+(Anthropic's AI model, used through Claude Code). Claude wrote most of the program's code, the
+reverse-engineered data layouts, the documentation (including this README) and the licence notices, under
+nibinemui's direction and review.
+
+What that means for you:
+
+- **Test before you trust.** Every feature was tested on a real game dump while it was being built, but
+  nothing in the program has been confirmed in the game itself yet. Check your mods in-game before you
+  share them, especially the parts marked *experimental*.
+- **Reverse-engineered data can be wrong.** The move, item, shop and clothing-colour layouts were worked
+  out by analysing the game's files. Fields still named `Unknown…` haven't been identified, and an
+  identified field's meaning could still be off.
+- **The licence notices were prepared with AI help, not by a lawyer.** They were researched from each
+  project's actual licence files, but if you redistribute Lumiose Toolkit, check that they fit your
+  situation.
+- The program does not use AI while it runs. It does not send your files or data to any AI service. Its
+  only network activity is downloading the PokeDocs data files on first start.
+- The icon is a render of the game's own Luxury Ball 3D model, composed by Claude; no AI image generator
+  was used.

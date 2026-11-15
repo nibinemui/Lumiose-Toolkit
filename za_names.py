@@ -11,13 +11,14 @@ Sources
 """
 import difflib
 import os
+import sys
 import re
 import struct
 import unicodedata
 
 import za_formats as zf
 
-APP_DIR = os.path.dirname(os.path.abspath(__file__))
+APP_DIR = os.path.dirname(sys.executable) if getattr(sys, 'frozen', False) else os.path.dirname(os.path.abspath(__file__))   # the .exe's folder when frozen
 NAMES_DIR = os.path.join(APP_DIR, 'names')
 
 CLOTHING_CATS = {

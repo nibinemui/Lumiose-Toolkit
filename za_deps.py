@@ -11,7 +11,7 @@ import sys
 import tempfile
 import urllib.request
 
-APP_DIR = os.path.dirname(os.path.abspath(__file__))
+APP_DIR = os.path.dirname(sys.executable) if getattr(sys, 'frozen', False) else os.path.dirname(os.path.abspath(__file__))   # the .exe's folder when frozen
 BASE = 'https://raw.githubusercontent.com/pkZukan/PokeDocs/main/'
 SCHEMAS = os.path.join(APP_DIR, 'tools', 'schemas', 'pokedocs')
 

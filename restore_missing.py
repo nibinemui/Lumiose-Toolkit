@@ -59,10 +59,34 @@ class Oodle:
 
 
 def main():
-    arc, export, dll, listing = sys.argv[1:5]
-    dry = '--dry-run' in sys.argv
-    t0 = time.time()
+    args = [a for a in sys.argv[1:] if a != '--dry-run']
+    if len(args) < 4:
+        print('Extracts every file of Pokemon Legends: Z-A from the game archive (data.trpfs) into a folder.\n\n'
+              'Usage:\n'
+              '  restore_missing <romfs\\arc folder> <export folder> <oo2core_8_win64.dll> <hash list> [--dry-run]\n\n'
+              '  romfs\\arc folder   the folder of your dump that contains data.trpfd and data.trpfs\n'
+              '  export folder      where the files go (existing files are never overwritten)\n'
+              '  oo2core_8_win64.dll the Oodle decompression DLL (not included; e.g. from pkNX)\n'
+              '  hash list          names\\za_hashes_inside_fd.txt (Lumiose Toolkit downloads it on first start)\n'
+              '  --dry-run          only count what would be written\n\n'
+              'Example:\n'
+              '  restore_missing "D:\\Dump\\romfs\\arc" "D:\\ZA EXPORT" "C:\\pkNX\\oo2core_8_win64.dll" '
+              'names\\za_hashes_inside_fd.txt')
+        return 1
+    arc, export, dll, listing = args[:4]
+    restore(arc, export, dll, listing, dry='--dry-run' in sys.argv)
+    return 0
 
+
+def restore(arc, export, dll, listing, dry=False, log=None, progress=None, cancel=None):
+    """Write every game file from <arc>/data.trpfs that is missing in <export>.
+    log(text), progress(done_packs, total_packs, files_written), cancel() -> True to stop.
+    Returns (files written, bytes written, pack errors)."""
+    if log is None:
+        def log(text):
+            print(text)
+            sys.stdout.flush()
+    t0 = time.time()
     # index: file hashes -> pack index, pack names
     fd = open(os.path.join(arc, 'data.trpfd'), 'rb').read()
     root = u32(fd, 0)
@@ -115,15 +139,14 @@ def main():
             wanted.setdefault(pk, []).append(h)
     nfiles = sum(len(v) for v in wanted.values())
     unnamed = sum(1 for v in wanted.values() for h in v if h not in names)
-    print('game files: %d in %d packs' % (n0, n1))
-    print('missing from export: %d files in %d packs (%d without a known name)' % (nfiles, len(wanted), unnamed))
-    sys.stdout.flush()
+    log('game files: %d in %d packs' % (n0, n1))
+    log('missing from export: %d files in %d packs (%d without a known name)' % (nfiles, len(wanted), unnamed))
     if dry:
-        return
+        return 0, 0, 0
 
     oodle = Oodle(dll)
-    manifest = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'restored_files.txt'), 'a',
-                    encoding='utf-8')
+    here = os.path.dirname(sys.executable) if getattr(sys, 'frozen', False) else os.path.dirname(os.path.abspath(__file__))
+    manifest = open(os.path.join(here, 'restored_files.txt'), 'a', encoding='utf-8')
     written = errors = 0
     total_bytes = 0
     for i, (pk, hs) in enumerate(sorted(wanted.items())):
@@ -159,15 +182,21 @@ def main():
                 total_bytes += len(data)
         except Exception as e:  # noqa: BLE001
             errors += 1
-            print('ERROR pack %s: %s' % (pack_names[pk], e))
+            log('ERROR pack %s: %s' % (pack_names[pk], e))
+        if progress:
+            progress(i + 1, len(wanted), written)
         if i % 500 == 0:
-            print('  %d / %d packs, %d files written' % (i, len(wanted), written))
-            sys.stdout.flush()
+            log('  %d / %d packs, %d files written' % (i, len(wanted), written))
             manifest.flush()
+        if cancel and cancel():
+            log('Stopped. Run it again to continue - files already written are kept.')
+            break
     manifest.close()
-    print('DONE: wrote %d files (%.1f MB), %d pack errors, %.0fs'
-          % (written, total_bytes / 1048576, errors, time.time() - t0))
+    log('DONE: wrote %d files (%.1f MB), %d pack errors, %.0fs'
+        % (written, total_bytes / 1048576, errors, time.time() - t0))
+    trpfs.close()
+    return written, total_bytes, errors
 
 
 if __name__ == '__main__':
-    main()
+    sys.exit(main())

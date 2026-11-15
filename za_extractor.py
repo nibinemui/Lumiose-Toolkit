@@ -21,7 +21,7 @@ from tkinter.scrolledtext import ScrolledText
 import numpy as np
 from PIL import Image, ImageTk
 
-APP_DIR = os.path.dirname(os.path.abspath(__file__))
+APP_DIR = os.path.dirname(sys.executable) if getattr(sys, 'frozen', False) else os.path.dirname(os.path.abspath(__file__))   # the .exe's folder when frozen
 sys.path.insert(0, APP_DIR)
 import za_formats as zf  # noqa: E402
 import za_names as zn  # noqa: E402
@@ -31,7 +31,7 @@ import za_modding as zm  # noqa: E402
 AUDIO_EXTS = ('.bnk', '.pck', '.wem')
 # Trinity formats converted to JSON during bulk extraction (animations/buffers only when picked directly)
 BULK_JSON_EXTS = ('.bin', '.trmtr', '.trmdl', '.trskl', '.trmsh', '.trscn', '.trins', '.trpmcatalog')
-DEFAULT_GAME_ROMFS = ''
+DEFAULT_GAME_ROMFS = ''          # set on the Mods tab (an unmodified dump's romfs folder)
 
 
 def pythonw():
@@ -40,8 +40,15 @@ def pythonw():
     return cand if os.path.isfile(cand) else exe
 
 
+def viewer_command():
+    """How to start the 3D viewer: the .exe runs itself with --viewer; from source it runs za_viewer.py."""
+    if getattr(sys, 'frozen', False):
+        return [sys.executable, '--viewer']
+    return [pythonw(), os.path.join(APP_DIR, 'za_viewer.py')]
+
+
 def launch_viewer(model_path, anim_path=None):
-    args = [pythonw(), os.path.join(APP_DIR, 'za_viewer.py'), model_path]
+    args = viewer_command() + [model_path]
     if anim_path:
         args += ['--anim', anim_path]
     subprocess.Popen(args, cwd=APP_DIR)
@@ -482,7 +489,8 @@ class App(tk.Tk):
         ttk.Label(top, text='Game folder:').pack(side='left')
         ttk.Entry(top, textvariable=self.root_var, width=30).pack(side='left', padx=3)
         ttk.Button(top, text='Browse…', command=self.pick_root).pack(side='left')
-        ttk.Button(top, text='Reload', command=self.reload_root).pack(side='left', padx=(3, 12))
+        ttk.Button(top, text='Reload', command=self.reload_root).pack(side='left', padx=(3, 3))
+        ttk.Button(top, text='Import game files…', command=self.import_game_files).pack(side='left', padx=(0, 12))
         ttk.Label(top, text='Output:').pack(side='left')
         ttk.Entry(top, textvariable=self.out_var, width=30).pack(side='left', padx=3)
         ttk.Button(top, text='Browse…', command=self.pick_out).pack(side='left')
@@ -693,7 +701,18 @@ class App(tk.Tk):
                 self._recomp_found = zm.find_recomp_installs()
             except Exception:  # noqa: BLE001
                 self._recomp_found = []
+            if self._recomp_found:            # only set it if the user has none (checked on the main thread)
+                first = self._recomp_found[0]
+                self.q.put(lambda: self.recomp_var.get() or self.recomp_var.set(first))
         threading.Thread(target=find_installs, daemon=True).start()
+
+        # first start (or a folder without game files): offer to import them
+        try:
+            import za_setup
+            if not za_setup.looks_like_game_folder(self.root_var.get()):
+                self.after(700, lambda: self.import_game_files(first_start=True))
+        except Exception:  # noqa: BLE001
+            log_error(traceback.format_exc())
 
         self.show_text_mode('Select a file on the left to preview it.\n\n'
                             'Tips:\n'
@@ -1082,6 +1101,10 @@ class App(tk.Tk):
                                                           os.startfile(out)))
 
     # ---------------- folder pickers ----------------
+    def import_game_files(self, first_start=False):
+        import za_setup
+        za_setup.ImportWindow(self, first_start=first_start)
+
     def pick_root(self):
         d = filedialog.askdirectory(initialdir=self.root_var.get() or DEFAULT_ROOT, title='Choose the game export folder')
         if d:
@@ -1689,7 +1712,7 @@ class App(tk.Tk):
             ttk.Button(self.act_bar, text=label, command=cmd).pack(side='left', padx=(0, 4))
 
     def open_viewer(self, model_path, anim_path=None, with_mod=True, extra=None):
-        args = [pythonw(), os.path.join(APP_DIR, 'za_viewer.py'), model_path]
+        args = viewer_command() + [model_path]
         if anim_path:
             args += ['--anim', anim_path]
         m = self.current_mod(ask=False) if with_mod else None
@@ -2426,6 +2449,10 @@ class App(tk.Tk):
 
 
 def main():
+    if '--viewer' in sys.argv:          # the .exe started as the 3D viewer (see viewer_command)
+        sys.argv.remove('--viewer')
+        import za_viewer
+        return za_viewer.main()
     try:
         # own taskbar identity, so Windows shows our icon instead of Python's
         import ctypes
