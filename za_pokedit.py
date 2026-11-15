@@ -57,8 +57,13 @@ class PokemonTab:
         self.only_za = tk.BooleanVar(value=True)
         ttk.Checkbutton(left, text='Only Pokémon in Legends: Z-A', variable=self.only_za,
                         command=self.fill_list).pack(anchor='w')
-        self.lst = ttk.Treeview(left, show='tree', selectmode='browse')
-        self.lst.pack(fill='both', expand=True, pady=(4, 0))
+        lf = ttk.Frame(left)
+        lf.pack(fill='both', expand=True, pady=(4, 0))
+        self.lst = ttk.Treeview(lf, show='tree', selectmode='browse')
+        sb = ttk.Scrollbar(lf, orient='vertical', command=self.lst.yview)
+        self.lst.configure(yscrollcommand=sb.set)
+        sb.pack(side='right', fill='y')
+        self.lst.pack(side='left', fill='both', expand=True)
         self.lst.bind('<<TreeviewSelect>>', lambda e: self.select())
 
         right = ttk.Frame(paned)

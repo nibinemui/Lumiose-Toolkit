@@ -41,7 +41,11 @@ PRESETS = [
          schema=os.path.join(zm.SCHEMAS, 'pokedocs', 'dress_up_data.fbs'), rows='items',
          label=lambda r, N: '%d %s%s' % (r.get('id', 0), N.clothing(r.get('id', 0)),
                                          '  $%d' % r['price'] if r.get('price') else ''),
-         lookups={'id': 'clothing'}, note='Every clothing item and colour variant: price, colours, icon.'),
+         lookups={'id': 'clothing'}, note='Every clothing item and colour variant: price, colours, icon. '
+                                          'Try on / View in 3D show the selected variant in its in-game colours.',
+         actions=[('Try on', lambda tab, v: tab.app.open_clothing_variant(v, True)),
+                  ('View in 3D', lambda tab, v: tab.app.open_clothing_variant(v, False)),
+                  ('Edit colours…', lambda tab, v: tab.app.edit_clothing_colours(tab.app.clothing_model(v['folder']), v))]),
     dict(name='Clothing shops', rel='world/exl/shop/shop_dress_up_lineup/shop_dress_up_lineup.bin',
          schema=os.path.join(ZA, 'za_shop_dressup_lineup.fbs'), rows='Table', label=lambda r, N: r.get('id', '?'),
          lookups={'itemId': 'clothing'}, note='Which clothes each boutique sells (prices are in "Clothing items").'),
@@ -353,14 +357,21 @@ class DataTab:
         self.q.trace_add('write', lambda *a: self.fill_rows())
         self.only_var = tk.BooleanVar(value=True)
         self.only_chk = ttk.Checkbutton(left, variable=self.only_var, command=self.fill_rows)
-        self.list = ttk.Treeview(left, show='tree', selectmode='browse')
-        self.list.pack(fill='both', expand=True, pady=(4, 0))
+        self.list_frame = ttk.Frame(left)
+        self.list_frame.pack(fill='both', expand=True, pady=(4, 0))
+        self.list = ttk.Treeview(self.list_frame, show='tree', selectmode='browse')
+        sb = ttk.Scrollbar(self.list_frame, orient='vertical', command=self.list.yview)
+        self.list.configure(yscrollcommand=sb.set)
+        sb.pack(side='right', fill='y')
+        self.list.pack(side='left', fill='both', expand=True)
         self.list.bind('<<TreeviewSelect>>', lambda e: self.select_row())
         rb = ttk.Frame(left)
         rb.pack(fill='x', pady=2)
         ttk.Button(rb, text='Duplicate row', command=self.dup_row).pack(side='left')
         ttk.Button(rb, text='Delete row', command=self.del_row).pack(side='left', padx=3)
         ttk.Button(rb, text='Edit row as JSON…', command=self.row_json).pack(side='left')
+        self.preset_bar = ttk.Frame(left)          # buttons a table adds for its rows (e.g. clothing: Try on)
+        self.preset_bar.pack(fill='x', pady=(0, 2))
 
         right = ttk.Frame(paned)
         paned.add(right, weight=3)
@@ -468,10 +479,14 @@ class DataTab:
         for en, e in sch.enums.items():
             if en.endswith('DevID'):
                 self.names.dev_enum = {n: v for n, v in e['values']}
+        for w in self.preset_bar.winfo_children():
+            w.destroy()
+        for label, fn in preset.get('actions', []):
+            ttk.Button(self.preset_bar, text=label, command=lambda f=fn: self.run_action(f)).pack(side='left', padx=(0, 3))
         only = preset.get('only')
         if only:
             self.only_chk.configure(text=only[0])
-            self.only_chk.pack(anchor='w', before=self.list)
+            self.only_chk.pack(anchor='w', before=self.list_frame)
         else:
             self.only_chk.pack_forget()
         self.info.set('%s — %d rows%s.  %s' % (rel, len(self.rows), ' (from the current mod)' if 'romfs' in src else '',
@@ -535,6 +550,20 @@ class DataTab:
             lab = self.row_label(self.cur, self.rows[self.cur])
             self.list.item(str(self.cur), text=lab)
             self.row_title.set(lab)
+
+    def run_action(self, fn):
+        """A table's own row button (clothing: open the selected variant in 3D)."""
+        if self.cur is None:
+            self.app.status_var.set('Select a row first.')
+            return
+        import za_names
+        r = self.rows[self.cur]
+        v = za_names.parse_texture_path(r.get('texturePath', ''))
+        if not v:
+            self.app.status_var.set('This row has no model to show.')
+            return
+        v.update(id=r.get('id', 0))
+        fn(self, v)
 
     def dup_row(self):
         if self.cur is None:

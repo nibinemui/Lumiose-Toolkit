@@ -136,6 +136,10 @@ function colourQuery() {
   const groups = ((info.colours || {})[vsel.value] || []).map(g => g.group);
   return groups.map(g => '&cg_' + encodeURIComponent(g) + '=' + (colourChoice[g] || 0)).join('');
 }
+if (info.initial) {                       // opened on one exact shop variant
+  vsel.value = info.initial.variant;
+  Object.assign(colourChoice, info.initial.choices || {});
+}
 buildColours();
 
 function loadModel() {

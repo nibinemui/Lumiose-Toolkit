@@ -285,6 +285,7 @@ class App(tk.Tk):
         self.minsize(900, 520)
         self.q = queue.Queue()
         self.live = {}              # live-edited PNG -> info (see live_edit_texture)
+        self.variant_by_id = {}     # dress-up item id -> clothing colour variant (search results)
         self._live_after = None
         self.settings = self.load_settings()
 
@@ -455,6 +456,8 @@ class App(tk.Tk):
         if hasattr(self, 'map_canvas'):
             self.map_canvas.configure(background=c['canvas'])
             self.draw_map()
+        if hasattr(self, 'data_ui'):          # Game data tab: the scrolling form area follows the theme
+            self.data_ui.canvas.configure(background=c['bg'])
         self.menu.configure(background=c['panel'], foreground=c['fg'], activebackground=c['sel'],
                             activeforeground=c['selfg'], borderwidth=0)
         self.tree.tag_configure('name', foreground=c['accent'], font=('Segoe UI', 9, 'bold'))
@@ -676,6 +679,7 @@ class App(tk.Tk):
         try:
             import za_dataedit
             self.data_ui = za_dataedit.DataTab(self, self.data_tab)
+            self.data_ui.canvas.configure(background=THEMES['dark' if self.dark_var.get() else 'light']['bg'])
         except Exception:  # noqa: BLE001
             log_error(traceback.format_exc())
             ttk.Label(self.data_tab, text='Game data tab could not start - see error_log.txt').pack(pady=20)
@@ -1290,6 +1294,22 @@ class App(tk.Tk):
         entry, nodes, count = self.name_hits[iid]
         prefix = '~%s~' % iid[2:]
         root = os.path.normpath(self.root_var.get())
+        if entry.kind == 'Clothing' and getattr(entry, 'key', None):
+            try:
+                variants = zn.clothing_variants(root).get(entry.key, [])
+            except Exception:  # noqa: BLE001
+                variants = []
+            if variants:
+                gid = prefix + 'CV|' + entry.key
+                if not self.tree.exists(gid):
+                    self.tree.insert(iid, 'end', gid, text='Colour variants (%d)' % len(variants),
+                                     values=('', 'In-game colours'))
+                    for v in variants:
+                        self.variant_by_id[v['id']] = v
+                        self.tree.insert(gid, 'end', prefix + 'VI|%d' % v['id'],
+                                         text='%s   (#%d%s)' % (zn.variant_label(v), v['id'],
+                                                               ', $%d' % v['price'] if v['price'] else ''),
+                                         values=('', 'Variant'))
         for kind, path in nodes:
             rel = os.path.relpath(path, root)
             if kind == 'D':
@@ -1527,6 +1547,34 @@ class App(tk.Tk):
                           'p0_ = shared by both.  model_pc holds the 3D model + textures.']
             self.show_text_mode('\n'.join(lines))
             return
+        if iid.startswith('CV|'):
+            self.preview_token += 1
+            self.cur = None
+            self.info_var.set('Colour variants')
+            self.show_text_mode('Every colour variant the game sells of this item, with its in-game colour names.\n\n'
+                                'Expand the group and pick one: "Try on player body" and "Open 3D viewer" then show '
+                                'exactly that variant, and "Edit clothing colours..." changes the colours in your mod.')
+            self.set_actions(None)
+            return
+        if iid.startswith('VI|'):
+            self.preview_token += 1
+            v = self.variant_by_id.get(int(iid[3:]))
+            if not v:
+                return
+            self.cur = {'kind': 'clothing_variant', 'variant': v}
+            pat = 'Pattern %s' % v['set'][4:] if v['set'].startswith('tex_') else v['set'].title()
+            self.info_var.set('%s   [clothing variant #%d]' % (zn.variant_label(v), v['id']))
+            lines = ['%s' % zn.variant_label(v), '',
+                     'Item id:       %d' % v['id'],
+                     'Model folder:  ik_chara\\model_pc\\%s' % v['folder'],
+                     'Pattern:       %s (%s)' % (pat, v['set']),
+                     'Main colour:   %s' % (v['main_name'] or ('choice %d' % (v['main'] + 1) if v['main'] is not None else 'fixed')),
+                     'Second colour: %s' % (v['second_name'] or ('choice %d' % (v['second'] + 1) if v['second'] is not None else 'fixed')),
+                     'Price:         %s' % ('$%d' % v['price'] if v['price'] else 'not sold / free'),
+                     '', 'Shop icon:     %s' % v['texturePath']]
+            self.show_text_mode('\n'.join(lines))
+            self.set_actions(self.cur)
+            return
         if iid.startswith('D|'):
             self.preview_token += 1
             self.cur = None
@@ -1668,6 +1716,11 @@ class App(tk.Tk):
             return
         kind, path = res.get('kind'), res.get('path')
         acts = []
+        if kind == 'clothing_variant':
+            v = res['variant']
+            acts += [('Try on player body (these colours)', lambda: self.open_clothing_variant(v, True)),
+                     ('Open 3D viewer (these colours)', lambda: self.open_clothing_variant(v, False)),
+                     ('Edit clothing colours…', lambda: self.edit_clothing_colours(self.clothing_model(v['folder']), v))]
         if kind == 'model':
             acts += [('Open 3D viewer', lambda: self.open_viewer(path)),
                      ('Edit colours…', lambda: self.edit_materials(path)),
@@ -1675,6 +1728,12 @@ class App(tk.Tk):
                      ('Import edited glTF into mod… (experimental)', lambda: self.import_model(path))]
             if '\\p1_' in path or '\\p2_' in path or '/p1_' in path or '/p2_' in path:
                 acts.insert(1, ('Try on player body', lambda: self.try_on(path)))
+                try:
+                    has_colours = bool(zt.clothing_sets(path))
+                except Exception:  # noqa: BLE001
+                    has_colours = False
+                if has_colours:
+                    acts.insert(3, ('Edit clothing colours…', lambda: self.edit_clothing_colours(path)))
         elif kind == 'anim':
             if res.get('model'):
                 acts += [('Play in 3D viewer', lambda: self.open_viewer(res['model'], path)),
@@ -1746,6 +1805,42 @@ class App(tk.Tk):
             self.mod_changed(m, os.path.basename(model_path), 'model imported')
             messagebox.showinfo('Model import', '\n'.join(report))
         self.run_bg('Importing model', lambda: za_import.import_gltf(p, model_path, m), done)
+
+    def clothing_model(self, folder):
+        """The .trmdl of a clothing model folder (ik_chara/model_pc/<folder>)."""
+        d = os.path.join(self.root_var.get(), 'ik_chara', 'model_pc', folder)
+        try:
+            cands = sorted(f for f in os.listdir(d) if f.lower().endswith('.trmdl'))
+        except OSError:
+            return None
+        stem = '_'.join(folder.split('_')[:3])                  # p2_upb0000_00
+        best = next((c for c in cands if c.lower().startswith(stem.lower() + '.')), cands[0] if cands else None)
+        return os.path.join(d, best) if best else None
+
+    def open_clothing_variant(self, v, outfit=True):
+        """Open one shop variant (pattern + colours) in the 3D viewer, on the player or on its own."""
+        model = self.clothing_model(v['folder'])
+        if not model:
+            messagebox.showerror('Lumiose Toolkit', 'Model folder not found: %s' % v['folder'])
+            return
+        extra = ['--pattern', v['set']]
+        if v.get('main') is not None:
+            extra += ['--main', str(v['main'])]
+        if v.get('second') is not None:
+            extra += ['--second', str(v['second'])]
+        if outfit:
+            extra.append('--outfit')
+        self.open_viewer(model, extra=extra)
+
+    def edit_clothing_colours(self, model_path, variant=None):
+        if not model_path:
+            messagebox.showerror('Lumiose Toolkit', 'No model found for this item.')
+            return
+        import za_colours
+        try:
+            za_colours.ClothingColourEditor(self, model_path, variant)
+        except za_colours.NoColours as e:
+            messagebox.showinfo('Lumiose Toolkit', str(e))
 
     def try_on(self, model_path):
         self.open_viewer(model_path, extra=['--outfit'])

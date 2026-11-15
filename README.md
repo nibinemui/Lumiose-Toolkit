@@ -51,6 +51,7 @@ on it), a modded Switch (Atmosphere) or an emulator.
 - **Variants**: normal and shiny Pokémon, plus other material sets.
 - **Try on player body**: shows a clothing item on the player with face, hair and other clothes and all 301 player animations.
 - **Clothing patterns and colours**, just like the in-game boutique: pick the pattern, main colour, second colour and skin tone. Colours use their in-game names (e.g. "Scizor Orange").
+- **Every shop variant**: a clothing search result lists all its colour variants (with id and price), and *Game data → Clothing items* has *Try on* / *View in 3D* per row; both open the viewer on exactly that variant.
 - **Live reload**: the viewer refreshes by itself whenever your mod changes.
 
 ### Editing (everything is saved into the *current mod*, never into the game files)
@@ -58,6 +59,7 @@ on it), a modded Switch (Atmosphere) or an emulator.
   - Import a PNG. It is re-compressed to the original format with all mips, optionally at a new size. Textures inside `.arc` archives work too.
   - **Live editing**: opens the texture in your image editor; every save is imported automatically and shows in the 3D viewer.
 - **Material colours**: colour pickers and numbers for every material parameter, with a live 3D preview.
+- **Clothing colours**: *Edit clothing colours…* changes which palette colour each in-game colour option uses (per pattern and layer, picked from the item's palette swatches), saved into your mod, with a live 3D preview. *Confirmed working in-game (Lumiose Online).*
 - **Game text**: in-app editor with search, highlighted `[VAR …]` codes and multi-line text. Export/import as a text file also works.
 - **Pokémon data** (`personal_array`): types, abilities, base stats, EV yield, catch rate, growth rate, gender, egg groups, size, level-up moves, evolutions, TM moves and egg moves.
 - **Game data tab**: a table editor for:
@@ -257,7 +259,7 @@ That index is made for exactly the mods in the package, so **build one combined 
 
 ## Known limits
 
-- **Not yet confirmed in-game**: glTF model import and WAV sound replacement are marked experimental. Test them before sharing a mod.
+- **In-game confirmation**: clothing colour edits are confirmed working in Lumiose Online; other features are tested in the program but not yet confirmed in-game. glTF model import and WAV sound replacement are marked experimental. Test them before sharing a mod.
 - **Viewer approximations**: eye effects and special shaders (hologram, fur, emission) are simplified. Clothing is shown in its rest pose unless you use *Try on player body*.
 - **Interior and dungeon areas**: these reuse coordinates near the world origin, so they are told apart by the area code in point names. Floor-map backgrounds must be aligned by hand once per area.
 - **Duplicated map points**: a copy only spawns something if the spawner data tables have an entry with that name.
@@ -353,9 +355,10 @@ nibinemui's direction and review.
 
 What that means for you:
 
-- **Test before you trust.** Every feature was tested on a real game dump while it was being built, but
-  nothing in the program has been confirmed in the game itself yet. Check your mods in-game before you
-  share them, especially the parts marked *experimental*.
+- **Test before you trust.** Every feature was tested on a real game dump while it was being built. In the
+  game itself, clothing colour edits have been confirmed working in Lumiose Online (2026-11-14); the other
+  features have not been confirmed in-game yet. Check your mods in-game before you share them, especially
+  the parts marked *experimental*.
 - **Reverse-engineered data can be wrong.** The move, item, shop and clothing-colour layouts were worked
   out by analysing the game's files. Fields still named `Unknown…` haven't been identified, and an
   identified field's meaning could still be off.

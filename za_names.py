@@ -183,9 +183,10 @@ def norm(s):
 
 
 class NameEntry:
-    __slots__ = ('name', 'kind', 'detail', 'pattern', 'blob', 'words', 'number')
+    __slots__ = ('name', 'kind', 'detail', 'pattern', 'blob', 'words', 'number', 'key')
 
-    def __init__(self, name, kind, detail, pattern, extra='', number=None):
+    def __init__(self, name, kind, detail, pattern, extra='', number=None, key=None):
+        self.key = key                          # clothing: the dress-up item key (its colour variants share it)
         self.name = name
         self.kind = kind
         self.detail = detail
@@ -348,7 +349,7 @@ def _clothing(root):
             return
         model = m.group(1)
         out.append(NameEntry(name, 'Clothing', '%s · %s' % (CLOTHING_CATS.get(cat, '?'), model), model,
-                             extra='%s %s' % (key, model)))
+                             extra='%s %s' % (key, model), key=key))
 
     named = {}
     for cat in range(1, 10):
@@ -470,3 +471,60 @@ def clothing_colour_names(root, folder):
             if lab and lab.strip():
                 lst.setdefault(idx, lab.strip())
     return {k: v for k, v in out.items()}
+
+
+# ---------------------------------------------------------------------------
+# clothing colour variants (each shop item = one pattern + main colour + second colour of a model)
+# ---------------------------------------------------------------------------
+
+_TEX_PATH = re.compile(r'^(?P<folder>p\d_[a-z]+\d{4}_\d\d_.+?)_(?P<set>normal|tex_\d\d)(?:_r(?P<r>\d+)_c(?P<c>\d+)|_\d+)?$')
+_VARIANTS = {}
+
+
+def parse_texture_path(tp):
+    """dress-up texturePath -> {'folder', 'set', 'main', 'second'} (main/second = colour choice indexes, or None)."""
+    m = _TEX_PATH.match(tp or '')
+    if not m:
+        return None
+    return {'folder': m.group('folder'), 'set': m.group('set'),
+            'main': int(m.group('r')) if m.group('r') else None,
+            'second': int(m.group('c')) if m.group('c') else None}
+
+
+def clothing_variants(root):
+    """{dress-up key: [variant, ...]} where a variant = {'id', 'key', 'folder', 'set', 'main', 'second',
+    'main_name', 'second_name', 'price', 'texturePath'} - every colour variant the game sells. Cached."""
+    k = os.path.normcase(os.path.abspath(root))
+    if k in _VARIANTS:
+        return _VARIANTS[k]
+    import json
+    import za_modding as zm
+    out = {}
+    try:
+        rows = json.loads(zm.to_json(os.path.join(root, 'world', 'exl', 'dress_up_data', 'dress_up_data',
+                                                  'dress_up_data.bin')))['items']
+    except Exception:  # noqa: BLE001
+        rows = []
+    names = _dressup_names(root)
+    for r in rows:
+        info = parse_texture_path(r.get('texturePath', ''))
+        if not info:
+            continue
+        v = dict(info, id=r.get('id', 0), key=r.get('type', ''), price=r.get('price', 0),
+                 texturePath=r.get('texturePath', ''),
+                 main_name=(names.get(r.get('primaryColor', ''), '') or '').strip(),
+                 second_name=(names.get(r.get('secondaryColor', ''), '') or '').strip())
+        out.setdefault(v['key'], []).append(v)
+    for lst in out.values():
+        lst.sort(key=lambda v: v['id'])
+    _VARIANTS[k] = out
+    return out
+
+
+def variant_label(v):
+    """'Scizor Orange / White' style label of a variant (falls back to pattern + numbers)."""
+    names = [n for n in (v.get('main_name'), v.get('second_name')) if n]
+    if names:
+        return ' + '.join(names)
+    pat = 'Pattern %s' % v['set'][4:] if v['set'].startswith('tex_') else v['set'].title()
+    return pat

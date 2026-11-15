@@ -1,5 +1,6 @@
 # your own work and machine-specific files - never commit these
 mods/
+packages/
 extracted/
 settings.json
 error_log.txt

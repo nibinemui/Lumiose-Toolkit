@@ -63,6 +63,11 @@ class State:
         with self.lock:
             if key not in self.cache:
                 mats, ov = None, None
+                if self.clothing:          # re-read the material set: colour edits saved into the mod show live
+                    try:
+                        self.clothing = zt.clothing_sets(self.path) or self.clothing
+                    except Exception:  # noqa: BLE001
+                        pass
                 if variant in self.clothing:
                     mats, ov = zt.clothing_overrides(self.clothing[variant], choices)
                 else:
@@ -202,7 +207,25 @@ def main():
             colours[label] = rows
         state.variants = {k: None for k in state.clothing}
     first = next(iter(state.variants), 'Normal')
-    state.glb_for(first)
+    # open on one exact shop variant: --pattern <normal|tex_NN> --main <i> --second <i>
+    initial = None
+    if '--pattern' in args and state.clothing:
+        want = args[args.index('--pattern') + 1]
+        label = next((k for k, cs in state.clothing.items() if cs['set'] == want), None)
+        if label:
+            pick = {}
+            for flag, suffix in (('--main', '_rep'), ('--second', '_con')):
+                if flag in args:
+                    try:
+                        i = int(args[args.index(flag) + 1])
+                    except (ValueError, IndexError):
+                        continue
+                    for g, _, n in state.clothing[label]['groups']:
+                        if g.endswith(suffix) and 0 <= i < n:
+                            pick[g] = i
+            initial = {'variant': label, 'choices': pick}
+            first = label
+    state.glb_for(first, initial['choices'] if initial else None)
     if state.model.skeleton:
         if anim_dir and os.path.isdir(anim_dir):
             anim_files = sorted(os.path.join(anim_dir, f) for f in os.listdir(anim_dir) if f.endswith('.tranm'))
@@ -222,6 +245,7 @@ def main():
         'start_anim': os.path.splitext(os.path.basename(start_anim))[0] if start_anim else None,
         'variants': list(state.variants),
         'colours': colours,
+        'initial': initial,
         'mod': os.path.basename(os.path.dirname(state.mod_romfs)) if state.mod_romfs else '',
     }
     srv = socketserver.ThreadingTCPServer(('127.0.0.1', 0), make_handler(state))
