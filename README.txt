@@ -6,6 +6,17 @@ The first start opens "Import game files" to unpack your game dump. The window h
 Browse & extract, Mods, Map, Pokémon data and Game data. "Dark mode" (top right) switches the theme.
 README.md is the full manual (features, installing, troubleshooting).
 
+WHAT'S NEW IN 1.2.0
+-------------------
+  * Custom clothing colours: "Custom colour…" in Edit clothing colours opens a colour wheel with a
+    hex code box. The palette gets private cells, so other clothing keeps its exact colours.
+    New - check in-game before sharing.
+  * "Edit pattern textures…" (clothing models, colour variants, Clothing items table): every
+    texture of a pattern with a preview and what it does; live edit in your image editor.
+  * Mods tab > "Check conflicts": files changed by more than one mod - your mods, the load order
+    and the mods installed in ZA Recomp / Lumiose Online - with which version the game uses.
+    "Install to Recomp" warns before installing over another mod's files.
+
 WHAT'S NEW IN 1.1.0
 -------------------
   * Updates: the program checks GitHub for a new version when it starts. "★ Update to x.y.z"

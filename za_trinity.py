@@ -324,13 +324,18 @@ def _palette_tints(mat):
     n = mat.ints.get('ColorTableDivideNumber', 0)
     if not path or not n or n < 1 or not os.path.isfile(path):
         return None
-    if path not in _PALETTES:
+    real = resolve(path)                      # the mod's copy (custom colours) when there is one
+    try:
+        key = (real, os.path.getmtime(real))
+    except OSError:
+        key = (real, 0)
+    if key not in _PALETTES:
         try:
             img = zf.Bntx(read_file(path)).textures[0].decode().convert('RGB')
-            _PALETTES[path] = np.asarray(img, np.float32) / 255.0
+            _PALETTES[key] = np.asarray(img, np.float32) / 255.0
         except Exception:  # noqa: BLE001
-            _PALETTES[path] = None
-    a = _PALETTES[path]
+            _PALETTES[key] = None
+    a = _PALETTES[key]
     if a is None:
         return None
     h, w = a.shape[:2]

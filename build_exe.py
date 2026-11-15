@@ -27,7 +27,7 @@ OUT = os.path.join(DIST, NAME)
 
 HIDDEN = ['za_map', 'za_pokedit', 'za_dataedit', 'za_textedit', 'za_history', 'za_import', 'za_mated',
           'za_audio', 'za_viewer', 'za_deps', 'za_names', 'za_trinity', 'za_formats', 'za_modding',
-          'za_setup', 'restore_missing', 'za_colours', 'za_update', 'za_version',
+          'za_setup', 'restore_missing', 'za_colours', 'za_conflicts', 'za_update', 'za_version',
           'webview', 'webview.platforms.edgechromium', 'webview.platforms.winforms']
 # big packages that may be installed but are never used by the program
 EXCLUDE = ['torch', 'tensorflow', 'cv2', 'matplotlib', 'scipy', 'pandas', 'IPython', 'jupyter', 'notebook',

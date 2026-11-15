@@ -61,6 +61,8 @@ on it), a modded Switch (Atmosphere) or an emulator.
   - **Live editing**: opens the texture in your image editor; every save is imported automatically and shows in the 3D viewer.
 - **Material colours**: colour pickers and numbers for every material parameter, with a live 3D preview.
 - **Clothing colours**: *Edit clothing colours…* changes which palette colour each in-game colour option uses (per pattern and layer, picked from the item's palette swatches), saved into your mod, with a live 3D preview. *Confirmed working in-game (Lumiose Online).*
+  - **Custom colours**: *Custom colour…* opens a colour wheel with a hex code box, so you can use any colour, not just the palette's. Other clothing that shares the palette keeps its exact colours (see [Custom clothing colours](#custom-clothing-colours)). *New - not yet confirmed in-game.*
+- **Pattern textures**: *Edit pattern textures…* lists every texture of a clothing pattern (base, layer mask, palette, normal map…) with a preview, explains what each one does, marks textures shared with other patterns or other items, and opens them for live editing.
 - **Game text**: in-app editor with search, highlighted `[VAR …]` codes and multi-line text. Export/import as a text file also works.
 - **Pokémon data** (`personal_array`): types, abilities, base stats, EV yield, catch rate, growth rate, gender, egg groups, size, level-up moves, evolutions, TM moves and egg moves.
 - **Game data tab**: a table editor for:
@@ -85,7 +87,8 @@ on it), a modded Switch (Atmosphere) or an emulator.
 ### Mods
 - Mod projects with name, author, version and description; "Add original to mod" copies any file into a mod for hand editing.
 - **History**: every version of every changed file is kept. Compare any version with the game original or the previous version (text line by line, data field by field, textures side by side), and restore any version.
-- **Load order** across your own mods and downloaded mods (`.zip` or folders), with conflict check.
+- **Load order** across your own mods and downloaded mods (`.zip` or folders).
+- **Conflict check**: finds game files that more than one mod changes - your own mods, downloaded mods and the mods already installed in ZA Recomp / Lumiose Online (including other people's). It tells real conflicts from identical copies and shows which mod wins in-game (from Recomp's Mods page order). *Install to Recomp* warns before installing over another mod's files.
 - **Packaging** for:
   - **ZA Recomp / Lumiose Online**: one-click "Install to Recomp", or a package to install from the Mods page.
   - **Switch (Atmosphere)**: `atmosphere/contents/0100F43008C44000/romfs/…` with a patched `data.trpfd`.
@@ -206,6 +209,12 @@ Select files or folders, tick the conversions at the bottom, then press **Extrac
 - **Edit colours…** for materials.
 - **Try on player body** for `p1_`/`p2_` clothing.
 - In the viewer, *Variant* switches normal/shiny or the clothing **pattern**. The colour menus below it pick the clothing colours and skin tone.
+- **Edit pattern textures…** (on a clothing model, a colour variant or a Clothing items row): pick the pattern, select a texture, and use **Live edit in image editor**. The base texture (`_alb`) holds the pattern and shading and is usually grey so the colour options can tint it; the layer mask (`_lym`) decides which areas take colour 1-4 (red, green, blue, alpha). Textures under *Shared game textures* are used by other items too, so editing them changes those as well.
+
+#### Custom clothing colours
+In **Edit clothing colours…**, pick a colour option, then press **Custom colour…** under a layer's swatches. Choose a colour on the wheel (brightness on the slider) or type a hex code such as `#12c4a0`.
+
+How it works: a colour option can only point at a cell of the item's palette texture, and most palettes are shared by many items with almost every cell in use. So the first custom colour widens the palette to three times its cells. Each game colour stays exactly where other items read it, and the two new cells beside it become *private* cells for custom colours. This item is switched to the wide layout (its material files and colour options are converted). The shadow colour is derived from the game's own shading. Your mod then contains the widened palette, the item's material files and its `.trmmt`. Other items in the same mod get different private cells; the list is kept in `custom_colours.json` in the mod folder. Custom colours are new, so check them in-game before sharing a mod. Two mods that both widen the same palette will conflict (the conflict check shows it).
 
 ### Text
 **Edit text…** opens the in-app editor:
@@ -253,7 +262,7 @@ A mod is just a folder: `Lumiose Toolkit\mods\<name>\romfs\<game paths>` plus `m
 On the **Mods** tab:
 1. Select your mod and fill in its details. You can see and remove its files there.
 2. Use **History / compare / restore…** (or double-click a file) to see every saved version, compare it, or roll it back.
-3. Add the mods you want to the **load order**. The top one wins when two mods change the same file; **Check conflicts** lists those.
+3. Add the mods you want to the **load order**. The top one wins when two mods change the same file. **Check conflicts** opens a list of every file that more than one mod changes. It covers your mods, the load order and the mods installed in ZA Recomp / Lumiose Online, and shows which version the game uses.
 4. Pick the targets and press **Build packages**:
    - **ZA Recomp / Lumiose Online**: `<name>/romfs/…`. Or press **Install to Recomp** to copy it straight into Recomp's `mods` folder, then turn it on in the Mods page and start the game with **▶ ZA Recomp** or **▶ Lumiose Online**. Recomp builds the file index itself, so no patched `data.trpfd` is needed, and mods can be switched on and off individually.
    - **Switch (Atmosphere)**: copy the `atmosphere` folder to the root of the SD card.
@@ -286,7 +295,7 @@ That index is made for exactly the mods in the package, so **build one combined 
 
 ## Known limits
 
-- **In-game confirmation**: clothing colour edits are confirmed working in Lumiose Online; other features are tested in the program but not yet confirmed in-game. glTF model import and WAV sound replacement are marked experimental. Test them before sharing a mod.
+- **In-game confirmation**: clothing colour edits are confirmed working in Lumiose Online; other features are tested in the program but not yet confirmed in-game. Custom clothing colours (widened palettes) are new and need an in-game check. glTF model import and WAV sound replacement are marked experimental. Test them before sharing a mod.
 - **Viewer approximations**: eye effects and special shaders (hologram, fur, emission) are simplified. Clothing is shown in its rest pose unless you use *Try on player body*.
 - **Interior and dungeon areas**: these reuse coordinates near the world origin, so they are told apart by the area code in point names. Floor-map backgrounds must be aligned by hand once per area.
 - **Duplicated map points**: a copy only spawns something if the spawner data tables have an entry with that name.
@@ -338,7 +347,8 @@ Lumiose Toolkit/
   za_pokedit.py           Pokémon data tab
   za_map.py               Map tab
   za_mated.py             material colour editor
-  za_colours.py           clothing colour editor (which palette colour each in-game option uses)
+  za_colours.py           clothing colour editor, custom colours (colour wheel), pattern textures window
+  za_conflicts.py         mod conflict check (own mods, load order, mods installed in ZA Recomp)
   za_update.py            updater (checks GitHub releases, installs a new version)
   za_version.py           version number and release repository
   za_textedit.py          in-app text editor

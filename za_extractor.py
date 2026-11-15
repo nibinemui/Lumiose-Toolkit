@@ -1075,14 +1075,9 @@ class App(tk.Tk):
         return out
 
     def check_conflicts(self):
-        mods = self._order_mods()
-        if not mods:
-            self.log_build('Add mods to the load order first.')
-            return
-        winners, conflicts = zm.merge_mods(mods)
-        self.log_build('%d file(s) from %d mod(s); %d conflict(s).' % (len(winners), len(mods), len(conflicts)))
-        for rel, names in sorted(conflicts.items()):
-            self.log_build('  %s: "%s" wins over %s' % (rel, names[0], ', '.join('"%s"' % n for n in names[1:])))
+        """Window listing game files that more than one mod changes (own mods, load order, ZA Recomp)."""
+        import za_conflicts
+        za_conflicts.ConflictWindow(self)
 
     def _package_name(self, mods):
         if len(mods) == 1:
@@ -1099,6 +1094,24 @@ class App(tk.Tk):
         self.save_settings()
         name = self._package_name(mods)
         rd = self.recomp_var.get()
+        try:                                  # other mods already in Recomp that change the same files?
+            import za_conflicts
+            clash = za_conflicts.install_check(mods, rd, re.sub(r'[<>:"/\\|?*]+', '_', name).strip())
+        except Exception:  # noqa: BLE001
+            log_error(traceback.format_exc())
+            clash = []
+        if clash:
+            lines = ['  %s  (also in %s)' % (rel, ', '.join(o.replace(' (in Recomp)', '') for o in others))
+                     for rel, others in clash[:8]]
+            if len(clash) > 8:
+                lines.append('  … and %d more' % (len(clash) - 8))
+            if not messagebox.askyesno(
+                    'Mod conflicts', '%d file(s) in "%s" are also changed - differently - by other mods installed in '
+                    'ZA Recomp:\n\n%s\n\nIn game, the mod higher on Recomp\'s Mods page wins. Install anyway?\n\n'
+                    '("Check conflicts" in the Mods tab shows the details.)' % (len(clash), name, '\n'.join(lines)),
+                    icon='warning'):
+                self.log_build('Install cancelled: %d conflict(s) with installed mods.' % len(clash))
+                return
 
         def job():
             return zm.install_recomp(mods, rd, name, log=lambda s: self.q.put(lambda s=s: self.log_build(s)))
@@ -1598,7 +1611,8 @@ class App(tk.Tk):
             self.info_var.set('Colour variants')
             self.show_text_mode('Every colour variant the game sells of this item, with its in-game colour names.\n\n'
                                 'Expand the group and pick one: "Try on player body" and "Open 3D viewer" then show '
-                                'exactly that variant, and "Edit clothing colours..." changes the colours in your mod.')
+                                'exactly that variant, "Edit clothing colours..." changes the colours in your mod and '
+                                '"Edit pattern textures..." opens the textures of its pattern for live editing.')
             self.set_actions(None)
             return
         if iid.startswith('VI|'):
@@ -1765,7 +1779,8 @@ class App(tk.Tk):
             v = res['variant']
             acts += [('Try on player body (these colours)', lambda: self.open_clothing_variant(v, True)),
                      ('Open 3D viewer (these colours)', lambda: self.open_clothing_variant(v, False)),
-                     ('Edit clothing colours…', lambda: self.edit_clothing_colours(self.clothing_model(v['folder']), v))]
+                     ('Edit clothing colours…', lambda: self.edit_clothing_colours(self.clothing_model(v['folder']), v)),
+                     ('Edit pattern textures…', lambda: self.edit_pattern_textures(self.clothing_model(v['folder']), v))]
         if kind == 'model':
             acts += [('Open 3D viewer', lambda: self.open_viewer(path)),
                      ('Edit colours…', lambda: self.edit_materials(path)),
@@ -1779,6 +1794,7 @@ class App(tk.Tk):
                     has_colours = False
                 if has_colours:
                     acts.insert(3, ('Edit clothing colours…', lambda: self.edit_clothing_colours(path)))
+                    acts.insert(4, ('Edit pattern textures…', lambda: self.edit_pattern_textures(path)))
         elif kind == 'anim':
             if res.get('model'):
                 acts += [('Play in 3D viewer', lambda: self.open_viewer(res['model'], path)),
@@ -1886,6 +1902,14 @@ class App(tk.Tk):
             za_colours.ClothingColourEditor(self, model_path, variant)
         except za_colours.NoColours as e:
             messagebox.showinfo('Lumiose Toolkit', str(e))
+
+    def edit_pattern_textures(self, model_path, variant=None):
+        """Textures of one clothing pattern (base, layer mask, palette, normal…) with live editing."""
+        if not model_path:
+            messagebox.showerror('Lumiose Toolkit', 'No model found for this item.')
+            return
+        import za_colours
+        za_colours.PatternTextureWindow(self, model_path, variant)
 
     def try_on(self, model_path):
         self.open_viewer(model_path, extra=['--outfit'])
@@ -2181,16 +2205,19 @@ class App(tk.Tk):
                     lambda r: self.mod_changed(m, r[0], r[1]))
 
     # ---------------- live texture editing ----------------
-    def live_edit_texture(self, path, arc_member=None):
+    def live_edit_texture(self, path, arc_member=None, ti=None, layer=None):
         """Export the texture as PNG, open it in the default image editor and re-import it into the
-        current mod every time it is saved (the 3D viewer reloads by itself)."""
+        current mod every time it is saved (the 3D viewer reloads by itself). ti/layer default to the
+        texture shown in the preview; pass them for a texture that isn't previewed (e.g. pattern textures)."""
         rel = self.rel_game_path(path)
         m = self.current_mod()
         if not m or not rel:
             return
-        t = self.cur_texture()
-        ti = int(self.tex_var.get().split(':', 1)[0]) if t else 0
-        layer = self.layer_var.get()
+        if ti is None:
+            t = self.cur_texture()
+            ti = int(self.tex_var.get().split(':', 1)[0]) if t else 0
+        if layer is None:
+            layer = self.layer_var.get()
         src = m.path_for(rel) if os.path.isfile(m.path_for(rel)) else path
         stem = os.path.splitext(arc_member or os.path.basename(path))[0]
         folder = os.path.join(self.out_var.get(), '_live_edit')
