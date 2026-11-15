@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<!--
+  Lumiose Toolkit - host page for the bundled miniPaint editor.
+  This file (only this wrapper page) is licensed under the MIT License, Copyright (c) 2026 nibinemui,
+  so it can be combined with miniPaint (MIT, includes AlertifyJS under GPL-3.0). miniPaint itself is
+  in tools/minipaint, unmodified, under its own licences (see THIRD_PARTY_NOTICES.md).
+-->
+<html>
+<head>
+<meta charset="utf-8">
+<title>__TITLE__</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #1e1e1e; color: #ddd; font: 13px "Segoe UI", sans-serif; }
+  #bar { display: flex; align-items: center; gap: 10px; padding: 6px 10px; background: #2a2a2a; border-bottom: 1px solid #3c3c3c; }
+  #bar b { color: #fff; }
+  button { background: #3a7bd5; color: #fff; border: 0; border-radius: 4px; padding: 5px 12px; font: inherit; cursor: pointer; }
+  button:hover { background: #4a8be5; }
+  button:disabled { background: #555; cursor: default; }
+  #status { color: #9a9a9a; }
+  #status.ok { color: #7fd27f; }
+  #status.err { color: #ff8080; }
+  .dim { color: #8a8a8a; margin-left: auto; }
+  iframe { border: 0; width: 100%; height: calc(100% - 39px); display: block; }
+</style>
+</head>
+<body>
+<div id="bar">
+  <span>Editing <b>__NAME__</b></span>
+  <button id="save" disabled>Save to mod (Ctrl+S)</button>
+  <span id="status">Loading…</span>
+  <span class="dim">miniPaint (built in) · every save goes into your current mod</span>
+</div>
+<iframe id="mp" src="/minipaint/index.html?image=__IMAGE__"></iframe>
+<script>
+const frame = document.getElementById('mp');
+const btn = document.getElementById('save');
+const status = document.getElementById('status');
+let saves = 0;
+
+function say(text, cls) { status.textContent = text; status.className = cls || ''; }
+
+function save() {
+  const w = frame.contentWindow;
+  if (!w || !w.Layers) { say('The editor is still loading.', 'err'); return; }
+  try {
+    const dim = w.Layers.get_dimensions();
+    const c = document.createElement('canvas');
+    c.width = dim.width; c.height = dim.height;
+    w.Layers.convert_layers_to_canvas(c.getContext('2d'), null, false);
+    btn.disabled = true;
+    say('Saving…');
+    c.toBlob(function (blob) {
+      fetch('/save', { method: 'POST', body: blob, headers: { 'Content-Type': 'image/png' } })
+        .then(r => r.text().then(t => { if (!r.ok) throw new Error(t); }))
+        .then(() => { saves++; say('Saved into your mod (' + saves + '×) - ' + dim.width + '×' + dim.height, 'ok'); })
+        .catch(e => say('Could not save: ' + e.message, 'err'))
+        .finally(() => { btn.disabled = false; });
+    }, 'image/png');
+  } catch (e) {
+    say('Could not save: ' + e, 'err');
+  }
+}
+
+function ctrlS(e) {
+  if ((e.ctrlKey || e.metaKey) && (e.key === 's' || e.key === 'S')) {
+    e.preventDefault(); e.stopImmediatePropagation(); save();
+  }
+}
+
+btn.addEventListener('click', save);
+window.addEventListener('keydown', ctrlS, true);
+frame.addEventListener('load', function () {
+  const w = frame.contentWindow;
+  w.addEventListener('keydown', ctrlS, true);      // Ctrl+S inside miniPaint saves to the mod
+  let tries = 0;
+  (function ready() {
+    if (w.Layers) { btn.disabled = false; say('Ready - edit, then press Ctrl+S or "Save to mod".'); }
+    else if (tries++ < 100) setTimeout(ready, 100);
+    else say('miniPaint did not start.', 'err');
+  })();
+});
+</script>
+</body>
+</html>

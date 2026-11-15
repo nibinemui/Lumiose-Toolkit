@@ -27,7 +27,7 @@ OUT = os.path.join(DIST, NAME)
 
 HIDDEN = ['za_map', 'za_pokedit', 'za_dataedit', 'za_textedit', 'za_history', 'za_import', 'za_mated',
           'za_audio', 'za_viewer', 'za_deps', 'za_names', 'za_trinity', 'za_formats', 'za_modding',
-          'za_setup', 'restore_missing', 'za_colours', 'za_conflicts', 'za_update', 'za_version',
+          'za_setup', 'restore_missing', 'za_colours', 'za_conflicts', 'za_update', 'za_version', 'za_editor', 'za_prefs',
           'webview', 'webview.platforms.edgechromium', 'webview.platforms.winforms']
 # big packages that may be installed but are never used by the program
 EXCLUDE = ['torch', 'tensorflow', 'cv2', 'matplotlib', 'scipy', 'pandas', 'IPython', 'jupyter', 'notebook',
@@ -136,12 +136,14 @@ def main():
             shutil.copy2(os.path.join(HERE, f), os.path.join(src, f))
     copytree(os.path.join(HERE, 'licenses'), os.path.join(src, 'licenses'))
     copytree(os.path.join(HERE, 'tools', 'viewer'), os.path.join(src, 'tools', 'viewer'))
+    copytree(os.path.join(HERE, 'tools', 'editor'), os.path.join(src, 'tools', 'editor'))
     copytree(os.path.join(HERE, 'tools', 'schemas', 'za'), os.path.join(src, 'tools', 'schemas', 'za'))
     copytree(os.path.join(HERE, 'tools', 'icon_render'), os.path.join(src, 'tools', 'icon_render'), skip=SKIP_TOOLS)
     with open(os.path.join(src, 'README_SOURCE.txt'), 'w', encoding='utf-8') as f:
         f.write('Complete source code of Lumiose Toolkit %s (GPL-2.0).\n'
                 'Same files as https://github.com/nibinemui/Lumiose-Toolkit at this version.\n'
-                'tools/ (flatc, texconv, vgmstream, three.js, GFTool source, schemas) is in the main folder.\n'
+                'tools/ (flatc, texconv, vgmstream, three.js, miniPaint and its source, GFTool source, schemas) '
+                'is in the main folder.\n'
                 'Rebuild the .exe with:  python -m pip install -r requirements.txt pyinstaller  &&  '
                 'python build_exe.py\n' % VERSION)
 

@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<!--
+  Lumiose Toolkit - host page for Photopea (https://www.photopea.com), an online editor by a third party.
+  Photopea is not part of Lumiose Toolkit; it is loaded from photopea.com through its public API
+  (https://www.photopea.com/api/). This wrapper page is MIT licensed, Copyright (c) 2026 nibinemui.
+-->
+<html>
+<head>
+<meta charset="utf-8">
+<title>__TITLE__</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #1e1e1e; color: #ddd; font: 13px "Segoe UI", sans-serif; }
+  #bar { display: flex; align-items: center; gap: 10px; padding: 6px 10px; background: #2a2a2a; border-bottom: 1px solid #3c3c3c; }
+  #bar b { color: #fff; }
+  button { background: #3a7bd5; color: #fff; border: 0; border-radius: 4px; padding: 5px 12px; font: inherit; cursor: pointer; }
+  button:hover { background: #4a8be5; }
+  button:disabled { background: #555; cursor: default; }
+  #status { color: #9a9a9a; }
+  #status.ok { color: #7fd27f; }
+  #status.err { color: #ff8080; }
+  .dim { color: #8a8a8a; margin-left: auto; }
+  iframe { border: 0; width: 100%; height: calc(100% - 39px); display: block; }
+</style>
+</head>
+<body>
+<div id="bar">
+  <span>Editing <b>__NAME__</b></span>
+  <button id="save" disabled>Save to mod</button>
+  <span id="status">Connecting to photopea.com…</span>
+  <span class="dim">Photopea (online, photopea.com) · File &gt; Save also saves into your mod</span>
+</div>
+<iframe id="pp" allow="clipboard-read; clipboard-write"></iframe>
+<script>
+const PP = 'https://www.photopea.com';
+const frame = document.getElementById('pp');
+const btn = document.getElementById('save');
+const status = document.getElementById('status');
+let loaded = false, sending = false, saves = 0;
+
+function say(text, cls) { status.textContent = text; status.className = cls || ''; }
+
+// File > Save (Ctrl+S) in Photopea sends the document back here as a PNG instead of downloading it
+const config = { environment: { customIO: { save: 'app.activeDocument.saveToOE("png");' } } };
+frame.src = PP + '#' + encodeURIComponent(JSON.stringify(config));
+
+const timeout = setTimeout(function () {
+  if (!loaded) say('Photopea did not answer - it needs an internet connection.', 'err');
+}, 30000);
+
+function save() {
+  btn.disabled = true;
+  say('Asking Photopea for the image…');
+  frame.contentWindow.postMessage('app.activeDocument.saveToOE("png");', PP);
+}
+btn.addEventListener('click', save);
+window.addEventListener('keydown', function (e) {        // Ctrl+S while this bar has focus
+  if ((e.ctrlKey || e.metaKey) && (e.key === 's' || e.key === 'S') && !btn.disabled) { e.preventDefault(); save(); }
+}, true);
+
+window.addEventListener('message', function (e) {
+  if (e.origin !== PP) return;
+  if (e.data instanceof ArrayBuffer) {             // the exported PNG
+    const head = new Uint8Array(e.data, 0, 4);
+    if (!(head[0] === 0x89 && head[1] === 0x50 && head[2] === 0x4E && head[3] === 0x47)) {
+      say('Photopea sent a non-PNG file - use File > Save or "Save to mod".', 'err');
+      btn.disabled = false;
+      return;
+    }
+    say('Saving…');
+    fetch('/save', { method: 'POST', body: e.data, headers: { 'Content-Type': 'image/png' } })
+      .then(r => r.text().then(t => { if (!r.ok) throw new Error(t); }))
+      .then(() => { saves++; say('Saved into your mod (' + saves + '×)', 'ok'); })
+      .catch(err => say('Could not save: ' + err.message, 'err'))
+      .finally(() => { btn.disabled = false; });
+    return;
+  }
+  if (e.data === 'done' && !loaded && !sending) {  // Photopea is ready: send it the texture
+    sending = true;
+    say('Opening the texture…');
+    fetch('__IMAGE__').then(r => r.arrayBuffer()).then(buf => {
+      frame.contentWindow.postMessage(buf, PP);
+      loaded = true;
+      clearTimeout(timeout);
+      btn.disabled = false;
+      say('Ready - edit, then use File > Save or "Save to mod".');
+    }).catch(err => say('Could not load the texture: ' + err, 'err'));
+  }
+});
+</script>
+</body>
+</html>

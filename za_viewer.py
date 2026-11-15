@@ -39,6 +39,7 @@ class State:
     mod_romfs = None
     cache = {}          # (variant, stamp) -> glb bytes
     lock = threading.Lock()
+    texture_size = 1024
     outfit = None       # (base skeleton, [piece .trmdl]) when previewing clothes on the player
 
     def stamp(self):
@@ -80,7 +81,7 @@ class State:
                 else:
                     m = zt.Model(self.path, mats, ov)
                 self.model = m
-                self.cache = {key: zt.export_glb(m, (), texture_size=1024)}
+                self.cache = {key: zt.export_glb(m, (), texture_size=self.texture_size)}
             return self.cache[key]
 
 
@@ -154,6 +155,11 @@ def main():
         start_anim = args[args.index('--anim') + 1]
     state = State()
     state.path = model_path
+    if '--texsize' in args:                   # Preferences > 3D view > texture quality
+        try:
+            state.texture_size = max(256, min(4096, int(args[args.index('--texsize') + 1])))
+        except (ValueError, IndexError):
+            pass
     if '--mod' in args and '--root' in args:
         state.mod_romfs = args[args.index('--mod') + 1]
         zt.set_override(args[args.index('--root') + 1], state.mod_romfs)

@@ -34,6 +34,22 @@ a GPL program is "mere aggregation" (GPL-2.0 section 2), so each keeps its own l
 | **mpg123** (`libmpg123-0.dll`), part of the vgmstream build | `tools/vgmstream/` | LGPL-2.1 | [`licenses/LGPL-2.1.txt`](licenses/LGPL-2.1.txt) | https://www.mpg123.de/download.shtml |
 | **libvorbis**, **Speex**, **CELT** (Xiph.Org and contributors), part of the vgmstream build | `tools/vgmstream/*.dll` | BSD-3-Clause | [`licenses/BSD-Xiph.txt`](licenses/BSD-Xiph.txt) | https://xiph.org |
 | **three.js** r160 (three.js authors) | `tools/three/` | MIT | [`licenses/MIT-three.js.txt`](licenses/MIT-three.js.txt) | https://github.com/mrdoob/three.js |
+| **miniPaint** 4.14.3 (ViliusL), the built-in image editor | `tools/minipaint/` | MIT | [`licenses/MIT-miniPaint.txt`](licenses/MIT-miniPaint.txt) (also `tools/minipaint/MIT-LICENSE.txt`) | https://github.com/viliusle/miniPaint |
+| Libraries inside miniPaint's `dist/bundle.js`: jQuery, pica, object-assign, quantize.js, regenerator-runtime and others (MIT), Protovis code (BSD) | `tools/minipaint/dist/` | MIT / BSD | `tools/minipaint/dist/bundle.js.LICENSE.txt` | see that file |
+| **AlertifyJS** 1.14.0 (Mohammad Younes), inside miniPaint's `bundle.js` | `tools/minipaint/dist/bundle.js` | GPL-3.0 | [`licenses/GPL-3.0.txt`](licenses/GPL-3.0.txt) | `tools/minipaint/source/alertifyjs-1.14.0.tgz`, https://github.com/MohammadYounes/AlertifyJS |
+
+**miniPaint:** shipped unmodified, exactly as in its 4.14.3 release (`index.html`, `dist/`, `images/`). It is a
+separate program that runs in its own browser window; Lumiose Toolkit only starts it and exchanges the image
+with it over a local connection, so it keeps its own licences (mere aggregation). The page that hosts it,
+`tools/editor/minipaint_host.html`, is our own and is MIT licensed so it can be combined with miniPaint.
+Because `bundle.js` contains AlertifyJS (GPL-3.0), the complete source is included: miniPaint's full 4.14.3
+source (`tools/minipaint/source/miniPaint-4.14.3-source.zip`, with `package-lock.json` naming every
+library version) and the AlertifyJS 1.14.0 package (`tools/minipaint/source/alertifyjs-1.14.0.tgz`).
+
+**Photopea** (https://www.photopea.com) is **not** part of Lumiose Toolkit and is not included. If you choose
+it in Preferences, the toolkit opens photopea.com in a window through Photopea's public API
+(`tools/editor/photopea_host.html`, MIT licensed, our own). Photopea is a third-party online service with its
+own terms; the free version shows ads.
 
 **LGPL libraries (FFmpeg, mpg123):** these DLLs are redistributed unmodified, exactly as shipped
 in the official vgmstream Windows release (`tools/vgmstream/vgmstream-win64.zip`). Their

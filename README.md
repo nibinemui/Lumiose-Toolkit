@@ -60,7 +60,7 @@ on it), a modded Switch (Atmosphere) or an emulator.
 ### Editing (everything is saved into the *current mod*, never into the game files)
 - **Textures**:
   - Import a PNG. It is re-compressed to the original format with all mips, optionally at a new size. Textures inside `.arc` archives work too.
-  - **Live editing**: opens the texture in your image editor; every save is imported automatically and shows in the 3D viewer.
+  - **Live editing**: opens the texture in an image editor; every save is imported automatically and shows in the 3D viewer. Choose the editor in **Preferences**: the built-in **miniPaint** (offline), **Photopea** in a window (online), Paint, or any program you have.
 - **Material colours**: colour pickers and numbers for every material parameter, with a live 3D preview.
 - **Clothing colours**: *Edit clothing colours…* changes which palette colour each in-game colour option uses (per pattern and layer, picked from the item's palette swatches), saved into your mod, with a live 3D preview. *Confirmed working in-game (Lumiose Online).*
   - **Custom colours**: *Custom colour…* opens a colour wheel with a hex code box, so you can use any colour, not just the palette's. Other clothing that shares the palette keeps its exact colours (see [Custom clothing colours](#custom-clothing-colours)). *New - not yet confirmed in-game.*
@@ -98,7 +98,12 @@ on it), a modded Switch (Atmosphere) or an emulator.
 - Launch ZA Recomp / Lumiose Online straight from the program to test a mod.
 
 ### Extras
-- Dark mode.
+- **Preferences…** (bottom right):
+  - **General**: dark or light theme, interface size (90-150%, for high-resolution screens), update check at startup.
+  - **Image editor**: built-in miniPaint, Photopea, Paint or any other program for live texture edits.
+  - **3D view**: show models in 3D when clicked, open Try on / Play in 3D in the preview pane or their own window, texture quality (1024 / 2048 / 4096 px).
+  - **Mods**: how many versions of each mod file the history keeps (10 / 30 / 100).
+- Dark mode (also on the top bar).
 - **Import game files** unpacks your dump right inside the program (see [below](#importing-your-game-files)).
 - **Built-in updater**: checks GitHub for a new version when the program starts and installs it with one click,
   keeping your mods and settings (see [Updating](#updating)).
@@ -204,7 +209,12 @@ Select files or folders, tick the conversions at the bottom, then press **Extrac
 
 ### Textures
 - **Import PNG into mod…**: replaces the texture. If the PNG has a different size, you choose whether to rebuild the texture at that size.
-- **Live edit in image editor**: exports the PNG and opens it for editing - in Paint (Windows' *Edit* action) unless you pick your own editor (GIMP, Paint.NET, Krita, Photoshop…) with **Image editor…** above the texture. Every time you save, it is re-imported into the mod. Use **Open its model in 3D viewer** to watch the changes. Stop with **Stop live edits**.
+- **Live edit in image editor**: exports the PNG and opens it for editing. Every time you save, it is re-imported into the mod. Use **Open its model in 3D viewer** to watch the changes. Stop with **Stop live edits**.
+  Which editor opens is set in **Preferences…** (bottom right, or **Image editor…** above the texture):
+  - **Built-in editor: miniPaint** (default) - opens in a toolkit window and works offline: layers, brushes, selections, filters. Press **Ctrl+S** or **Save to mod** to save into your mod.
+  - **Photopea (online)** - opens [photopea.com](https://www.photopea.com), a Photoshop-like editor, in a toolkit window. Use **File → Save** or **Save to mod**. Needs an internet connection; Photopea is a third-party service and its free version shows ads.
+  - **Windows' "Edit" program** - usually Paint.
+  - **Another program** - GIMP, Paint.NET, Krita, Photoshop…: pick its `.exe`. Save over the same PNG.
 
 ### Models, clothing and the 3D viewer
 - Selecting a model shows it in 3D in the preview pane (**Show in 3D**); **Open 3D viewer window** or **Pop out** opens it in its own window. **Export glTF (.glb)…**
@@ -353,6 +363,8 @@ Lumiose Toolkit/
   za_colours.py           clothing colour editor, custom colours (colour wheel), pattern textures window
   za_conflicts.py         mod conflict check (own mods, load order, mods installed in ZA Recomp)
   za_update.py            updater (checks GitHub releases, installs a new version)
+  za_editor.py            image editor window for live edits (built-in miniPaint, or Photopea)
+  za_prefs.py             Preferences window
   za_version.py           version number and release repository
   za_textedit.py          in-app text editor
   za_history.py           mod history / compare / restore window
@@ -365,7 +377,7 @@ Lumiose Toolkit/
   gen_trinity_fbs.py      builds Trinity schemas from GFTool's sources
   bfbs_dump.py            prints a binary schema (.bfbs) as text
   names/                  fallback name lists (+ the PokeDocs hash list, downloaded)
-  tools/                  helper programs, schemas, 3D viewer page, icon builder
+  tools/                  helper programs, schemas, 3D viewer page, image editor pages, miniPaint, icon builder
   LICENSE                 GPL-2.0
   THIRD_PARTY_NOTICES.md, licenses/   licences of everything bundled
   source/                 (release download only) the complete source of that version

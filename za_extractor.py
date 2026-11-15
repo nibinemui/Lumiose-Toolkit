@@ -48,6 +48,13 @@ def viewer_command():
     return [pythonw(), os.path.join(APP_DIR, 'za_viewer.py')]
 
 
+def editor_command():
+    """How to start the in-app image editor window (za_editor.py)."""
+    if getattr(sys, 'frozen', False):
+        return [sys.executable, '--editor']
+    return [pythonw(), os.path.join(APP_DIR, 'za_editor.py')]
+
+
 def launch_viewer(model_path, anim_path=None):
     args = viewer_command() + [model_path]
     if anim_path:
@@ -293,6 +300,13 @@ class App(tk.Tk):
         self.variant_by_id = {}     # dress-up item id -> clothing colour variant (search results)
         self._live_after = None
         self.settings = self.load_settings()
+        scale = self.settings.get('ui_scale', 1.0)
+        if isinstance(scale, (int, float)) and 0.75 <= scale <= 2.0 and abs(scale - 1.0) > 0.01:
+            self.tk.call('tk', 'scaling', float(self.tk.call('tk', 'scaling')) * scale)   # interface size
+        try:
+            zm.HISTORY_MAX = max(1, int(self.settings.get('history_max', zm.HISTORY_MAX)))
+        except (TypeError, ValueError):
+            pass
 
         self.root_var = tk.StringVar(value=self.settings.get('root', DEFAULT_ROOT))
         self.out_var = tk.StringVar(value=self.settings.get('out', DEFAULT_OUT))
@@ -366,7 +380,8 @@ class App(tk.Tk):
             return {}
 
     def save_settings(self):
-        s = {
+        s = dict(self.settings)              # keeps Preferences keys (image editor, 3D view, interface size…)
+        s.update({
             'root': self.root_var.get(), 'out': self.out_var.get(), 'filter': self.filter_var.get(),
             'rebuild_nrm': self.nrm_var.get(), 'png': self.png_var.get(), 'dds': self.dds_var.get(),
             'keep_structure': self.keep_var.get(), 'inc_tex': self.inc_tex.get(),
@@ -377,10 +392,8 @@ class App(tk.Tk):
             'wav': self.wav_var.get(), 'mod': self.mod_var.get(), 'game_romfs': self.game_romfs_var.get(),
             'pkg_out': self.pkg_out_var.get(), 'targets': [k for k, v in self.tgt_vars.items() if v.get()],
             'recomp': self.recomp_var.get(), 'text_lang': self.text_lang.get(),
-            'check_updates': self.settings.get('check_updates', True),
-            'skip_version': self.settings.get('skip_version', ''),
-            'image_editor': self.settings.get('image_editor', ''),
-        }
+        })
+        self.settings = s
         try:
             with open(SETTINGS_PATH, 'w', encoding='utf-8') as f:
                 json.dump(s, f, indent=2)
@@ -553,6 +566,7 @@ class App(tk.Tk):
         self.progress.pack(side='right')
         self.update_btn = ttk.Button(stat, text='Updates…', command=self.open_updates)
         self.update_btn.pack(side='right', padx=(0, 8))
+        ttk.Button(stat, text='Preferences…', command=self.open_preferences).pack(side='right', padx=(0, 4))
         self.update_rel = None          # newer release found on GitHub (see check_updates)
         ttk.Label(stat, textvariable=self.status_var).pack(side='left')
 
@@ -661,7 +675,7 @@ class App(tk.Tk):
         ttk.Checkbutton(row2, text='Rebuild normal-map blue', variable=self.nrm_var,
                         command=self.redecode).pack(side='left', padx=10)
         ttk.Button(row2, text='Save view as PNG…', command=self.save_view).pack(side='left', padx=4)
-        ttk.Button(row2, text='Image editor…', command=self.pick_image_editor).pack(side='left')
+        ttk.Button(row2, text='Image editor…', command=lambda: self.open_preferences('editor')).pack(side='left')
 
         self.stack = ttk.Frame(right)
         self.stack.pack(fill='both', expand=True)
@@ -1771,7 +1785,7 @@ class App(tk.Tk):
         elif res['kind'] == 'audio':
             self.info_var.set(head + '   [audio · %d sounds]' % len(res['streams']))
             self.show_audio_mode([label for label, src in res['streams']])
-        elif res['kind'] == 'model' and res.get('path'):
+        elif res['kind'] == 'model' and res.get('path') and self.settings.get('auto_3d', True):
             first = (res.get('text') or '').strip().splitlines()
             self.info_var.set(head + '   [model]' + (('\n' + first[0]) if first else ''))
             self.show_model_mode(res['path'])
@@ -1800,8 +1814,8 @@ class App(tk.Tk):
         acts = []
         if kind == 'clothing_variant':
             v = res['variant']
-            acts += [('Try on player body (these colours)', lambda: self.open_clothing_variant(v, True, embed=True)),
-                     ('Show in 3D (these colours)', lambda: self.open_clothing_variant(v, False, embed=True)),
+            acts += [('Try on player body (these colours)', lambda: self.open_clothing_variant(v, True, embed=self.embed_pref())),
+                     ('Show in 3D (these colours)', lambda: self.open_clothing_variant(v, False, embed=self.embed_pref())),
                      ('Edit clothing colours…', lambda: self.edit_clothing_colours(self.clothing_model(v['folder']), v)),
                      ('Edit pattern textures…', lambda: self.edit_pattern_textures(self.clothing_model(v['folder']), v))]
         if kind == 'model':
@@ -1811,7 +1825,7 @@ class App(tk.Tk):
                      ('Export glTF (.glb)…', lambda: self.export_model(path, res.get('anims', 0))),
                      ('Import edited glTF into mod… (experimental)', lambda: self.import_model(path))]
             if '\\p1_' in path or '\\p2_' in path or '/p1_' in path or '/p2_' in path:
-                acts.insert(1, ('Try on player body', lambda: self.try_on(path, embed=True)))
+                acts.insert(1, ('Try on player body', lambda: self.try_on(path, embed=self.embed_pref())))
                 try:
                     has_colours = bool(zt.clothing_sets(path))
                 except Exception:  # noqa: BLE001
@@ -1821,7 +1835,7 @@ class App(tk.Tk):
                     acts.insert(5, ('Edit pattern textures…', lambda: self.edit_pattern_textures(path)))
         elif kind == 'anim':
             if res.get('model'):
-                acts += [('Play in 3D', lambda: self.open_viewer(res['model'], path, embed=True)),
+                acts += [('Play in 3D', lambda: self.open_viewer(res['model'], path, embed=self.embed_pref())),
                          ('Play in 3D viewer window', lambda: self.open_viewer(res['model'], path)),
                          ('Export with model (.glb)…', lambda: self.export_model(res['model'], 0, [path]))]
         elif kind == 'data' and path.lower().endswith('.trmtr'):
@@ -1865,6 +1879,8 @@ class App(tk.Tk):
             args += ['--mod', m.romfs, '--root', self.root_var.get()]
         if extra:
             args += extra
+        if self.settings.get('viewer_texsize', 1024) in (2048, 4096):
+            args += ['--texsize', str(self.settings['viewer_texsize'])]
         return args, m
 
     def open_viewer(self, model_path, anim_path=None, with_mod=True, extra=None, embed=False):
@@ -1951,6 +1967,10 @@ class App(tk.Tk):
                 p.kill()                       # nothing to save in the viewer; its browser parts exit with it
             except OSError:
                 pass
+
+    def embed_pref(self):
+        """Preferences > 3D view: open Try on / Play / variants in the preview pane (True) or a window."""
+        return self.settings.get('viewer_place', 'pane') != 'window'
 
     def pop_out_viewer(self):
         if self.embed_args:
@@ -2365,10 +2385,19 @@ class App(tk.Tk):
             subprocess.Popen(['explorer', p])
 
     def open_in_editor(self, png):
-        """Open a PNG for editing: the image editor picked with "Image editor…", else Windows' "Edit" action
-        (Paint unless changed), else the default program. Returns a name for the status bar."""
+        """Open a PNG for editing with the editor chosen in Preferences: the built-in miniPaint, Photopea in
+        a window, Windows' "Edit" program (Paint unless changed) or another program.
+        Returns a name for the status bar."""
+        import za_prefs
+        mode = za_prefs.editor_mode(self.settings)
+        if mode in ('minipaint', 'photopea'):
+            try:
+                subprocess.Popen(editor_command() + [mode, png, '--title', os.path.basename(png)], cwd=APP_DIR)
+                return 'miniPaint' if mode == 'minipaint' else 'Photopea'
+            except OSError as e:
+                log_error('image editor: %s' % e)
         ed = self.settings.get('image_editor', '')
-        if ed and os.path.isfile(ed):
+        if mode == 'program' and ed and os.path.isfile(ed):
             try:
                 subprocess.Popen([ed, png])
                 return os.path.splitext(os.path.basename(ed))[0]
@@ -2381,16 +2410,9 @@ class App(tk.Tk):
             self.open_external(png)
             return 'the default program'
 
-    def pick_image_editor(self):
-        cur = self.settings.get('image_editor', '')
-        p = filedialog.askopenfilename(
-            title='Image editor for live editing (Cancel = Windows\' Edit action, usually Paint)',
-            initialdir=os.path.dirname(cur) if cur else os.environ.get('ProgramFiles', 'C:\\'),
-            filetypes=[('Programs', '*.exe')])
-        self.settings['image_editor'] = os.path.normpath(p) if p else ''
-        self.save_settings()
-        self.status_var.set('Live edits open in %s.' % (os.path.basename(p) if p else
-                                                         'Windows\' Edit action (usually Paint)'))
+    def open_preferences(self, tab=None):
+        import za_prefs
+        za_prefs.PreferencesWindow(self, tab)
 
     def live_poll(self):
         self._live_after = None
@@ -2765,6 +2787,10 @@ def main():
         sys.argv.remove('--viewer')
         import za_viewer
         return za_viewer.main()
+    if '--editor' in sys.argv:          # the .exe started as the image editor window (see editor_command)
+        sys.argv.remove('--editor')
+        import za_editor
+        return za_editor.main()
     try:
         # own taskbar identity, so Windows shows our icon instead of Python's
         import ctypes

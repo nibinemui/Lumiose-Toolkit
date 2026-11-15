@@ -6,6 +6,15 @@ The first start opens "Import game files" to unpack your game dump. The window h
 Browse & extract, Mods, Map, Pokémon data and Game data. "Dark mode" (top right) switches the theme.
 README.md is the full manual (features, installing, troubleshooting).
 
+WHAT'S NEW IN 1.3.0
+-------------------
+  * Models show in 3D right in the preview pane when you click them ("Pop out" = own window).
+  * Show filter: Models (.trmdl), Models + textures, Animations (.tranm).
+  * Built-in image editor for live edits: miniPaint (offline), or Photopea (online) in a window.
+    Choose it, Paint, or any other program in Preferences… (bottom right). Save = into your mod.
+  * Preferences…: theme, interface size, update check, image editor, 3D view (click-to-3D, pane or
+    window, texture quality) and how many history versions each mod file keeps.
+
 WHAT'S NEW IN 1.2.0
 -------------------
   * Custom clothing colours: "Custom colour…" in Edit clothing colours opens a colour wheel with a
