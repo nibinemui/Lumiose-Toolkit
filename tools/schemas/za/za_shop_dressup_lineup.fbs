@@ -1,0 +1,10 @@
+// world/exl/shop/shop_dress_up_lineup + shop_hair_make_lineup (clothing / hair & make-up shops).
+// Reverse-engineered: rows are [item id, conditions].
+namespace za;
+table ActivationConditionParam { condition:string; op:int; param:[string]; }
+table ActivationConditionElement { param:[ActivationConditionParam]; }
+table ActivationCondition { element:[ActivationConditionElement]; }
+table DressUpShopItem { itemId:int; conditions:[ActivationCondition]; }
+table DressUpLineup { id:string; items:[DressUpShopItem]; }
+table DressUpLineupTable { Table:[DressUpLineup]; }
+root_type DressUpLineupTable;

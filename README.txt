@@ -1,0 +1,139 @@
+Lumiose Toolkit
+===============
+
+Double-click "Lumiose Toolkit.bat" (or the desktop shortcut). Needs Python 3 with numpy, Pillow
+and pywebview (all installed). The window has five tabs: Browse & extract, Mods, Map,
+Pokémon data and Game data. "Dark mode" (top right) switches the theme.
+README.md is the full manual (all features + installing from scratch, for a GitHub page).
+
+WHAT'S NEW (2026-11-14, second round)
+-------------------------------------
+  * Game data tab: table editor for Moves, Items (prices), Item shops, Clothing items (prices),
+    Clothing shops, Hair & make-up, Trainers (teams) and Item balls - or any data file with a
+    schema ("Open other data file…", or "Open in table editor" on a data file in Browse).
+  * Textures: "Live edit in image editor" - every save of the PNG goes into the mod by itself;
+    "Open its model in 3D viewer" shows the change live.
+  * Text: "Edit text…" opens an in-app editor (search, edit, Ctrl+Enter, Save to current mod).
+  * Mods tab: "History / compare / restore…" - every version of every mod file is kept; compare
+    with the game original / previous version (text lines, data fields, textures side by side).
+  * 3D viewer / Try on player body: clothing patterns, main colour, second colour and skin tone
+    with the in-game colour names (palette colours are now used for all clothing and hair).
+  * Map: item balls / random items show their contents (hover + "Contents" box) and can be edited
+    ("Make unique" first if the item table is shared). "Area" picks interiors, dungeons and zones;
+    a dungeon floor map can be put underneath and aligned by hand ("Align", Save alignment).
+
+WHAT'S NEW (2026-11-14)
+-----------------------
+  * Mods tab: "Install to Recomp" copies the mod straight into <your ZA Recomp folder>\mods\<name>
+    (order / on-off stay on Recomp's Mods page); "▶ ZA Recomp" / "▶ Lumiose Online" start the game.
+  * Edit colours… (models and .trmtr files): colour pickers for every material colour + numbers;
+    "Open live 3D preview" shows the current mod and refreshes by itself every time you save.
+  * 3D viewer: Variant menu (Normal / Shiny / other material sets), "Keep in place" for running
+    animations, and it always shows your current mod's versions of files.
+  * Try on player body (player clothing models): the item on the player with face, hair, other
+    clothes and all 301 player animations.
+  * Search "in: Game text" (+ language): finds any line of game text and jumps to it.
+  * Map tab: "Encounters at this spawn" - change the Pokémon, levels and weight of a spawn point,
+    "Add (copy)" a new encounter for just that point, Remove; saved with "Save changes to current mod".
+  * Pokémon data tab (avalon/data/personal_array.bin): types, abilities, base stats, EV yield,
+    catch rate, growth, gender, egg groups, size, level-up moves, evolutions, TM and egg moves.
+  * Textures: importing a PNG of a different size can rebuild the texture at the new size;
+    textures inside UI archives (.arc) can be imported too (the archive is rebuilt).
+  * EXPERIMENTAL - Import edited glTF into mod (models): replaces the model's meshes with the meshes
+    of a .glb (keep mesh names, armature and bone names; materials matched by name).
+  * EXPERIMENTAL - Replace with WAV (audio): puts a WAV into a .bnk or .pck as 16-bit PCM.
+    These two can only be confirmed in-game - check them before sharing.
+
+
+BROWSE & EXTRACT
+----------------
+Search by in-game name (Pokémon "pikachu" / "25", clothing "v-neck t-shirt") or by file name.
+Click a file to preview it; the buttons above the preview depend on the file type:
+
+  Textures (.bntx)    view channels/mips/layers, zoom, pixel values · Import PNG into mod
+  Models (.trmdl)     materials/meshes/bones summary · Open 3D viewer · Export glTF (.glb)
+  Animations (.tranm) Play in 3D viewer (on its model) · Export with model (.glb)
+  Data (.bin with a .bfbs schema, and .trmtr/.trskl/.trmsh/.trmdl/.trscn/.trins/...)
+                      shown as JSON · Export JSON · Import edited JSON into mod
+  Text (.dat)         shown as label<TAB>text · Export text · Import edited text into mod
+  Audio (.bnk/.pck)   list of sounds · Play/Stop · Export selected/all as .wav
+  UI archives (.arc)  expand like folders; textures inside preview too
+  Everything else     readable strings + hex; copied as-is
+Right-click files: Extract, Add original file(s) to current mod, Show in Explorer, Copy path.
+
+Extract selected (Ctrl+E) converts as ticked at the bottom: textures → PNG (+DDS),
+models → glTF (optionally with all their animations), data → JSON, audio → WAV.
+"Folders include" decides what is taken from selected folders.
+
+3D viewer: separate window (orbit with the mouse), animation list with filter, play/pause,
+speed, timeline, wireframe, bones, textures on/off. Colours use the game's layer-colour
+system (baked into the base texture), UV scaling/mirroring and wrap modes are applied.
+Limits: eye pupils/iris effects and special shaders (hologram, fur, emission) are simplified;
+clothing items are shown in their rest pose (they bind to the player body skeleton).
+
+
+MODS
+----
+"Current mod" (top bar) is where every "...into mod" action writes. Make one with "New mod...".
+A mod is a folder: Lumiose Toolkit\mods\<name>\romfs\<game paths> (+ mod.json).
+
+  Textures: export a PNG, edit it, "Import PNG into mod". It is resized to the original size
+            if needed and re-compressed to the original format (BC7/BC1/BC3/BC4/BC5/RGBA) with
+            all mip levels; the status bar shows the compression error.
+  Text:     "Export text", edit only the text after the TAB (keep every line, in order;
+            \n = new line, [VAR ...] = game variables), "Import edited text into mod".
+  Data:     "Export JSON", edit, "Import edited JSON into mod" (rebuilt with flatc).
+  Any file: "Add original to mod" copies it so you can replace it by hand.
+
+Mods tab: edit mod details, see/remove its files, and build packages:
+  Load order: add your mods and/or downloaded mods (.zip or folder with a romfs folder);
+  the top one wins when two change the same file ("Check conflicts" lists them).
+  Package for:
+    ZA Recomp / Lumiose Online  -> <name>/romfs/...      install from Recomp's Mods page
+    Switch (Atmosphere)         -> atmosphere/contents/0100F43008C44000/romfs/... + patched data.trpfd
+    Emulator (Ryujinx-style)    -> 0100F43008C44000/<name>/romfs/... + patched data.trpfd
+  Switch/emulator packages redirect the modded files in data.trpfd (same method as
+  TrinityModLoader). That index is made for exactly the mods in the package, so build ONE
+  combined package containing every mod you use. "Game romfs" must point at an unmodified
+  dump (for example D:\Dumps\Legends Z-A\romfs).
+
+
+MAP
+---
+The Lumiose City map with every placement table on top: Pokémon spawns (with the species and
+levels that appear there), item balls, random items, NPCs, walking NPCs, royale cards, move
+gimmicks. Mouse wheel = zoom, drag = pan, click = select. "Find" searches point names.
+Edit: change X/Y/Z/rotation and Apply, or tick "Edit mode" and drag the selected point;
+Duplicate / Delete; "Save changes to current mod" writes the edited tables into the mod.
+Area: Lumiose City, or any interior / dungeon / zone (they reuse coordinates near the world origin
+and are told apart by the area code in point names). Their points are drawn on a 10 m grid, or on
+a dungeon floor map chosen under Background and aligned once (saved in map_calibration.json).
+A duplicated point only spawns something if the spawner data tables have an entry with that name.
+
+
+RESTORING FILES THE ORIGINAL EXPORT SKIPPED
+-------------------------------------------
+restore_missing.py reads the game's romfs\arc\data.trpfs directly and writes any missing
+file (never overwrites). Needs an Oodle DLL (oo2core_8_win64.dll, e.g. from pkNX).
+The files it wrote are listed in restored_files.txt.
+    python restore_missing.py "D:\Dumps\Legends Z-A\romfs\arc" "D:\ZA Game Files" ^
+        "D:\Tools\pkNX\oo2core_8_win64.dll" ^
+        names\za_hashes_inside_fd.txt          (add --dry-run to only count)
+Audio (romfs\audio) and system\config were copied in as well.
+
+
+NOTES
+-----
+  * Pokémon model folders come from the game's catalog (ik_pokemon\catalog\...); folder numbers
+    are not always the Pokédex number (Chespin #650 = pm0720, Tatsugiri #978 = pm1056).
+  * The 25 hash-named .bin files are files nobody has named yet; the tool labels what they are.
+  * Errors: _extract_errors.txt in the output folder; program errors in error_log.txt.
+
+CREDITS / LICENCES
+------------------
+  * Trinity format knowledge (models, materials, skeletons, animations, mod index patching) is
+    ported from pkZukan's GFTool (GPL-2.0, https://github.com/pkZukan/gftool); its source is in
+    tools\gftool_src and gen_trinity_fbs.py turns its definitions into schemas.
+  * Hash lists: pkZukan/PokeDocs. Gen 9 species IDs: kwsch/PKHeX.
+  * tools\: flatc (Google, Apache-2.0), texconv (Microsoft DirectXTex, MIT),
+    vgmstream (ISC-style), three.js (MIT). pywebview (BSD).

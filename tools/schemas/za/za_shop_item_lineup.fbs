@@ -1,0 +1,10 @@
+// world/exl/shop/shop_item_lineup/shop_item_lineup.bin (what each item shop sells). Reverse-engineered;
+// conditions use the same layout as the game's item-ball ActivationCondition schema.
+namespace za;
+table ActivationConditionParam { condition:string; op:int; param:[string]; }
+table ActivationConditionElement { param:[ActivationConditionParam]; }
+table ActivationCondition { element:[ActivationConditionElement]; }
+table ShopItem { itemId:int; order:int; conditions:[ActivationCondition]; }
+table ShopLineup { id:string; items:[ShopItem]; }
+table ShopLineupTable { Table:[ShopLineup]; }
+root_type ShopLineupTable;

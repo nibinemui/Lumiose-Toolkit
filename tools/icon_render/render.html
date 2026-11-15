@@ -1,0 +1,88 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Icon ball render</title>
+<style>html,body{margin:0;background:#2b2b2e;color:#ddd;font:12px Segoe UI} canvas{display:block}</style>
+<script type="importmap">{ "imports": { "three": "/three/three.module.js", "three/addons/": "/three/addons/" } }</script>
+</head><body>
+<div id="msg">rendering…</div>
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+
+const q = new URLSearchParams(location.search);
+const num = (k, d) => q.has(k) ? parseFloat(q.get(k)) : d;
+const SIZE = num('size', 1024);
+const OPEN = THREE.MathUtils.degToRad(num('open', 70));      // lid opening angle
+const AXIS = q.get('axis') || 'z';                           // lid bone axis that opens it
+const RX = num('rx', 0), RY = num('ry', 0), RZ = num('rz', 0); // ball orientation (degrees)
+
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
+renderer.setPixelRatio(1);
+renderer.setSize(SIZE, SIZE);
+renderer.setClearColor(0x000000, 0);
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.05;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+// a small studio for reflections: dark room with two soft-box lights
+const studio = new THREE.Scene();
+const room = new THREE.Mesh(new THREE.BoxGeometry(10, 10, 10), new THREE.MeshBasicMaterial({ color: 0x202024, side: THREE.BackSide }));
+studio.add(room);
+const box = (w, h, x, y, z, c) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ color: c, side: THREE.DoubleSide })); m.position.set(x, y, z); m.lookAt(0, 0, 0); studio.add(m); };
+box(4, 3, -3, 3.5, 3, 0xffffff);      // key soft box, upper left front
+box(2, 5, 4.5, 1, -1, 0x8fb8ff);      // cool rim from the right
+box(6, 1, 0, -4.5, 1, 0x555560);      // floor bounce
+const pmrem = new THREE.PMREMGenerator(renderer);
+scene.environment = pmrem.fromScene(studio, 0.03).texture;
+
+const key = new THREE.DirectionalLight(0xffffff, 2.2); key.position.set(-3, 4, 4); scene.add(key);
+const rim = new THREE.DirectionalLight(0x9fc4ff, 1.4); rim.position.set(4, 1, -3); scene.add(rim);
+scene.add(new THREE.HemisphereLight(0xffffff, 0x303040, 0.5));
+
+new GLTFLoader().load('/luxuryball.glb', (gltf) => {
+  const root = gltf.scene;
+  root.traverse(o => {
+    if (o.isMesh) {
+      const old = o.material;
+      o.material = new THREE.MeshPhysicalMaterial({
+        map: old.map, normalMap: old.normalMap, aoMap: old.aoMap,
+        roughness: 0.32, metalness: 0.0, clearcoat: 1.0, clearcoatRoughness: 0.08,
+      });
+      o.frustumCulled = false;
+    }
+  });
+  const lid = root.getObjectByName('upper_parts');
+  lid.rotation[AXIS] = OPEN;
+  const holder = new THREE.Group();
+  holder.add(root);
+  scene.add(holder);
+  // centre the closed ball at the origin, then orient it
+  root.updateMatrixWorld(true);
+  const lower = root.getObjectByName('mesh:lowerobj_mesh_shape') || root;
+  const centre = new THREE.Box3().setFromObject(lower).getCenter(new THREE.Vector3());
+  root.position.sub(centre);
+  holder.rotation.set(THREE.MathUtils.degToRad(RX), THREE.MathUtils.degToRad(RY), THREE.MathUtils.degToRad(RZ), 'ZYX');
+  holder.updateMatrixWorld(true);
+
+  const bounds = new THREE.Box3().setFromObject(holder);
+  const sphere = bounds.getBoundingSphere(new THREE.Sphere());
+  const cam = new THREE.PerspectiveCamera(22, 1, 0.001, 100);
+  const dist = sphere.radius / Math.sin(THREE.MathUtils.degToRad(11)) * 1.02;
+  cam.position.set(sphere.center.x, sphere.center.y + dist * 0.18, sphere.center.z + dist);
+  cam.lookAt(sphere.center);
+  renderer.render(scene, cam);
+
+  // where the beam comes out: deep in the bottom of the inside of the lower half
+  const C = new THREE.Vector3(0, 0, 0);                    // ball centre = centre of the rim
+  const up = new THREE.Vector3(0, 1, 0).applyQuaternion(holder.quaternion);   // the ball's own 'up'
+  const radius = new THREE.Box3().setFromObject(lower).getSize(new THREE.Vector3()).x / 2;
+  const mouth = C.clone().addScaledVector(up, -radius * num('depth', 0.9));   // bottom centre of the bowl
+  const p = mouth.clone().project(cam);
+  const px = [(p.x + 1) / 2 * SIZE, (1 - p.y) / 2 * SIZE];
+  const png = renderer.domElement.toDataURL('image/png');
+  fetch('/save?name=' + encodeURIComponent(q.get('name') || 'ball'), { method: 'POST',
+        body: JSON.stringify({ png, mouth: px }) })
+    .then(r => r.text()).then(t => document.getElementById('msg').textContent = 'saved ' + t + ' mouth ' + px.map(Math.round));
+});
+</script></body></html>

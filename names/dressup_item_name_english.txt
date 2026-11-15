@@ -1,0 +1,884 @@
+000	F827A9AA20918101	dressup_item_group_001	Blouson & V-Neck Set
+001	F827A6AA20917BE8	dressup_item_group_002	Blouson & Off-Shoulder Set
+002	F827A7AA20917D9B	dressup_item_group_003	Puffer Vest & Hoodie Set
+003	F827ACAA2091861A	dressup_item_group_004	Cardigan & Shirt Set
+004	F827ADAA209187CD	dressup_item_group_005	Cardigan & Blouse Set
+005	F827AAAA209182B4	dressup_item_group_006	Blazer & Shirt Set
+006	F827ABAA20918467	dressup_item_group_007	Blazer & Blouse Set
+007	F827A0AA209171B6	dressup_item_group_008	Shacket & T-Shirt Set
+008	F827A1AA20917369	dressup_item_group_009	Graphic T-Shirt & Shacket Set
+009	F82AAEAA2093BF57	dressup_item_group_010	Vest & Ribbon Blouse Set
+010	F82AADAA2093BDA4	dressup_item_group_011	Sweater Vest & Blouse Set
+011	F82AB0AA2093C2BD	dressup_item_group_012	Logo Pullover
+012	F82AAFAA2093C10A	dressup_item_group_013	Pokémon-Print Pullover
+013	F82AAAAA2093B88B	dressup_item_group_014	Simple Pullover
+014	F82AA9AA2093B6D8	dressup_item_group_015	Leather Mix Pullover
+015	F82AACAA2093BBF1	dressup_item_group_016	Poké Ball Pullover
+016	F82AABAA2093BA3E	dressup_item_group_017	Patterned Pullover
+017	F82AA6AA2093B1BF	dressup_item_group_018	Cinematic Pullover
+018	F82AA5AA2093B00C	dressup_item_group_019	Two-Tone Pullover
+019	F8209CAA208B4C3C	dressup_item_group_020	Sweater & Shirt Set
+020	F8209DAA208B4DEF	dressup_item_group_021	Two-Tone Turtleneck Sweater
+021	F8209EAA208B4FA2	dressup_item_group_022	Elbow-Patch Sweater
+022	F8209FAA208B5155	dressup_item_group_023	Fuzzy Sweater
+023	F82098AA208B4570	dressup_item_group_024	Dark-Type Peacoat
+024	F82099AA208B4723	dressup_item_group_025	Simple Peacoat
+025	F8209AAA208B48D6	dressup_item_group_026	Plaid Peacoat
+026	F8209BAA208B4A89	dressup_item_group_027	Dark-Type Crop Top Set
+027	F820A4AA208B59D4	dressup_item_group_028	Crop Top Set
+028	F820A5AA208B5B87	dressup_item_group_029	Dark-Type Jacket Set
+029	F82422AA208E65C5	dressup_item_group_030	Biker Jacket Set
+030	F82421AA208E6412	dressup_item_group_031	Track Jacket & Tube Top Set
+031	F82420AA208E625F	dressup_item_group_032	Frog-Button Jacket Set
+032	F8241FAA208E60AC	dressup_item_group_033	V-Neck T-Shirt
+033	F8241EAA208E5EF9	dressup_item_group_034	Off-Shoulder Shirt
+034	00D0C2AA2578D926	dressup_item_group_101	Skinny Jeans Set
+035	00D0C1AA2578D773	dressup_item_group_102	Wide-Leg Pants Set
+036	00D0C0AA2578D5C0	dressup_item_group_103	Kiss-Pattern Wide-Leg Pants Set
+037	00D0C7AA2578E1A5	dressup_item_group_104	Cargo Pants
+038	00D0C6AA2578DFF2	dressup_item_group_105	Asymmetrical Cargo Pants
+039	00D0C5AA2578DE3F	dressup_item_group_106	Patterned Cargo Pants
+040	00D0C4AA2578DC8C	dressup_item_group_107	Asymmetrical Track Pants
+041	00D0CBAA2578E871	dressup_item_group_108	Side-Stripe Track Pants
+042	00D0CAAA2578E6BE	dressup_item_group_109	Patterned Track Pants
+043	00CDBDAA25769AD0	dressup_item_group_110	Botanical Track Pants
+044	00CDBEAA25769C83	dressup_item_group_111	Chino Pants Set
+045	00CDBFAA25769E36	dressup_item_group_112	Pleated Skort
+046	00CDC0AA25769FE9	dressup_item_group_113	Plaid Pleated Skort
+047	00CDC1AA2576A19C	dressup_item_group_114	Short Shorts Set
+048	00CDC2AA2576A34F	dressup_item_group_115	Casual Shorts Set
+049	00CDC3AA2576A502	dressup_item_group_116	Wrap Skort Set
+050	00CDC4AA2576A6B5	dressup_item_group_117	Wide-Leg Slacks Set
+051	00CDC5AA2576A868	dressup_item_group_118	Skirt & Leggings Set
+052	00CDC6AA2576AA1B	dressup_item_group_119	Chino Shorts Set
+053	00D7CFAA257F0DEB	dressup_item_group_120	Sweat Shorts
+054	E7ADD3AA1779AACB	dressup_item_group_201	Fur Coat & Turtleneck Set
+055	E7ADD4AA1779AC7E	dressup_item_group_202	Trench Coat & Pants Set
+056	E7ADD5AA1779AE31	dressup_item_group_203	Jumpsuit & Shirt Set
+057	E7ADD6AA1779AFE4	dressup_item_group_204	Overalls & Pullover Set
+058	E7ADD7AA1779B197	dressup_item_group_205	Big-Logo Overalls Set
+059	E7ADD8AA1779B34A	dressup_item_group_206	Suspender Pants Set
+060	E7ADD9AA1779B4FD	dressup_item_group_207	Blouse & Skort Set
+061	E7ADCAAA17799B80	dressup_item_group_208	Belted Romper Set
+062	E7ADCBAA17799D33	dressup_item_group_209	Overalls & Shirt Set
+063	E7B158AA177CC2A1	dressup_item_group_210	Kimono Overalls Set
+064	E7B157AA177CC0EE	dressup_item_group_211	Mod Coat & Pants Set
+065	F0C46CAA1CBEAE50	dressup_item_group_301	Striped Trilby
+066	F0C46FAA1CBEB369	dressup_item_group_302	Leather Trilby
+067	F0C46EAA1CBEB1B6	dressup_item_group_303	Plaid Trilby
+068	F0C471AA1CBEB6CF	dressup_item_group_304	Patterned Trilby
+069	F0C470AA1CBEB51C	dressup_item_group_305	Flower-Stitch Beret
+070	F0C473AA1CBEBA35	dressup_item_group_306	Wooloo Knit Beret
+071	F0C472AA1CBEB882	dressup_item_group_307	Leather Beret
+072	F0C475AA1CBEBD9B	dressup_item_group_308	Simple Headband
+073	F0C474AA1CBEBBE8	dressup_item_group_309	Headphones
+074	F0C107AA1CBBCCDA	dressup_item_group_310	Striped Knit Beanie
+075	F0C108AA1CBBCE8D	dressup_item_group_311	Big-Logo Knit Beanie
+076	F0C105AA1CBBC974	dressup_item_group_312	Simple Knit Beanie
+077	F0C106AA1CBBCB27	dressup_item_group_313	Graffiti Knit Beanie
+078	F0C103AA1CBBC60E	dressup_item_group_314	Kiss-Pattern Knit Beanie
+079	F0C104AA1CBBC7C1	dressup_item_group_315	Pom-Pom Knit Beanie
+080	F0C101AA1CBBC2A8	dressup_item_group_316	Kickspin Logo Cap
+081	F0C102AA1CBBC45B	dressup_item_group_317	DENSOKU Logo Cap
+082	F0C0FFAA1CBBBF42	dressup_item_group_318	Magnet-Pattern Cap
+083	F0C100AA1CBBC0F5	dressup_item_group_319	Leather Cap
+084	F0BD81AA1CB8B351	dressup_item_group_320	Kiss-Pattern Cap
+085	F0BD80AA1CB8B19E	dressup_item_group_321	Kalos Logo Cap
+086	F0BD7FAA1CB8AFEB	dressup_item_group_322	Cinematic Cap
+087	F0BD7EAA1CB8AE38	dressup_item_group_323	Fleece Cap
+088	F0BD85AA1CB8BA1D	dressup_item_group_324	Floral Headband
+089	F0BD84AA1CB8B86A	dressup_item_group_325	Spiderweb Headband
+090	F0BD83AA1CB8B6B7	dressup_item_group_326	Studded Headband
+091	F0BD82AA1CB8B504	dressup_item_group_327	Crisscross Ribbon Headband
+092	F0BD79AA1CB8A5B9	dressup_item_group_328	Metallic Headband
+093	F0BD78AA1CB8A406	dressup_item_group_329	Boater Hat
+094	F0B9FBAA1CB599C8	dressup_item_group_330	Poké Ear Knit Beanie
+095	F0B9FCAA1CB59B7B	dressup_item_group_331	Ear Knit Beanie
+096	F0B9FDAA1CB59D2E	dressup_item_group_332	Logo Bucket Hat
+097	F0B9FEAA1CB59EE1	dressup_item_group_333	Two-Tone Bucket Hat
+098	F0B9FFAA1CB5A094	dressup_item_group_334	Arabesque Bucket Hat
+099	1C13D5AA3546AB0D	dressup_item_group_401	Rectangle Glasses
+100	1C13D2AA3546A5F4	dressup_item_group_402	Round Glasses
+101	1C13D3AA3546A7A7	dressup_item_group_403	Oval Glasses
+102	1C13D0AA3546A28E	dressup_item_group_404	Sporty Sunglasses
+103	1C13D1AA3546A441	dressup_item_group_405	Cool Bridge Glasses
+104	2376EEAA39194092	dressup_item_group_501	Leather Gloves
+105	2376EDAA39193EDF	dressup_item_group_502	Budew Knit Gloves
+106	2376ECAA39193D2C	dressup_item_group_503	Geometric Knit Gloves
+107	2376EBAA39193B79	dressup_item_group_504	Sylveon Knit Gloves
+108	2376EAAA391939C6	dressup_item_group_505	Three-Finger Gloves
+109	09E6FFAA2ABD4057	dressup_item_group_601	Striped Quarter Socks
+110	09E700AA2ABD420A	dressup_item_group_602	Simple Quarter Socks
+111	09E701AA2ABD43BD	dressup_item_group_603	Plaid Quarter Socks
+112	09E6FAAA2ABD37D8	dressup_item_group_604	Logo Quarter Socks
+113	09E6FBAA2ABD398B	dressup_item_group_605	Simple Knee-High Socks
+114	09E6FCAA2ABD3B3E	dressup_item_group_606	Striped Knee-High Socks
+115	09E6FDAA2ABD3CF1	dressup_item_group_607	Plaid Knee-High Socks
+116	09E6F6AA2ABD310C	dressup_item_group_608	Signature Knee-High Socks
+117	09E6F7AA2ABD32BF	dressup_item_group_609	Rendezvous Knee-High Socks
+118	09EA84AA2AC0582D	dressup_item_group_610	Cactus Knee-High Socks
+119	09EA83AA2AC0567A	dressup_item_group_611	Rose Knee-High Socks
+120	09EA82AA2AC054C7	dressup_item_group_612	Gradient Knee-High Socks
+121	09EA81AA2AC05314	dressup_item_group_613	Simple Cropped Leggings
+122	09EA80AA2AC05161	dressup_item_group_614	Gradient Cropped Leggings
+123	09EA7FAA2AC04FAE	dressup_item_group_615	Simple Tights
+124	09EA7EAA2AC04DFB	dressup_item_group_616	Colorful Tights
+125	09EA7DAA2AC04C48	dressup_item_group_617	Knit Tights
+126	09EA7CAA2AC04A95	dressup_item_group_618	Floral Tights
+127	09EA7BAA2AC048E2	dressup_item_group_619	Girafarig Tights
+128	09EDEAAA2AC33B56	dressup_item_group_620	Asymmetrical Tights
+129	09EDEBAA2AC33D09	dressup_item_group_621	Diamond-Pattern Tights
+130	09EDE8AA2AC337F0	dressup_item_group_622	Simple Thigh-High Socks
+131	09EDE9AA2AC339A3	dressup_item_group_623	Striped Thigh-High Socks
+132	09EDEEAA2AC34222	dressup_item_group_624	Bow-and-Bone Thigh-High Socks
+133	09EDEFAA2AC343D5	dressup_item_group_625	Psychic Thigh-High Socks
+134	09EDECAA2AC33EBC	dressup_item_group_626	Mystic Thigh-High Socks
+135	09EDEDAA2AC3406F	dressup_item_group_627	Gradient Thigh-High Socks
+136	09EDF2AA2AC348EE	dressup_item_group_628	Polka Dot Ribbon Socks
+137	09EDF3AA2AC34AA1	dressup_item_group_629	Bow-and-Bone Socks
+138	09F170AA2AC654DF	dressup_item_group_630	Lacy Ribbon Socks
+139	09F16FAA2AC6532C	dressup_item_group_631	Socks & Tights Set
+140	09F172AA2AC65845	dressup_item_group_632	Patterned Tights & Socks Set
+141	12FD98AA300243DC	dressup_item_group_701	Mid-Top Sneakers
+142	12FD9BAA300248F5	dressup_item_group_702	Sock Sneakers
+143	12FD9AAA30024742	dressup_item_group_703	Canvas Sneakers
+144	12FD95AA30023EC3	dressup_item_group_704	High-Top Sneakers
+145	12FD94AA30023D10	dressup_item_group_705	Striped High-Top Sneakers
+146	12FD97AA30024229	dressup_item_group_706	Performance Sneakers
+147	12FD96AA30024076	dressup_item_group_707	Puffy-Sole Sneakers
+148	12FDA1AA30025327	dressup_item_group_708	Opera Shoes
+149	12FDA0AA30025174	dressup_item_group_709	Plaid Loafers
+150	12FA13AA2FFF2C06	dressup_item_group_710	Leather Loafers
+151	12FA14AA2FFF2DB9	dressup_item_group_711	Dark-Type Loafers
+152	12FA11AA2FFF28A0	dressup_item_group_712	Floral Loafers
+153	12FA12AA2FFF2A53	dressup_item_group_713	Lace-Up Shoes
+154	12FA17AA2FFF32D2	dressup_item_group_714	Suede Long Boots
+155	12FA18AA2FFF3485	dressup_item_group_715	Patent Leather Toe-Cap Boots
+156	12FA15AA2FFF2F6C	dressup_item_group_716	Medallion Long Boots
+157	12FA16AA2FFF311F	dressup_item_group_717	Patterned Long Boots
+158	12FA1BAA2FFF399E	dressup_item_group_718	Combat Boots
+159	12FA1CAA2FFF3B51	dressup_item_group_719	Side Gore Boots
+160	12F6ADAA2FFC48DD	dressup_item_group_720	Mouton Boots
+161	12F6ACAA2FFC472A	dressup_item_group_721	Chunky Sneakers
+162	12F6ABAA2FFC4577	dressup_item_group_722	Mid-Calf Boots
+163	12F6AAAA2FFC43C4	dressup_item_group_723	Dark-Type Mid-Calf Boots
+164	12F6A9AA2FFC4211	dressup_item_group_724	Embellished Mary Janes
+165	12F6A8AA2FFC405E	dressup_item_group_725	Mary Janes
+166	12F6A7AA2FFC3EAB	dressup_item_group_726	Simple Pumps
+167	12F6A6AA2FFC3CF8	dressup_item_group_727	Plaid Pumps
+168	12F6A5AA2FFC3B45	dressup_item_group_728	Liepard Pumps
+169	12F6A4AA2FFC3992	dressup_item_group_729	Pointed Loafers
+170	B34851A9F9AD8409	dressup_item_group_801	Simple Round Satchel
+171	B3484EA9F9AD7EF0	dressup_item_group_802	Two-Tone Round Satchel
+172	B3484FA9F9AD80A3	dressup_item_group_803	DENSOKU Round Satchel
+173	B34854A9F9AD8922	dressup_item_group_804	Leather Round Satchel
+174	B34855A9F9AD8AD5	dressup_item_group_805	Aurora Round Satchel
+175	B34852A9F9AD85BC	dressup_item_group_806	Tie-Dye Square Satchel
+176	B34853A9F9AD876F	dressup_item_group_807	Spiderweb Square Satchel
+177	B34858A9F9AD8FEE	dressup_item_group_808	Plaid Square Satchel
+178	B34859A9F9AD91A1	dressup_item_group_809	Leather Square Satchel
+179	B34BD6A9F9B09BDF	dressup_item_group_810	Patterned Square Satchel
+180	B34BD5A9F9B09A2C	dressup_item_group_811	Studded Square Satchel
+181	B34BD8A9F9B09F45	dressup_item_group_812	Aurora Square Satchel
+182	B34BD7A9F9B09D92	dressup_item_group_813	Floral Fleece Satchel
+183	B34BD2A9F9B09513	dressup_item_group_814	Simple Fleece Satchel
+184	B34BD1A9F9B09360	dressup_item_group_815	Studded Fleece Satchel
+185	B34BD4A9F9B09879	dressup_item_group_816	Patterned Fleece Satchel
+186	B34BD3A9F9B096C6	dressup_item_group_817	Simple Frilly Satchel
+187	B34BDEA9F9B0A977	dressup_item_group_818	Patterned Frilly Satchel
+188	BC5E8AA9FEF1E46E	dressup_item_group_901	Lightning Earrings
+189	BC5E89A9FEF1E2BB	dressup_item_group_902	Flower Earrings
+190	BC5E88A9FEF1E108	dressup_item_group_903	Simple Studs
+191	BC5E8FA9FEF1ECED	dressup_item_group_904	Triangle Earrings
+192	BC5E8EA9FEF1EB3A	dressup_item_group_905	Hoop Earrings
+193	67487CFC3F6BA15B	dressup_item_color_null	　
+194	389E21C5060AA211	dressup_item_color_001	F-00
+195	389E1EC5060A9CF8	dressup_item_color_002	Team MZ Logo
+196	389E1FC5060A9EAB	dressup_item_color_003	The Sharpedo
+197	389E24C5060AA72A	dressup_item_color_004	Argyle Yellow
+198	389E25C5060AA8DD	dressup_item_color_005	Argyle Orange
+199	389E22C5060AA3C4	dressup_item_color_006	Argyle Green
+200	389E23C5060AA577	dressup_item_color_007	Argyle Purple
+201	389E18C5060A92C6	dressup_item_color_008	Argyle Pink
+202	389E19C5060A9479	dressup_item_color_009	Argyle Black
+203	38A1A6C5060DB9E7	dressup_item_color_010	Argyle Blue
+204	38A1A5C5060DB834	dressup_item_color_011	Argyle White
+205	38A1A8C5060DBD4D	dressup_item_color_012	Argyle Red
+206	38A1A7C5060DBB9A	dressup_item_color_013	Ivory
+207	38A1A2C5060DB31B	dressup_item_color_014	Ivory / Beige
+208	38A1A1C5060DB168	dressup_item_color_015	Red-and-Black Stripes
+209	38A1A4C5060DB681	dressup_item_color_016	Crimson Asanoha
+210	38A1A3C5060DB4CE	dressup_item_color_017	Midnight Asanoha
+211	38A19EC5060DAC4F	dressup_item_color_018	Aromatic Orange
+212	38A19DC5060DAA9C	dressup_item_color_019	Aromatic Purple
+213	389714C506046D4C	dressup_item_color_020	Aromatic Pink
+214	389715C506046EFF	dressup_item_color_021	Antique Caramel
+215	389716C5060470B2	dressup_item_color_022	Antique Black
+216	389717C506047265	dressup_item_color_023	Antique Beige
+217	389710C506046680	dressup_item_color_024	Yellow
+218	389711C506046833	dressup_item_color_025	Yellow / Green
+219	389712C5060469E6	dressup_item_color_026	Yellow / Purple
+220	389713C506046B99	dressup_item_color_027	Yellow / Black
+221	38971CC506047AE4	dressup_item_color_028	Yellow / Blue
+222	38971DC506047C97	dressup_item_color_029	Yellow / White
+223	389A9AC5060786D5	dressup_item_color_030	Yellow Gradient
+224	389A99C506078522	dressup_item_color_031	Yellow Girafarig
+225	389A98C50607836F	dressup_item_color_032	Yellow Plaid
+226	389A97C5060781BC	dressup_item_color_033	Yellow Frames
+227	389A96C506078009	dressup_item_color_034	Alabaster Ichimatsu
+228	389A95C506077E56	dressup_item_color_035	Flashy Ichimatsu
+229	389A94C506077CA3	dressup_item_color_036	Dayflower Ichimatsu
+230	389A93C506077AF0	dressup_item_color_037	Refined Ichimatsu
+231	389AA2C50607946D	dressup_item_color_038	Indigo Denim
+232	389AA1C5060792BA	dressup_item_color_039	Green Windowpane
+233	3890A8C505FF4A1A	dressup_item_color_040	Red Windowpane
+234	3890A9C505FF4BCD	dressup_item_color_041	Azure
+235	3890A6C505FF46B4	dressup_item_color_042	Ultramarine
+236	3890A7C505FF4867	dressup_item_color_043	Emerald Green
+237	3890A4C505FF434E	dressup_item_color_044	Fern
+238	3890A5C505FF4501	dressup_item_color_045	Ocher
+239	3890A2C505FF3FE8	dressup_item_color_046	Ocher / Yellow
+240	3890A3C505FF419B	dressup_item_color_047	Old Rose
+241	3890A0C505FF3C82	dressup_item_color_048	Off-White
+242	3890A1C505FF3E35	dressup_item_color_049	Olive
+243	38940EC506022D43	dressup_item_color_050	Traditional Green
+244	38940DC506022B90	dressup_item_color_051	Traditional Gray
+245	389410C5060230A9	dressup_item_color_052	Traditional Blue
+246	38940FC506022EF6	dressup_item_color_053	Traditional Beige
+247	389412C50602340F	dressup_item_color_054	Orange
+248	389411C50602325C	dressup_item_color_055	Orange / Yellow
+249	389414C506023775	dressup_item_color_056	Orange / Purple
+250	389413C5060235C2	dressup_item_color_057	Orange / Blue
+251	389416C506023ADB	dressup_item_color_058	Orange Lenses
+252	389415C506023928	dressup_item_color_059	Revolving Paisley
+253	38899CC505F91708	dressup_item_color_060	Noxious Red
+254	38899DC505F918BB	dressup_item_color_061	Tyrantrum Island
+255	38899EC505F91A6E	dressup_item_color_062	Colorful Chemistry
+256	38899FC505F91C21	dressup_item_color_063	Academic Gray
+257	3889A0C505F91DD4	dressup_item_color_064	Academic Navy
+258	3889A1C505F91F87	dressup_item_color_065	Academic Black
+259	3889A2C505F9213A	dressup_item_color_066	Academic Blue
+260	3889A3C505F922ED	dressup_item_color_067	Academic White
+261	388994C505F90970	dressup_item_color_068	Earthenware
+262	388995C505F90B23	dressup_item_color_069	Blue Kiss
+263	388D22C505FC3091	dressup_item_color_070	Red Kiss
+264	388D21C505FC2EDE	dressup_item_color_071	Bewear Black
+265	388D20C505FC2D2B	dressup_item_color_072	Bewear White
+266	388D1FC505FC2B78	dressup_item_color_073	Bewear Red
+267	388D26C505FC375D	dressup_item_color_074	Tan
+268	388D25C505FC35AA	dressup_item_color_075	Tan / Brown
+269	388D24C505FC33F7	dressup_item_color_076	Caramel
+270	388D23C505FC3244	dressup_item_color_077	Candy Purple
+271	388D1AC505FC22F9	dressup_item_color_078	Candy Pink
+272	388D19C505FC2146	dressup_item_color_079	Candy Black
+273	388310C505F3BD76	dressup_item_color_080	Candy Blue
+274	388311C505F3BF29	dressup_item_color_081	Candy White
+275	38830EC505F3BA10	dressup_item_color_082	Black Quilting
+276	38830FC505F3BBC3	dressup_item_color_083	White Quilting
+277	388314C505F3C442	dressup_item_color_084	Red Quilting
+278	388315C505F3C5F5	dressup_item_color_085	Cool Black
+279	388312C505F3C0DC	dressup_item_color_086	Yellow Graffiti
+280	388313C505F3C28F	dressup_item_color_087	Green Graffiti
+281	388318C505F3CB0E	dressup_item_color_088	Black Graffiti
+282	388319C505F3CCC1	dressup_item_color_089	Blue Graffiti
+283	388616C505F5FD7F	dressup_item_color_090	White Graffiti
+284	388615C505F5FBCC	dressup_item_color_091	Red Graffiti
+285	388618C505F600E5	dressup_item_color_092	Clean Navy
+286	388617C505F5FF32	dressup_item_color_093	Clean Pink
+287	388612C505F5F6B3	dressup_item_color_094	Clean Blue
+288	388611C505F5F500	dressup_item_color_095	Clean White
+289	388614C505F5FA19	dressup_item_color_096	Cream
+290	388613C505F5F866	dressup_item_color_097	Green
+291	38861EC505F60B17	dressup_item_color_098	Green / Yellow
+292	38861DC505F60964	dressup_item_color_099	Green / Orange
+293	4147BBC50AF2D569	dressup_item_color_100	Green / Navy
+294	4147BAC50AF2D3B6	dressup_item_color_101	Green / Pink
+295	4147B9C50AF2D203	dressup_item_color_102	Green / Brown
+296	4147B8C50AF2D050	dressup_item_color_103	Green / Black
+297	4147BFC50AF2DC35	dressup_item_color_104	Green / White
+298	4147BEC50AF2DA82	dressup_item_color_105	Green Gradient
+299	4147BDC50AF2D8CF	dressup_item_color_106	Green Girafarig
+300	4147BCC50AF2D71C	dressup_item_color_107	Green Plaid
+301	4147C3C50AF2E301	dressup_item_color_108	Green Frames
+302	4147C2C50AF2E14E	dressup_item_color_109	Green Ribbon
+303	414435C50AEFBBE0	dressup_item_color_110	Gray
+304	414436C50AEFBD93	dressup_item_color_111	Gray / Yellow
+305	414437C50AEFBF46	dressup_item_color_112	Gray / Pink
+306	414438C50AEFC0F9	dressup_item_color_113	Gray / Blue
+307	414439C50AEFC2AC	dressup_item_color_114	Gray / White
+308	41443AC50AEFC45F	dressup_item_color_115	Gray / Red
+309	41443BC50AEFC612	dressup_item_color_116	Gray Gradient
+310	41443CC50AEFC7C5	dressup_item_color_117	Greige
+311	41443DC50AEFC978	dressup_item_color_118	Gray Denim
+312	41443EC50AEFCB2B	dressup_item_color_119	Gray-Black
+313	414E47C50AF82EFB	dressup_item_color_120	Flowery Gray
+314	414E46C50AF82D48	dressup_item_color_121	Gray Stripes
+315	414E49C50AF83261	dressup_item_color_122	Gray Ribbon
+316	414E48C50AF830AE	dressup_item_color_123	Gray Lenses
+317	414E4BC50AF835C7	dressup_item_color_124	Avalugg Black
+318	414E4AC50AF83414	dressup_item_color_125	Avalugg Blue
+319	414E4DC50AF8392D	dressup_item_color_126	Gray Claw
+320	414E4CC50AF8377A	dressup_item_color_127	Black Claw
+321	414E3FC50AF82163	dressup_item_color_128	White Claw
+322	414E3EC50AF81FB0	dressup_item_color_129	Red Claw
+323	414AC1C50AF51572	dressup_item_color_130	Black-and-White Stripes
+324	414AC2C50AF51725	dressup_item_color_131	Plus Pattern
+325	414ABFC50AF5120C	dressup_item_color_132	Black-and-Peach Stripes
+326	414AC0C50AF513BF	dressup_item_color_133	Yellow Cable-Knit
+327	414ABDC50AF50EA6	dressup_item_color_134	Green Cable-Knit
+328	414ABEC50AF51059	dressup_item_color_135	Beige Cable-Knit
+329	414ABBC50AF50B40	dressup_item_color_136	White Cable-Knit
+330	414ABCC50AF50CF3	dressup_item_color_137	Gengar Black
+331	414AC9C50AF5230A	dressup_item_color_138	Checkered Green
+332	414ACAC50AF524BD	dressup_item_color_139	Checkered Navy
+333	415553C50AFE620D	dressup_item_color_140	Checkered Red
+334	415552C50AFE605A	dressup_item_color_141	Gold
+335	415551C50AFE5EA7	dressup_item_color_142	Gold Frames
+336	415550C50AFE5CF4	dressup_item_color_143	Gold Lenses
+337	41554FC50AFE5B41	dressup_item_color_144	Cocoa
+338	41554EC50AFE598E	dressup_item_color_145	Scatterdust Ivory
+339	41554DC50AFE57DB	dressup_item_color_146	Scatterdust Tan
+340	41554CC50AFE5628	dressup_item_color_147	Scatterdust Blue
+341	41554BC50AFE5475	dressup_item_color_148	Daunting Brown
+342	41554AC50AFE52C2	dressup_item_color_149	Daunting Black
+343	4151CDC50AFB4884	dressup_item_color_150	Psychic Green
+344	4151CEC50AFB4A37	dressup_item_color_151	Psychic Gray
+345	4151CFC50AFB4BEA	dressup_item_color_152	Psychic Black
+346	4151D0C50AFB4D9D	dressup_item_color_153	Psychic Blue
+347	4151C9C50AFB41B8	dressup_item_color_154	Psychic White
+348	4151CAC50AFB436B	dressup_item_color_155	Psychic Red
+349	4151CBC50AFB451E	dressup_item_color_156	Sound Wave
+350	4151CCC50AFB46D1	dressup_item_color_157	Sunny Mosaic
+351	4151C5C50AFB3AEC	dressup_item_color_158	Sunset Lenses
+352	4151C6C50AFB3C9F	dressup_item_color_159	Sand Orange
+353	415BBFC50B03853F	dressup_item_color_160	Sand Gang
+354	415BBEC50B03838C	dressup_item_color_161	Sand Green
+355	415BC1C50B0388A5	dressup_item_color_162	Geometric Yellow
+356	415BC0C50B0386F2	dressup_item_color_163	Geometric Green
+357	415BBBC50B037E73	dressup_item_color_164	Geometric Black
+358	415BBAC50B037CC0	dressup_item_color_165	Geometric Blue
+359	415BBDC50B0381D9	dressup_item_color_166	Geometric White
+360	415BBCC50B038026	dressup_item_color_167	Geometric Red
+361	415BC7C50B0392D7	dressup_item_color_168	Signature Black
+362	415BC6C50B039124	dressup_item_color_169	Signature White
+363	4158B9C50B014536	dressup_item_color_170	Scizor Yellow
+364	4158BAC50B0146E9	dressup_item_color_171	Scizor Orange
+365	4158B7C50B0141D0	dressup_item_color_172	Scizor White
+366	4158B8C50B014383	dressup_item_color_173	Fern Meteorites
+367	4158BDC50B014C02	dressup_item_color_174	Ink Meteorites
+368	4158BEC50B014DB5	dressup_item_color_175	Clay Shippo
+369	4158BBC50B01489C	dressup_item_color_176	Snow Shippo
+370	4158BCC50B014A4F	dressup_item_color_177	Silky White
+371	4158C1C50B0152CE	dressup_item_color_178	Silver
+372	4158C2C50B015481	dressup_item_color_179	Silver Frames
+373	4162CBC50B09B851	dressup_item_color_180	Silver Lenses
+374	4162CAC50B09B69E	dressup_item_color_181	White-and-Black Stripes
+375	4162C9C50B09B4EB	dressup_item_color_182	Sweet Pink
+376	4162C8C50B09B338	dressup_item_color_183	Sweet Black
+377	4162CFC50B09BF1D	dressup_item_color_184	Sweet Blue
+378	4162CEC50B09BD6A	dressup_item_color_185	Sweet White
+379	4162CDC50B09BBB7	dressup_item_color_186	Sky Gray
+380	4162CCC50B09BA04	dressup_item_color_187	Sky Blue
+381	4162C3C50B09AAB9	dressup_item_color_188	Scary Orange
+382	4162C2C50B09A906	dressup_item_color_189	Scary Green
+383	415F45C50B069EC8	dressup_item_color_190	Scary Purple
+384	415F46C50B06A07B	dressup_item_color_191	Tin
+385	415F47C50B06A22E	dressup_item_color_192	Yellow Stitching
+386	415F48C50B06A3E1	dressup_item_color_193	Green Stitching
+387	415F49C50B06A594	dressup_item_color_194	Black Stitching
+388	415F4AC50B06A747	dressup_item_color_195	White Stitching
+389	415F4BC50B06A8FA	dressup_item_color_196	Red Stitching
+390	415F4CC50B06AAAD	dressup_item_color_197	Tan Stripes
+391	415F3DC50B069130	dressup_item_color_198	Green Stripes
+392	415F3EC50B0692E3	dressup_item_color_199	Cocoa Stripes
+393	2671CAC4FB820F28	dressup_item_color_200	Blue Stripes
+394	2671CBC4FB8210DB	dressup_item_color_201	White Stripes
+395	2671CCC4FB82128E	dressup_item_color_202	Red Stripes
+396	2671CDC4FB821441	dressup_item_color_203	Strawberry
+397	2671CEC4FB8215F4	dressup_item_color_204	Mystic Yellow
+398	2671CFC4FB8217A7	dressup_item_color_205	Mystic Purple
+399	2671D0C4FB82195A	dressup_item_color_206	Mystic Pattern
+400	2671D1C4FB821B0D	dressup_item_color_207	Mystic Black
+401	2671C2C4FB820190	dressup_item_color_208	Mystic White
+402	2671C3C4FB820343	dressup_item_color_209	Pink Splash
+403	2674D0C4FB844F31	dressup_item_color_210	Blue Spray
+404	2674CFC4FB844D7E	dressup_item_color_211	Red Spray
+405	2674CEC4FB844BCB	dressup_item_color_212	Cobalt Blue
+406	2674CDC4FB844A18	dressup_item_color_213	Smoky Blue
+407	2674D4C4FB8455FD	dressup_item_color_214	Three-Headed Dragon
+408	2674D3C4FB84544A	dressup_item_color_215	Gogoat Green
+409	2674D2C4FB845297	dressup_item_color_216	Gogoat Navy
+410	2674D1C4FB8450E4	dressup_item_color_217	Gogoat Brown
+411	2674C8C4FB844199	dressup_item_color_218	Gogoat Black
+412	2674C7C4FB843FE6	dressup_item_color_219	Gogoat Blue
+413	267856C4FB8768BA	dressup_item_color_220	Gogoat Beige
+414	267857C4FB876A6D	dressup_item_color_221	Gogoat Red
+415	267854C4FB876554	dressup_item_color_222	Dark Green
+416	267855C4FB876707	dressup_item_color_223	Dark Gray
+417	267852C4FB8761EE	dressup_item_color_224	Dark Navy
+418	267853C4FB8763A1	dressup_item_color_225	Dark Purple
+419	267850C4FB875E88	dressup_item_color_226	Dark Brown
+420	267851C4FB87603B	dressup_item_color_227	Dark Black
+421	26784EC4FB875B22	dressup_item_color_228	Dark Blue
+422	26784FC4FB875CD5	dressup_item_color_229	Dark Red
+423	267BBCC4FB8A4BE3	dressup_item_color_230	Tan Tartan
+424	267BBBC4FB8A4A30	dressup_item_color_231	Green Tartan
+425	267BBEC4FB8A4F49	dressup_item_color_232	Gray Tartan
+426	267BBDC4FB8A4D96	dressup_item_color_233	Brown Tartan
+427	267BC0C4FB8A52AF	dressup_item_color_234	Blue Tartan
+428	267BBFC4FB8A50FC	dressup_item_color_235	White Tartan
+429	267BC2C4FB8A5615	dressup_item_color_236	Red Tartan
+430	267BC1C4FB8A5462	dressup_item_color_237	Clay
+431	267BC4C4FB8A597B	dressup_item_color_238	Obstagoon
+432	267BC3C4FB8A57C8	dressup_item_color_239	Taffy Pink
+433	267F42C4FB8D656C	dressup_item_color_240	Green Damask
+434	267F43C4FB8D671F	dressup_item_color_241	Purple Damask
+435	267F44C4FB8D68D2	dressup_item_color_242	Black Damask
+436	267F45C4FB8D6A85	dressup_item_color_243	Red Damask
+437	267F3EC4FB8D5EA0	dressup_item_color_244	Distressed Indigo
+438	267F3FC4FB8D6053	dressup_item_color_245	Distressed Bleach
+439	267F40C4FB8D6206	dressup_item_color_246	Distressed Blue
+440	267F41C4FB8D63B9	dressup_item_color_247	Green Houndstooth
+441	267F4AC4FB8D7304	dressup_item_color_248	Gray Houndstooth
+442	267F4BC4FB8D74B7	dressup_item_color_249	Brown Houndstooth
+443	2682C8C4FB907EF5	dressup_item_color_250	Black Houndstooth
+444	2682C7C4FB907D42	dressup_item_color_251	Blue Houndstooth
+445	2682C6C4FB907B8F	dressup_item_color_252	Maroon Houndstooth
+446	2682C5C4FB9079DC	dressup_item_color_253	Red Houndstooth
+447	2682C4C4FB907829	dressup_item_color_254	Oh, Charmie!
+448	2682C3C4FB907676	dressup_item_color_255	Dual Legends
+449	2682C2C4FB9074C3	dressup_item_color_256	Tricolor
+450	2682C1C4FB907310	dressup_item_color_257	Dusty Pink
+451	2682D0C4FB908C8D	dressup_item_color_258	Midnight
+452	2682CFC4FB908ADA	dressup_item_color_259	Navy
+453	2685CEC4FB92BEFE	dressup_item_color_260	Navy / Tan
+454	2685CFC4FB92C0B1	dressup_item_color_261	Navy / Green
+455	2685CCC4FB92BB98	dressup_item_color_262	Navy / Pink
+456	2685CDC4FB92BD4B	dressup_item_color_263	Navy / Yellow
+457	2685D2C4FB92C5CA	dressup_item_color_264	Navy / Red
+458	2685D3C4FB92C77D	dressup_item_color_265	Burgundy
+459	2685D0C4FB92C264	dressup_item_color_266	Purple
+460	2685D1C4FB92C417	dressup_item_color_267	Purple / Yellow
+461	2685C6C4FB92B166	dressup_item_color_268	Purple / Orange
+462	2685C7C4FB92B319	dressup_item_color_269	Purple / Green
+463	268954C4FB95D887	dressup_item_color_270	All-Purple
+464	268953C4FB95D6D4	dressup_item_color_271	Purple / Pink
+465	268956C4FB95DBED	dressup_item_color_272	Purple / Black
+466	268955C4FB95DA3A	dressup_item_color_273	Purple / Blue
+467	268950C4FB95D1BB	dressup_item_color_274	Purple / White
+468	26894FC4FB95D008	dressup_item_color_275	Purple / Magenta
+469	268952C4FB95D521	dressup_item_color_276	Purple Lenses
+470	268951C4FB95D36E	dressup_item_color_277	Violet
+471	26894CC4FB95CAEF	dressup_item_color_278	Two-Tone Yellow
+472	26894BC4FB95C93C	dressup_item_color_279	Two-Tone Green
+473	26563AC4FB6A52C0	dressup_item_color_280	Two-Tone Purple
+474	26563BC4FB6A5473	dressup_item_color_281	Two-Tone Black
+475	26563CC4FB6A5626	dressup_item_color_282	Two-Tone Blue
+476	26563DC4FB6A57D9	dressup_item_color_283	Two-Tone Red
+477	26563EC4FB6A598C	dressup_item_color_284	Gray-and-Black Stripes
+478	26563FC4FB6A5B3F	dressup_item_color_285	Bruxish
+479	265640C4FB6A5CF2	dressup_item_color_286	Pastel Winter
+480	265641C4FB6A5EA5	dressup_item_color_287	Pastel Autumn
+481	265642C4FB6A6058	dressup_item_color_288	Pastel Summer
+482	265643C4FB6A620B	dressup_item_color_289	Pastel Spring
+483	2659C0C4FB6D6C49	dressup_item_color_290	Pastel Pink
+484	2659BFC4FB6D6A96	dressup_item_color_291	Pastel Blue
+485	2659BEC4FB6D68E3	dressup_item_color_292	Tin Geta
+486	2659BDC4FB6D6730	dressup_item_color_293	Midnight Geta
+487	2659C4C4FB6D7315	dressup_item_color_294	Floral Yellow
+488	2659C3C4FB6D7162	dressup_item_color_295	Floral Pink
+489	2659C2C4FB6D6FAF	dressup_item_color_296	Floral Brown
+490	2659C1C4FB6D6DFC	dressup_item_color_297	Floral Black
+491	2659C8C4FB6D79E1	dressup_item_color_298	Floral Blue
+492	2659C7C4FB6D782E	dressup_item_color_299	Floral Red
+493	2F87E5C500C63C93	dressup_item_color_300	Chespin Green
+494	2F87E4C500C63AE0	dressup_item_color_301	Dark Pumpkin
+495	2F87E7C500C63FF9	dressup_item_color_302	Light Pumpkin
+496	2F87E6C500C63E46	dressup_item_color_303	Peach Lenses
+497	2F87E9C500C6435F	dressup_item_color_304	Pikachu Yellow
+498	2F87E8C500C641AC	dressup_item_color_305	Big Charizard 2
+499	2F87EBC500C646C5	dressup_item_color_306	Emerald / White
+500	2F87EAC500C64512	dressup_item_color_307	Vivid Orange
+501	2F87ECC500C64878	dressup_item_color_309	Vivid Purple
+502	2F847FC500C3596A	dressup_item_color_310	Vivid Black
+503	2F8480C500C35B1D	dressup_item_color_311	Vivid Blue
+504	2F847DC500C35604	dressup_item_color_312	Vivid White
+505	2F847EC500C357B7	dressup_item_color_313	Vivid Lime
+506	2F847BC500C3529E	dressup_item_color_314	Vivid Red
+507	2F847CC500C35451	dressup_item_color_315	Pink
+508	2F8479C500C34F38	dressup_item_color_316	Pink / Gray
+509	2F847AC500C350EB	dressup_item_color_317	All-Pink
+510	2F8477C500C34BD2	dressup_item_color_318	Pink / Light Gray
+511	2F8478C500C34D85	dressup_item_color_319	Pink / White
+512	2F80F9C500C03FE1	dressup_item_color_320	Pink Gradient
+513	2F80F8C500C03E2E	dressup_item_color_321	Pink-Gray
+514	2F80F7C500C03C7B	dressup_item_color_322	Rose Gold
+515	2F80F6C500C03AC8	dressup_item_color_323	Pink Plaid
+516	2F80FDC500C046AD	dressup_item_color_324	Pink-Brown
+517	2F80FCC500C044FA	dressup_item_color_325	Pink Frames
+518	2F80FBC500C04347	dressup_item_color_326	Pink Stripes
+519	2F80FAC500C04194	dressup_item_color_327	Funky Rogue
+520	2F80F1C500C03249	dressup_item_color_328	Eevee Brown
+521	2F80F0C500C03096	dressup_item_color_329	Foggy Blue
+522	2F7D73C500BD2658	dressup_item_color_330	Forest Green
+523	2F7D74C500BD280B	dressup_item_color_331	Brown
+524	2F7D75C500BD29BE	dressup_item_color_332	Brown / Beige
+525	2F7D76C500BD2B71	dressup_item_color_333	Brown Plaid
+526	2F7D77C500BD2D24	dressup_item_color_334	Brown Lenses
+527	2F7D78C500BD2ED7	dressup_item_color_335	Floette Garden
+528	2F7D79C500BD308A	dressup_item_color_336	Black
+529	2F7D7AC500BD323D	dressup_item_color_337	Black / Yellow
+530	2F7D6BC500BD18C0	dressup_item_color_338	Black / Orange
+531	2F7D6CC500BD1A73	dressup_item_color_339	Black / Green
+532	2F957DC500D1C937	dressup_item_color_340	Black / Gray
+533	2F957CC500D1C784	dressup_item_color_341	Black / Greige
+534	2F957FC500D1CC9D	dressup_item_color_342	Black / Pink
+535	2F957EC500D1CAEA	dressup_item_color_343	All-Black
+536	2F9579C500D1C26B	dressup_item_color_344	Black / Blue
+537	2F9578C500D1C0B8	dressup_item_color_345	Black / White
+538	2F957BC500D1C5D1	dressup_item_color_346	Black / Red
+539	2F957AC500D1C41E	dressup_item_color_347	Black Ink
+540	2F9575C500D1BB9F	dressup_item_color_348	Black Denim
+541	2F9574C500D1B9EC	dressup_item_color_349	Flowery Black
+542	2F91F7C500CEAFAE	dressup_item_color_350	Black Frames
+543	2F91F8C500CEB161	dressup_item_color_351	Black Blossoms
+544	2F91F5C500CEAC48	dressup_item_color_352	Black Stripes
+545	2F91F6C500CEADFB	dressup_item_color_353	Black Lenses
+546	2F91FBC500CEB67A	dressup_item_color_354	Black Lenses (Noir)
+547	2F91FCC500CEB82D	dressup_item_color_355	Black Lenses (Blanc)
+548	2F91F9C500CEB314	dressup_item_color_356	Bleached Denim
+549	2F91FAC500CEB4C7	dressup_item_color_357	Blue
+550	2F91EFC500CEA216	dressup_item_color_358	Blue / Yellow
+551	2F91F0C500CEA3C9	dressup_item_color_359	Blue / Orange
+552	2F8E71C500CB9625	dressup_item_color_360	Blue / Gray
+553	2F8E70C500CB9472	dressup_item_color_361	Blue / Brown
+554	2F8E6FC500CB92BF	dressup_item_color_362	Blue / Black
+555	2F8E6EC500CB910C	dressup_item_color_363	All-Blue
+556	2F8E6DC500CB8F59	dressup_item_color_364	Blue / Blue-Gray
+557	2F8E6CC500CB8DA6	dressup_item_color_365	Blue / Beige
+558	2F8E6BC500CB8BF3	dressup_item_color_366	Blue / White
+559	2F8E6AC500CB8A40	dressup_item_color_367	Blue / Red
+560	2F8E79C500CBA3BD	dressup_item_color_368	Blue Gradient
+561	2F8E78C500CBA20A	dressup_item_color_369	Blue-Gray
+562	2F8B6BC500C9561C	dressup_item_color_370	Blue Denim
+563	2F8B6CC500C957CF	dressup_item_color_371	Flowery Blue
+564	2F8B6DC500C95982	dressup_item_color_372	Blue Frames
+565	2F8B6EC500C95B35	dressup_item_color_373	Blue Blossoms
+566	2F8B67C500C94F50	dressup_item_color_374	Full Metal Cop
+567	2F8B68C500C95103	dressup_item_color_375	BRAVELY Tan
+568	2F8B69C500C952B6	dressup_item_color_376	BRAVELY Green
+569	2F8B6AC500C95469	dressup_item_color_377	BRAVELY Gray
+570	2F8B73C500C963B4	dressup_item_color_378	BRAVELY Brown
+571	2F8B74C500C96567	dressup_item_color_379	BRAVELY Red
+572	2F6C75C500AEB68B	dressup_item_color_380	Bronze
+573	2F6C74C500AEB4D8	dressup_item_color_381	Beige
+574	2F6C77C500AEB9F1	dressup_item_color_382	Beige / Gray
+575	2F6C76C500AEB83E	dressup_item_color_383	All-Beige
+576	2F6C79C500AEBD57	dressup_item_color_384	Beige Frames
+577	2F6C78C500AEBBA4	dressup_item_color_385	Pale Purple
+578	2F6C7BC500AEC0BD	dressup_item_color_386	Pale Pink
+579	2F6C7AC500AEBF0A	dressup_item_color_387	Pale Blue
+580	2F6C6DC500AEA8F3	dressup_item_color_388	Best Buddy
+581	2F6C6CC500AEA740	dressup_item_color_389	Mottled Frames
+582	2F696FC500AC7682	dressup_item_color_390	Baby Pink
+583	2F6970C500AC7835	dressup_item_color_391	Graffiti Black
+584	2F696DC500AC731C	dressup_item_color_392	Inferno
+585	2F696EC500AC74CF	dressup_item_color_393	Almond Stripes
+586	2F696BC500AC6FB6	dressup_item_color_394	Navy Stripes
+587	2F696CC500AC7169	dressup_item_color_395	Purple Stripes
+588	2F6969C500AC6C50	dressup_item_color_396	Brown Stripes
+589	2F696AC500AC6E03	dressup_item_color_397	Mint Stripes
+590	2F6977C500AC841A	dressup_item_color_398	Bow-and-Bone Purple
+591	2F6978C500AC85CD	dressup_item_color_399	Bow-and-Bone Black
+592	5AD74CC5194E35EA	dressup_item_color_400	Maroon
+593	5AD74DC5194E379D	dressup_item_color_401	Maroon / Black
+594	5AD74AC5194E3284	dressup_item_color_402	White
+595	CA26259DCA543E49	dressup_item_color_402_2	White
+596	5AD74BC5194E3437	dressup_item_color_403	White / Yellow
+597	5AD748C5194E2F1E	dressup_item_color_404	White / Orange
+598	5AD749C5194E30D1	dressup_item_color_405	White / Green
+599	5AD746C5194E2BB8	dressup_item_color_406	White / Gray
+600	5AD747C5194E2D6B	dressup_item_color_407	White / Greige
+601	5AD744C5194E2852	dressup_item_color_408	White / Purple
+602	5AD745C5194E2A05	dressup_item_color_409	White / Pink
+603	5ADAB2C519511913	dressup_item_color_410	White / Black
+604	5ADAB1C519511760	dressup_item_color_411	White / Blue
+605	5ADAB4C519511C79	dressup_item_color_412	White / Beige
+606	5ADAB3C519511AC6	dressup_item_color_413	All-White
+607	5ADAB6C519511FDF	dressup_item_color_414	White / Magenta
+608	5ADAB5C519511E2C	dressup_item_color_415	White / Red
+609	5ADAB8C519512345	dressup_item_color_416	White Ink
+610	5ADAB7C519512192	dressup_item_color_417	White Girafarig
+611	5ADABAC5195126AB	dressup_item_color_418	White Plaid
+612	5ADAB9C5195124F8	dressup_item_color_419	White Denim
+613	5AD040C5194802D8	dressup_item_color_420	Flowery White
+614	5AD041C51948048B	dressup_item_color_421	White Frames
+615	5AD042C51948063E	dressup_item_color_422	Mustard
+616	5AD043C5194807F1	dressup_item_color_423	Marine / Green
+617	5AD044C5194809A4	dressup_item_color_424	Multicolor Yellow
+618	5AD045C519480B57	dressup_item_color_425	Multicolor Orange
+619	5AD046C519480D0A	dressup_item_color_426	Multicolor Black
+620	5AD047C519480EBD	dressup_item_color_427	Multicolor Red
+621	5AD038C51947F540	dressup_item_color_428	Yellow Mix
+622	5AD039C51947F6F3	dressup_item_color_429	Green Mix
+623	5AD3C6C5194B1C61	dressup_item_color_430	Navy Mix
+624	5AD3C5C5194B1AAE	dressup_item_color_431	Black Mix
+625	5AD3C4C5194B18FB	dressup_item_color_432	White Mix
+626	5AD3C3C5194B1748	dressup_item_color_433	Red Mix
+627	5AD3CAC5194B232D	dressup_item_color_434	Strawberry Milk
+628	5AD3C8C5194B1FC7	dressup_item_color_436	Moon Gray
+629	5AD3C7C5194B1E14	dressup_item_color_437	Moss Green
+630	5AD3BEC5194B0EC9	dressup_item_color_438	Moss Gray
+631	5AD3BDC5194B0D16	dressup_item_color_439	Monochrome Mosaic
+632	5AE4C4C519598C2E	dressup_item_color_440	Purple Poké Ball
+633	5AE4C5C519598DE1	dressup_item_color_441	Pink Poké Ball
+634	5AE4C2C5195988C8	dressup_item_color_442	Black Poké Ball
+635	5AE4C3C519598A7B	dressup_item_color_443	Red Poké Ball
+636	5AE4C8C5195992FA	dressup_item_color_444	Light Caramel
+637	5AE4C9C5195994AD	dressup_item_color_445	Light Gray
+638	5AE4C6C519598F94	dressup_item_color_446	Zigzag Blue
+639	5AE4C7C519599147	dressup_item_color_447	Zigzag Red
+640	5AE4BCC519597E96	dressup_item_color_448	Light Purple
+641	5AE4BDC519598049	dressup_item_color_449	Light Brown
+642	5AE84AC5195CA5B7	dressup_item_color_450	Light Blue
+643	5AE849C5195CA404	dressup_item_color_451	Light Beige
+644	5AE84CC5195CA91D	dressup_item_color_452	Lime
+645	5AE84BC5195CA76A	dressup_item_color_453	Lime Yellow
+646	5AE846C5195C9EEB	dressup_item_color_454	Ivy Lines
+647	5AE845C5195C9D38	dressup_item_color_455	Green Lines
+648	5AE848C5195CA251	dressup_item_color_456	Blue Lines
+649	5AE847C5195CA09E	dressup_item_color_457	Red Lines
+650	5AE842C5195C981F	dressup_item_color_458	Shiny Black
+651	5AE841C5195C966C	dressup_item_color_459	Lavender
+652	5ADE38C51954329C	dressup_item_color_460	Lamp Black
+653	5ADE39C51954344F	dressup_item_color_461	Woodgrain
+654	5ADE3AC519543602	dressup_item_color_462	Pitch Black
+655	5ADE3BC5195437B5	dressup_item_color_463	Overturning Green
+656	5ADE34C519542BD0	dressup_item_color_464	Overturning Purple
+657	5ADE35C519542D83	dressup_item_color_465	Gray Knit
+658	5ADE36C519542F36	dressup_item_color_466	Black Knit
+659	5ADE37C5195430E9	dressup_item_color_467	Blue Knit
+660	5ADE40C519544034	dressup_item_color_468	Red Knit
+661	5ADE41C5195441E7	dressup_item_color_469	Hawlucha
+662	5AE13EC5195672A5	dressup_item_color_470	Lapis
+663	5AE13DC5195670F2	dressup_item_color_471	Rainy Mosaic
+664	5AE13CC519566F3F	dressup_item_color_472	Rainbow
+665	5AE13BC519566D8C	dressup_item_color_473	Black Leather
+666	5AE13AC519566BD9	dressup_item_color_474	White Leather
+667	5AE139C519566A26	dressup_item_color_475	Red
+668	5AE138C519566873	dressup_item_color_476	Red / Green
+669	5AE137C5195666C0	dressup_item_color_477	Red / Black
+670	5AE146C51956803D	dressup_item_color_478	Red / Blue
+671	5AE145C519567E8A	dressup_item_color_479	Red / White
+672	5ABC3CC519375302	dressup_item_color_480	All-Red
+673	5ABC3DC5193754B5	dressup_item_color_481	Red Gradient
+674	5ABC3AC519374F9C	dressup_item_color_482	Red Plaid
+675	5ABC3BC51937514F	dressup_item_color_483	Red Frames
+676	5ABC38C519374C36	dressup_item_color_484	Red Blossoms
+677	5ABC39C519374DE9	dressup_item_color_485	Red Stripes
+678	5ABC36C5193748D0	dressup_item_color_486	Red Ribbon
+679	5ABC37C519374A83	dressup_item_color_487	Retro Green
+680	5ABC44C51937609A	dressup_item_color_488	Retro Brown
+681	5ABC45C51937624D	dressup_item_color_489	Retro Blue
+682	5ABF42C51939930B	dressup_item_color_490	Retro Red
+683	5ABF41C519399158	dressup_item_color_491	Liepard Frames
+684	5ABF44C519399671	dressup_item_color_492	Lemon Yellow
+685	5ABF43C5193994BE	dressup_item_color_493	Lemon Lenses
+686	5ABF46C5193999D7	dressup_item_color_494	Black Wise-Eyes
+687	5ABF45C519399824	dressup_item_color_495	Blue Wise-Eyes
+688	5ABF48C519399D3D	dressup_item_color_496	White Wise-Eyes
+689	5ABF47C519399B8A	dressup_item_color_497	Wine Red
+690	5ABF3AC519398573	dressup_item_color_498	Orange / Black
+691	5ABF39C5193983C0	dressup_item_color_499	Navy Knit
+692	63ED67C51E926355	dressup_item_color_500	Yellow / Olive
+693	63ED66C51E9261A2	dressup_item_color_501	Black / Purple
+694	C3752E709A808E70	dressup_item_hair_01	Hi-top fade
+695	C37531709A809389	dressup_item_hair_02	Undercut pixie
+696	C37530709A8091D6	dressup_item_hair_03	Flyaway short cut
+697	C37533709A8096EF	dressup_item_hair_04	Slicked back
+698	C37532709A80953C	dressup_item_hair_05	Simple short hair
+699	C37535709A809A55	dressup_item_hair_06	Half-up chignon
+700	C37534709A8098A2	dressup_item_hair_07	Simple bob
+701	C37537709A809DBB	dressup_item_hair_08	Low chignon
+702	C37536709A809C08	dressup_item_hair_09	Asymmetrical bob
+703	C371C9709A7DACFA	dressup_item_hair_10	Ponytail
+704	C371CA709A7DAEAD	dressup_item_hair_11	Braids
+705	C371C7709A7DA994	dressup_item_hair_12	Long and wavy
+706	C371C8709A7DAB47	dressup_item_hair_13	Side ponytail
+707	C371C5709A7DA62E	dressup_item_hair_14	Pigtails
+708	C8C0052AC473D142	dressup_item_haircolor_00	None
+709	C8C0062AC473D2F5	dressup_item_haircolor_01	Black
+710	C8C0032AC473CDDC	dressup_item_haircolor_02	Brown
+711	C8C0042AC473CF8F	dressup_item_haircolor_03	Gold
+712	C8C0012AC473CA76	dressup_item_haircolor_04	Dark brown
+713	C8C0022AC473CC29	dressup_item_haircolor_05	Pitch black
+714	C8BFFF2AC473C710	dressup_item_haircolor_06	Platinum
+715	C8C0002AC473C8C3	dressup_item_haircolor_07	Ash
+716	C8C00D2AC473DEDA	dressup_item_haircolor_08	Milk tea
+717	C8C00E2AC473E08D	dressup_item_haircolor_09	Dark red
+718	C8C30B2AC476114B	dressup_item_haircolor_10	Red
+719	C8C30A2AC4760F98	dressup_item_haircolor_11	Pale pink
+720	C8C30D2AC47614B1	dressup_item_haircolor_12	Dark blue
+721	C8C30C2AC47612FE	dressup_item_haircolor_13	Blue
+722	C8C30F2AC4761817	dressup_item_haircolor_14	Pale blue
+723	C8C30E2AC4761664	dressup_item_haircolor_15	Olive
+724	C8C3112AC4761B7D	dressup_item_haircolor_16	Lime
+725	C8C3102AC47619CA	dressup_item_haircolor_17	Cream
+726	C8C3032AC47603B3	dressup_item_haircolor_18	Violet
+727	C8C3022AC4760200	dressup_item_haircolor_19	Purple
+728	C8B8F92AC46D9E30	dressup_item_haircolor_20	Lavender
+729	C8B8FA2AC46D9FE3	dressup_item_haircolor_21	Scarlet
+730	C8B8FB2AC46DA196	dressup_item_haircolor_22	Orange
+731	C8B8FC2AC46DA349	dressup_item_haircolor_23	Peach
+732	C8B8FD2AC46DA4FC	dressup_item_haircolor_24	Teal
+733	C8B8FE2AC46DA6AF	dressup_item_haircolor_25	Turquoise
+734	C8B8FF2AC46DA862	dressup_item_haircolor_26	Mint
+735	C8B9002AC46DAA15	dressup_item_haircolor_27	Blue-gray
+736	C8B9012AC46DABC8	dressup_item_haircolor_28	Gray
+737	C8B9022AC46DAD7B	dressup_item_haircolor_29	White
+738	C8BC7F2AC470B7B9	dressup_item_haircolor_30	Passion pink
+739	C8BC7E2AC470B606	dressup_item_haircolor_31	Aqua
+740	C8BC7D2AC470B453	dressup_item_haircolor_32	Lemon yellow
+741	3A24ACE080CCBDE6	dressup_item_bangs_00	No bangs
+742	3A24ADE080CCBF99	dressup_item_bangs_01	Middle part
+743	3A24AAE080CCBA80	dressup_item_bangs_02	Side part
+744	3A24ABE080CCBC33	dressup_item_bangs_03	Extra long
+745	3A24B0E080CCC4B2	dressup_item_bangs_04	Blunt
+746	7145089D3A7D773B	dressup_item_eye_01	Rounded
+747	7145099D3A7D78EE	dressup_item_eye_02	Angled
+748	71450A9D3A7D7AA1	dressup_item_eye_03	Half-open
+749	71450B9D3A7D7C54	dressup_item_eye_04	Droopy
+750	37127571302DF510	dressup_item_eyecolor_01	Black
+751	37127871302DFA29	dressup_item_eyecolor_02	Brown
+752	37127771302DF876	dressup_item_eyecolor_03	Ash brown
+753	37127A71302DFD8F	dressup_item_eyecolor_04	Blue
+754	37127971302DFBDC	dressup_item_eyecolor_05	Pitch black
+755	37127C71302E00F5	dressup_item_eyecolor_06	Dark red
+756	37127B71302DFF42	dressup_item_eyecolor_07	Poppy red
+757	37127E71302E045B	dressup_item_eyecolor_08	Pink
+758	37127D71302E02A8	dressup_item_eyecolor_09	Dark blue
+759	370F1071302B139A	dressup_item_eyecolor_10	Marine
+760	370F1171302B154D	dressup_item_eyecolor_11	Sapphire
+761	370F0E71302B1034	dressup_item_eyecolor_12	Olive
+762	370F0F71302B11E7	dressup_item_eyecolor_13	Lime
+763	370F0C71302B0CCE	dressup_item_eyecolor_14	Emerald
+764	370F0D71302B0E81	dressup_item_eyecolor_15	Violet
+765	370F0A71302B0968	dressup_item_eyecolor_16	Purple
+766	370F0B71302B0B1B	dressup_item_eyecolor_17	Lavender
+767	370F0871302B0602	dressup_item_eyecolor_18	Scarlet
+768	370F0971302B07B5	dressup_item_eyecolor_19	Orange
+769	370B8A713027FA11	dressup_item_eyecolor_20	Yellow
+770	370B89713027F85E	dressup_item_eyecolor_21	Teal
+771	370B88713027F6AB	dressup_item_eyecolor_22	Turquoise
+772	370B87713027F4F8	dressup_item_eyecolor_23	Light blue
+773	370B8E71302800DD	dressup_item_eyecolor_24	Blue-gray
+774	370B8D713027FF2A	dressup_item_eyecolor_25	Gray
+775	370B8C713027FD77	dressup_item_eyecolor_26	Gold
+776	169E5B74FAE39135	dressup_item_eyecolor_tex_00	Black void
+777	169E5A74FAE38F82	dressup_item_eyecolor_tex_01	Starry eyes
+778	169E5974FAE38DCF	dressup_item_eyecolor_tex_02	Lovestruck
+779	169E5874FAE38C1C	dressup_item_eyecolor_tex_03	Fired up
+780	169E5774FAE38A69	dressup_item_eyecolor_tex_04	Cyber
+781	169E5674FAE388B6	dressup_item_eyecolor_tex_05	Poké Ball
+782	01385A2112EDC427	dressup_item_eyelash_01	Natural
+783	01385B2112EDC5DA	dressup_item_eyelash_02	Sharp
+784	01385C2112EDC78D	dressup_item_eyelash_03	Soft
+785	0138552112EDBBA8	dressup_item_eyelash_04	Voluminous
+786	0138562112EDBD5B	dressup_item_eyelash_05	Natural
+787	0138572112EDBF0E	dressup_item_eyelash_06	Sharp
+788	0138582112EDC0C1	dressup_item_eyelash_07	Soft
+789	0138512112EDB4DC	dressup_item_eyelash_08	Voluminous
+790	FC5170D7F90BC339	dressup_item_eyebrow_01	Thick
+791	FC516DD7F90BBE20	dressup_item_eyebrow_02	Average
+792	FC516ED7F90BBFD3	dressup_item_eyebrow_03	Thin
+793	0671FAA1C017A7AB	dressup_item_lip_01	No color
+794	0671FBA1C017A95E	dressup_item_lip_02	Beige
+795	0671FCA1C017AB11	dressup_item_lip_03	Pink
+796	0671FDA1C017ACC4	dressup_item_lip_04	Coral
+797	0671FEA1C017AE77	dressup_item_lip_05	Orange
+798	0671FFA1C017B02A	dressup_item_lip_06	Brown
+799	067200A1C017B1DD	dressup_item_lip_07	Rouge
+800	0671F1A1C0179860	dressup_item_lip_08	Blue
+801	0671F2A1C0179A13	dressup_item_lip_09	Green
+802	06757FA1C01ABF81	dressup_item_lip_10	Black
+803	EA29E9FE9AA66609	dressup_item_mole_01	No beauty spots
+804	EA29E6FE9AA660F0	dressup_item_mole_02	Beauty spot I
+805	EA29E7FE9AA662A3	dressup_item_mole_03	Beauty spot II
+806	EA29ECFE9AA66B22	dressup_item_mole_04	Beauty spot III
+807	EA29EDFE9AA66CD5	dressup_item_mole_05	Beauty spot IV
+808	EA29EAFE9AA667BC	dressup_item_mole_06	Beauty spot V
+809	EA29EBFE9AA6696F	dressup_item_mole_07	Beauty spot VI
+810	EA29F0FE9AA671EE	dressup_item_mole_08	Beauty spot VII
+811	EA29F1FE9AA673A1	dressup_item_mole_09	Beauty spot VIII
+812	A8BDBFA002759DD9	dressup_item_freckles_01	No freckles
+813	A8BDBCA0027598C0	dressup_item_freckles_02	Freckles I
+814	A8BDBDA002759A73	dressup_item_freckles_03	Freckles II
+815	A8BDC2A00275A2F2	dressup_item_freckles_04	Freckles III
+816	52D4B5DC381B17BF	dressup_item_darkcircles_01	No circles
+817	52D4B6DC381B1972	dressup_item_darkcircles_02	Dark circles
+818	BC5B05A9FEEECC98	dressup_item_group_910	Holo-X Striped Trilby
+819	BC5B06A9FEEECE4B	dressup_item_group_911	Holo-Y Striped Trilby
+820	BC5B07A9FEEECFFE	dressup_item_group_912	Holo-X Visor
+821	BC5B08A9FEEED1B1	dressup_item_group_913	Holo-Y Visor
+822	BC5B09A9FEEED364	dressup_item_group_914	Holo-X Blouson & V-Neck
+823	BC5B0AA9FEEED517	dressup_item_group_915	Holo-Y Blouson & V-Neck
+824	BC5B0BA9FEEED6CA	dressup_item_group_916	Holo-X Blouson & Off-Shoulder
+825	BC5B0CA9FEEED87D	dressup_item_group_917	Holo-Y Blouson & Off-Shoulder
+826	BC5AFDA9FEEEBF00	dressup_item_group_918	Holo-X Skinny Jeans
+827	BC5AFEA9FEEEC0B3	dressup_item_group_919	Holo-Y Skinny Jeans
+828	BC6577A9FEF7E2D3	dressup_item_group_920	Holo-X Wide-Leg Pants
+829	BC6576A9FEF7E120	dressup_item_group_921	Holo-Y Wide-Leg Pants
+830	BC6579A9FEF7E639	dressup_item_group_922	Holo-X Mid-Top Sneakers
+831	BC6578A9FEF7E486	dressup_item_group_923	Holo-Y Mid-Top Sneakers
+832	BC657BA9FEF7E99F	dressup_item_group_924	Holo-X Sock Sneakers
+833	BC657AA9FEF7E7EC	dressup_item_group_925	Holo-Y Sock Sneakers
+834	BC657DA9FEF7ED05	dressup_item_group_926	Holo-X Round Satchel
+835	BC657CA9FEF7EB52	dressup_item_group_927	Holo-Y Round Satchel
+836	63ED65C51E925FEF	dressup_item_color_502	Black / Holo Blue
+837	63ED64C51E925E3C	dressup_item_color_503	Holo Blue / White
+838	63ED63C51E925C89	dressup_item_color_504	Holo Blue
+839	63ED62C51E925AD6	dressup_item_color_505	Black / Holo Pink
+840	63ED61C51E925923	dressup_item_color_506	Holo Pink / White
+841	63ED60C51E925770	dressup_item_color_507	Holo Pink
+842	F2212B2A289BD00B	msg_427bfe0e5eabc1645c8e52bc99fb7ae2	
+843	06287AD5D11124AA	msg_da3db4d167ddf9443b3bf3522bc3df8b	
+844	3C7A4E7AF34B475C	msg_dbf8a2704ea8e793972992fccada3071	
+845	D839C35654F8E7B7	msg_1142619498d57aa5cd5854bb4efc4944	
+846	9990012AF8A82CD5	msg_385cbd7d8fd60f8fad1344446166d8ec	
+847	F8B6D06D16E7E786	msg_43742373e5f0403040c827c3f943a293	
+848	1AB49E76FACFAA31	msg_a04d844e642c0687d6cb0321094b1a24	
+849	F3611BEAFB182E57	msg_8370f7ef59f9c89564ee7ee284d542a5	
+850	014E19955A36A07F	msg_0d2ef2e993ec114f594f21f4cc0e129e	
+851	C95E379DB4B325C9	msg_c508f1f72d8747c4a16d87cb47bb161b	
+852	D6D3E8072F6125E1	msg_0fb10667244825126dc681c32064d00f	
+853	E1B00737993FC887	msg_1aa84ad6506f42d0327b517731be2dfd	
+854	0B0CDEE28E427E94	msg_bf5d699256dd10c123fc298a63e1339b	
+855	180FF2E63311EE4E	msg_56778cc7fd1904e9a0f9daac1d0d269f	
+856	B911729B387D7D1C	msg_d1a77946ccaa7b8ef59ee861a986d1ca	
+857	8D571B0169C5457B	msg_3186774ab0bb6811f6ada7a00fc301f8	
+858	4B5A63F70F634AAD	msg_d67b41b279ad09b1371db6f73e01f32e	
+859	D12F2E1E7E3C77EB	msg_3c27be085600a42b1768748e56c39062	
+860	49E70E21E0FF5AC9	msg_0143a5679e6a6ee872aa98f391506572	
+861	991E0860575F4828	msg_41ce211a02e4f232ed3a2a8c3445b738	
+862	C863833CE3EFFC13	msg_2878bb21f832583dbf5f545cf74e8bdc	
+863	E9899B0D98A60F9D	msg_f9eb113d07e6fdc0ca73dc948e5a63cc	
+864	71537A35D11C57F1	msg_1b7730693575807a7085808bd9340221	
+865	F6E7F8C292AB2FBC	msg_7d53dd70338887b6e4df7553168db811	
+866	D993E92595F213C1	msg_64d48a4788d42cf863a2729ca9aa6b51	
+867	10BE729248731FB2	msg_a852c30ec1053b9e65fea680c00b4372	
+868	4A02F1F627A9505E	msg_681570c903eebcd2bd605c6149edf50b	
+869	E3FCA1D5ADB17DC6	msg_6e67011f2d4ac549169ed89d99b1955c	
+870	378DD0F7BA4262DA	msg_b004bf37255ba07398b1ae2e7cdc076a	
+871	84781CA63F6719A2	msg_edc884c9f7e7937b341f230f71f6281e	
+872	0A559B197DB04407	msg_6eeac3f5841c4267b02667abf848e5a6	
+873	DE036B19C2BD2B81	msg_87ca6d89679dae6bd33a615f3aa0d358	
+874	146D0DA48CB85D75	msg_730f9c96f0bf03fe9bf769c3f1de3906	
+875	ABD09C82ADB17505	msg_b2820b970741387a61c5efc97dcea399	
+876	D565279A564A6BEA	msg_69a49f3d25ccc5a5b672533899f17ff2	
+877	E332BB95BD1E771D	msg_12b7e56b7a01a9c6b5e789ce74b074a7	
+878	12BC7972E0C093A4	msg_2a31bd74a03e9fa756928d964b92ec4a	
+879	1013331F878280AE	msg_b3eee3ac98c21279cddb21449191b5bd	
+880	7622902CEB282AB1	msg_4f7d0cff455af0df57679c1e48c9cbab	
+881	B7671ADFFB78FA4A	msg_64be51093a58eefccd097089d858d34a	
+882	A0524DD8EABDD1D5	msg_3ccb10e14e0082141915e025e85359f9	
+883	40AF5345FE30761C	msg_f9b46774b9589e82b03eb4d40ebdd744	

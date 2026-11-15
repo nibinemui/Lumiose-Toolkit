@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Lumiose Toolkit 3D Viewer</title>
+<style>
+  :root { --bg:#1b1b1d; --panel:#26262a; --fg:#e4e4e7; --dim:#9a9aa3; --accent:#4fa3ff; --border:#3a3a40; }
+  html,body { margin:0; height:100%; background:var(--bg); color:var(--fg); font:13px "Segoe UI",system-ui,sans-serif; overflow:hidden; }
+  #view { position:absolute; inset:0 300px 0 0; }
+  #side { position:absolute; top:0; right:0; bottom:0; width:300px; background:var(--panel); border-left:1px solid var(--border);
+          display:flex; flex-direction:column; }
+  #side h1 { font-size:14px; margin:12px 12px 2px; word-break:break-all; }
+  #side .sub { color:var(--dim); margin:0 12px 10px; font-size:12px; }
+  .row { display:flex; gap:6px; align-items:center; margin:4px 12px; flex-wrap:wrap; }
+  button, select, input[type=text] { background:#1e1e22; color:var(--fg); border:1px solid var(--border); border-radius:4px; padding:4px 8px; font:inherit; }
+  button:hover { border-color:var(--accent); }
+  label { color:var(--dim); user-select:none; }
+  #filter { width:100%; box-sizing:border-box; }
+  #anims { flex:1; margin:6px 12px 8px; overflow:auto; border:1px solid var(--border); border-radius:4px; background:#1e1e22; }
+  #anims div { padding:3px 8px; cursor:pointer; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  #anims div:hover { background:#2f2f35; }
+  #anims div.on { background:#264f78; color:#fff; }
+  #status { color:var(--dim); margin:0 12px 10px; font-size:12px; min-height:16px; }
+  #timeline { width:100%; }
+  #loading { position:absolute; inset:0 300px 0 0; display:flex; align-items:center; justify-content:center; color:var(--dim); font-size:15px; }
+</style>
+</head>
+<body>
+<div id="view"></div>
+<div id="loading">Loading model…</div>
+<div id="side">
+  <h1 id="title">Model</h1>
+  <div class="sub" id="info"></div>
+  <div class="row">
+    <label>Variant <select id="variant"></select></label>
+    <span class="sub" id="modlabel" style="margin:0"></span>
+  </div>
+  <div id="colours"></div>
+  <div class="row">
+    <button id="reset">Reset view</button>
+    <label><input type="checkbox" id="wire"> Wireframe</label>
+    <label><input type="checkbox" id="bones"> Bones</label>
+  </div>
+  <div class="row">
+    <label><input type="checkbox" id="inplace" checked> Keep in place (no root motion)</label>
+  </div>
+  <div class="row">
+    <label><input type="checkbox" id="grid" checked> Grid</label>
+    <label><input type="checkbox" id="tex" checked> Textures</label>
+    <label>Light <input type="range" id="light" min="0" max="4" step="0.1" value="1.6" style="width:80px"></label>
+  </div>
+  <div class="row" style="margin-top:10px"><b>Animations</b>&nbsp;<span class="sub" id="acount" style="margin:0"></span></div>
+  <div class="row"><input type="text" id="filter" placeholder="Filter animations (e.g. idle, attack)"></div>
+  <div id="anims"></div>
+  <div class="row">
+    <button id="play">Pause</button>
+    <label>Speed <select id="speed"><option>0.25</option><option>0.5</option><option selected>1</option><option>2</option></select></label>
+  </div>
+  <div class="row"><input type="range" id="timeline" min="0" max="1000" value="0"></div>
+  <div id="status"></div>
+</div>
+<script type="importmap">
+{ "imports": { "three": "/three/three.module.js", "three/addons/": "/three/addons/" } }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+const view = document.getElementById('view');
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(window.devicePixelRatio);
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+view.appendChild(renderer.domElement);
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x1b1b1d);
+const camera = new THREE.PerspectiveCamera(40, 1, 0.01, 1000);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+const hemi = new THREE.HemisphereLight(0xffffff, 0x444455, 1.0);
+const sun = new THREE.DirectionalLight(0xffffff, 1.6);
+sun.position.set(3, 6, 4);
+scene.add(hemi, sun);
+const grid = new THREE.GridHelper(4, 20, 0x555560, 0x333338);
+scene.add(grid);
+
+let model = null, mixer = null, action = null, skelHelper = null, clipDur = 0, playing = true;
+const origMaps = new Map();
+const clock = new THREE.Clock();
+
+function resize() {
+  const w = view.clientWidth, h = view.clientHeight;
+  renderer.setSize(w, h); camera.aspect = w / h; camera.updateProjectionMatrix();
+}
+window.addEventListener('resize', resize); resize();
+
+function frameModel() {
+  const box = new THREE.Box3().setFromObject(model);
+  const size = box.getSize(new THREE.Vector3()), center = box.getCenter(new THREE.Vector3());
+  const r = Math.max(size.x, size.y, size.z) || 1;
+  controls.target.copy(center);
+  camera.position.copy(center).add(new THREE.Vector3(0.6 * r, 0.35 * r, 1.4 * r));
+  camera.near = r / 500; camera.far = r * 100; camera.updateProjectionMatrix();
+  grid.scale.setScalar(r / 2); grid.position.y = box.min.y;
+}
+
+const status = (t) => document.getElementById('status').textContent = t;
+
+const info = await (await fetch('/info.json')).json();
+document.getElementById('title').textContent = info.name;
+document.getElementById('info').textContent = info.summary;
+
+const vsel = document.getElementById('variant');
+for (const v of info.variants || ['Normal']) { const o = document.createElement('option'); o.textContent = v; vsel.appendChild(o); }
+if (info.mod) document.getElementById('modlabel').textContent = 'showing mod: ' + info.mod;
+let stamp = null, firstLoad = true;
+
+// clothing: colour choices of the selected pattern (like the in-game dress-up screen)
+const colourChoice = {};
+function buildColours() {
+  const box = document.getElementById('colours');
+  box.innerHTML = '';
+  for (const g of (info.colours || {})[vsel.value] || []) {
+    const row = document.createElement('div'); row.className = 'row';
+    const lab = document.createElement('label'); lab.textContent = g.label + ' ';
+    const sel = document.createElement('select');
+    g.options.forEach((o, i) => { const op = document.createElement('option'); op.value = i; op.textContent = o; sel.appendChild(op); });
+    const want = g.group in colourChoice ? colourChoice[g.group] : (g.default || 0);
+    sel.value = want < g.options.length ? want : 0;
+    colourChoice[g.group] = +sel.value;
+    sel.onchange = () => { colourChoice[g.group] = +sel.value; loadModel(); };
+    lab.appendChild(sel); row.appendChild(lab); box.appendChild(row);
+  }
+}
+function colourQuery() {
+  const groups = ((info.colours || {})[vsel.value] || []).map(g => g.group);
+  return groups.map(g => '&cg_' + encodeURIComponent(g) + '=' + (colourChoice[g] || 0)).join('');
+}
+buildColours();
+
+function loadModel() {
+  status('Loading ' + vsel.value + '…');
+  new GLTFLoader().load('/model.glb?variant=' + encodeURIComponent(vsel.value) + colourQuery() + '&t=' + Date.now(), (gltf) => {
+    const keepAnim = action ? action._name : null;
+    if (model) { scene.remove(model); if (skelHelper) { scene.remove(skelHelper); skelHelper = null; document.getElementById('bones').checked = false; } }
+    model = gltf.scene; scene.add(model);
+    origMaps.clear();
+    model.traverse(o => { if (o.isMesh) { origMaps.set(o, o.material.map); o.frustumCulled = false;
+      o.material.wireframe = document.getElementById('wire').checked;
+      if (!document.getElementById('tex').checked) o.material.map = null; } });
+    mixer = new THREE.AnimationMixer(model); action = null;
+    if (firstLoad) { frameModel(); document.getElementById('loading')?.remove(); buildList(); }
+    const start = firstLoad ? info.start_anim : keepAnim;
+    firstLoad = false;
+    if (start) pick(start); else status(vsel.value + ' loaded');
+  }, undefined, (e) => { const l = document.getElementById('loading'); if (l) l.textContent = 'Could not load model: ' + e; else status('Reload failed: ' + e); });
+}
+vsel.onchange = () => { buildColours(); loadModel(); };
+loadModel();
+// live reload: the editor saves into the mod -> the server's stamp changes -> reload
+setInterval(async () => {
+  try {
+    const s = await (await fetch('/stamp')).text();
+    if (stamp !== null && s !== stamp) loadModel();
+    stamp = s;
+  } catch (e) {}
+}, 1500);
+
+function buildList() {
+  const box = document.getElementById('anims'), q = document.getElementById('filter').value.toLowerCase();
+  box.innerHTML = '';
+  const list = info.animations.filter(a => a.toLowerCase().includes(q));
+  document.getElementById('acount').textContent = info.animations.length ? `(${list.length} of ${info.animations.length})` : '(none for this model)';
+  for (const a of list) {
+    const d = document.createElement('div'); d.textContent = a; d.title = a; d.dataset.name = a;
+    if (action && action._name === a) d.classList.add('on');
+    d.onclick = () => pick(a); box.appendChild(d);
+  }
+}
+document.getElementById('filter').oninput = buildList;
+
+async function pick(name) {
+  status('Loading ' + name + '…');
+  const r = await fetch('/anim?name=' + encodeURIComponent(name));
+  if (!r.ok) { status('Could not load animation: ' + (await r.text())); return; }
+  const data = await r.json();
+  const tracks = [];
+  const inPlace = document.getElementById('inplace').checked;
+  const rootish = new Set(['origin', 'chara_root', 'root', 'Root']);
+  for (const t of data.tracks) {
+    if (inPlace && t.path === 'translation' && rootish.has(t.bone)) {
+      // keep the height, drop horizontal travel so the model stays in view
+      const v = t.values.slice(), x0 = v[0], z0 = v[2];
+      for (let i = 0; i < v.length; i += 3) { v[i] = x0; v[i + 2] = z0; }
+      t.values = v;
+    }
+    const node = THREE.PropertyBinding.sanitizeNodeName(t.bone);
+    const prop = { translation: 'position', rotation: 'quaternion', scale: 'scale' }[t.path];
+    const T = t.path === 'rotation' ? THREE.QuaternionKeyframeTrack : THREE.VectorKeyframeTrack;
+    tracks.push(new T(`${node}.${prop}`, t.times, t.values));
+  }
+  const clip = new THREE.AnimationClip(name, data.duration, tracks);
+  if (action) action.stop();
+  mixer.stopAllAction();
+  action = mixer.clipAction(clip); action._name = name;
+  action.setLoop(THREE.LoopRepeat); action.play();
+  clipDur = data.duration; playing = true; document.getElementById('play').textContent = 'Pause';
+  buildList();
+  status(`${name}  -  ${data.frames} frames @ ${data.fps} fps, ${data.tracks.length} tracks${data.missing ? ', ' + data.missing + ' bones not in this skeleton' : ''}`);
+}
+
+document.getElementById('play').onclick = () => {
+  playing = !playing; document.getElementById('play').textContent = playing ? 'Pause' : 'Play';
+};
+document.getElementById('timeline').oninput = (e) => {
+  if (!action) return; playing = false; document.getElementById('play').textContent = 'Play';
+  action.time = (e.target.value / 1000) * clipDur; mixer.update(0);
+};
+document.getElementById('reset').onclick = () => model && frameModel();
+document.getElementById('inplace').onchange = () => action && pick(action._name);
+document.getElementById('wire').onchange = (e) => model.traverse(o => { if (o.isMesh) o.material.wireframe = e.target.checked; });
+document.getElementById('grid').onchange = (e) => grid.visible = e.target.checked;
+document.getElementById('light').oninput = (e) => { sun.intensity = +e.target.value; hemi.intensity = 0.4 + e.target.value / 2.5; };
+document.getElementById('tex').onchange = (e) => model.traverse(o => {
+  if (o.isMesh) { o.material.map = e.target.checked ? origMaps.get(o) : null; o.material.needsUpdate = true; }
+});
+document.getElementById('bones').onchange = (e) => {
+  if (e.target.checked) { skelHelper = new THREE.SkeletonHelper(model); scene.add(skelHelper); }
+  else if (skelHelper) { scene.remove(skelHelper); skelHelper = null; }
+};
+
+renderer.setAnimationLoop(() => {
+  const dt = clock.getDelta();
+  if (mixer && playing) {
+    mixer.update(dt * +document.getElementById('speed').value);
+    if (action && clipDur) document.getElementById('timeline').value = ((action.time % clipDur) / clipDur) * 1000;
+  }
+  controls.update();
+  renderer.render(scene, camera);
+});
+</script>
+</body>
+</html>

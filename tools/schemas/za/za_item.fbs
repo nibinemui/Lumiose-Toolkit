@@ -1,0 +1,57 @@
+// world/exl/item_data/item_data/item_data.bin (items). Reverse-engineered by ZA Extractor; field
+// meanings verified: Id, DevName, Price (Poke Ball 100, Ultra Ball 600...), MaxCount, TM move.
+namespace za;
+table Item {
+  Id:int;
+  Pocket:int;
+  DevName:string;
+  IconName:string;
+  Price:int;
+  Category:int;
+  MaxCount:int;
+  SortOrder:int;
+  Unknown8:int;
+  Unknown9:int;
+  Flag10:bool;
+  TMMove:int;
+  Unknown12:int;
+  Flag13:bool;
+  Flag14:bool;
+  Flag15:bool;
+  Flag16:bool;
+  Flag17:bool;
+  Flag18:bool;
+  Unknown19:int;
+  Unknown20:int;
+  Unknown21:int;
+  Unknown22:int;
+  Unknown23:int;
+  Unknown24:int;
+  Unknown25:int;
+  Unknown26:int;
+  Unknown27:int;
+  Unknown28:int;
+  Unknown29:int;
+  Unknown30:int;
+  Unknown31:int;
+  Unknown32:int;
+  Unknown33:int;
+  Unknown34:int;
+  Unknown35:int;
+  Unknown36:int;
+  Unknown37:int;
+  Flag38:bool;
+  Flag39:bool;
+  Unknown40:int;
+  Unknown41:int;
+  Unknown42:int;
+  Unknown43:int;
+  Unknown44:int;
+  Unknown45:int;
+  Unknown46:int;
+  Unknown47:int;
+  Flag48:bool;
+  Unknown49:int;
+}
+table ItemTable { Table:[Item]; }
+root_type ItemTable;

@@ -1,0 +1,8 @@
+namespace Trinity;
+table FileInfo { pack_index: ulong (id: 0); unused_table: uint (id: 1); }
+table PackInfo { file_size: ulong (id: 0); file_count: ulong (id: 1); }
+table CustomFileDescriptor {
+  file_hashes: [ulong] (id: 0); pack_names: [string] (id: 1); file_info: [FileInfo] (id: 2);
+  pack_info: [PackInfo] (id: 3); unused_hashes: [ulong] (id: 4); unused_file_info: [FileInfo] (id: 5);
+}
+root_type CustomFileDescriptor;

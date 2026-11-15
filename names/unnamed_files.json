@@ -1,0 +1,128 @@
+{
+  "_about": "Files the export could not name (their real path is only stored as a FNV-1a 64 hash, and none of these hashes are in the PokeDocs Z-A hash lists). Identified by their contents.",
+  "FB9D7A96A26356BB": {
+    "type": "Light (.trlgt)",
+    "owner": "ending cutscene lights",
+    "note": "Scene light setup; contains light spl_ed03_rim1 (same family as light/spl/spl_ed00/spl_ed03.trlgt)."
+  },
+  "18D08C3272D3ADE5": {
+    "type": "Light (.trlgt)",
+    "owner": "ending cutscene lights",
+    "note": "Scene light setup; contains light spl_ed03_rim1 (same family as light/spl/spl_ed00/spl_ed03.trlgt)."
+  },
+  "1B47647F3414CB4A": {
+    "type": "Light (.trlgt)",
+    "owner": "ending cutscene lights",
+    "note": "Scene light setup; contains light spl_ed03_rim3 (same family as light/spl/spl_ed00/spl_ed03.trlgt)."
+  },
+  "4723D51EF7317A0F": {
+    "type": "Light (.trlgt)",
+    "owner": "ending cutscene lights",
+    "note": "Scene light setup; contains light spl_ed02_spot1 (same family as light/spl/spl_ed00/spl_ed02.trlgt)."
+  },
+  "CED2F30A91A2E301": {
+    "type": "Material anim (.tracm)",
+    "owner": "Squawkabilly (pm1064_11_00)",
+    "note": "Material/colour animation for model ik_pokemon/data/pm1064/pm1064_11_00."
+  },
+  "AF656ADFC41882C7": {
+    "type": "Material anim (.tracm)",
+    "owner": "Squawkabilly (pm1064_11_00)",
+    "note": "Material/colour animation for model ik_pokemon/data/pm1064/pm1064_11_00."
+  },
+  "CD3B29849E89E3A4": {
+    "type": "Material anim (.tracm)",
+    "owner": "Squawkabilly (pm1064_11_00)",
+    "note": "Material/colour animation for model ik_pokemon/data/pm1064/pm1064_11_00."
+  },
+  "D3CAA7CC2DDA4BEE": {
+    "type": "Material anim (.tracm)",
+    "owner": "Squawkabilly (pm1064_11_00)",
+    "note": "Material/colour animation for model ik_pokemon/data/pm1064/pm1064_11_00."
+  },
+  "631BE5C675279133": {
+    "type": "Material anim (.tracm)",
+    "owner": "Tatsugiri (pm1056_51_00)",
+    "note": "Material/UV animation for model ik_pokemon/data/pm1056/pm1056_51_00."
+  },
+  "1933F550030FBFEA": {
+    "type": "Material anim (.tracm)",
+    "owner": "Tatsugiri (pm1056_51_00)",
+    "note": "Material/UV animation for model ik_pokemon/data/pm1056/pm1056_51_00."
+  },
+  "40FCBDC476C690CD": {
+    "type": "Material anim (.tracm)",
+    "owner": "Tatsugiri (pm1056_51_00)",
+    "note": "Material/UV animation for model ik_pokemon/data/pm1056/pm1056_51_00."
+  },
+  "ADC4612B855A25DA": {
+    "type": "Material anim (.tracm)",
+    "owner": "Tatsugiri (pm1056_51_00)",
+    "note": "Material/UV animation for model ik_pokemon/data/pm1056/pm1056_51_00."
+  },
+  "AF24764BCA7A55FD": {
+    "type": "Material anim (.tracm)",
+    "owner": "Tatsugiri (pm1056_51_00)",
+    "note": "Material/UV animation for model ik_pokemon/data/pm1056/pm1056_51_00."
+  },
+  "FDBA02DF0E0B48F0": {
+    "type": "Material anim (.tracm)",
+    "owner": "Tatsugiri (pm1056_51_00)",
+    "note": "Material/UV animation for model ik_pokemon/data/pm1056/pm1056_51_00."
+  },
+  "ADEA3D2B857AB7EB": {
+    "type": "Skeletal anim (.tranm)",
+    "owner": "Tatsugiri (pm1056_51_00)",
+    "note": "Body animation; its bones match the pm1056_51_00 skeleton 100%."
+  },
+  "AF35724BCA88C264": {
+    "type": "Skeletal anim (.tranm)",
+    "owner": "Tatsugiri (pm1056_51_00)",
+    "note": "Body animation; its bones match the pm1056_51_00 skeleton 100%."
+  },
+  "FD8DE6DF0DE5DE71": {
+    "type": "Skeletal anim (.tranm)",
+    "owner": "Tatsugiri (pm1056_51_00)",
+    "note": "Body animation; its bones match the pm1056_51_00 skeleton 100%."
+  },
+  "19591150032F0BBB": {
+    "type": "Skeletal anim (.tranm)",
+    "owner": "Tatsugiri (pm1056_51_00)",
+    "note": "Body animation; its bones match the pm1056_51_00 skeleton (99%)."
+  },
+  "410DB9C476D4FD34": {
+    "type": "Skeletal anim (.tranm)",
+    "owner": "Tatsugiri (pm1056_51_00)",
+    "note": "Body animation; its bones match the pm1056_51_00 skeleton (99%)."
+  },
+  "632CE9C675360B32": {
+    "type": "Skeletal anim (.tranm)",
+    "owner": "Tatsugiri (pm1056_51_00)",
+    "note": "Body animation; its bones match the pm1056_51_00 skeleton (99%)."
+  },
+  "AF924EDFC43F411E": {
+    "type": "Skeletal anim (.tranm)",
+    "owner": "Squawkabilly (pm1064_11_00)",
+    "note": "Body animation; its bones match the pm1064_11_00 skeleton (98%)."
+  },
+  "CD2A2D849E7B773D": {
+    "type": "Skeletal anim (.tranm)",
+    "owner": "Squawkabilly (pm1064_11_00)",
+    "note": "Body animation; its bones match the pm1064_11_00 skeleton (98%)."
+  },
+  "CEFECF0A91C7E0C0": {
+    "type": "Skeletal anim (.tranm)",
+    "owner": "Squawkabilly (pm1064_11_00)",
+    "note": "Body animation; its bones match the pm1064_11_00 skeleton (98%)."
+  },
+  "D39E83CC2DB4D3D7": {
+    "type": "Skeletal anim (.tranm)",
+    "owner": "Squawkabilly (pm1064_11_00)",
+    "note": "Body animation; its bones match the pm1064_11_00 skeleton (98%)."
+  },
+  "F0BEEFBB924F42B1": {
+    "type": "Light (.trlgt)",
+    "owner": "cutscene lights (spl_d130f)",
+    "note": "Scene light setup with spot lights spl_d130f_F2_fill2 / back1 / back2. Restored from data.trpfs by restore_missing.py."
+  }
+}

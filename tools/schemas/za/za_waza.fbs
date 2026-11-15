@@ -1,0 +1,69 @@
+// avalon/data/waza_array.bin (Legends: Z-A moves). Reverse-engineered by ZA Extractor:
+// same layout as Scarlet/Violet's waza table (verified on Pound, Tackle, Thunderbolt, Swords Dance,
+// Sing, Toxic, Double Kick, Hyper Beam, Solar Beam...) plus Z-A fields named Unknown*/Flag_ZA*.
+// Flag names 21-57 follow Scarlet/Violet. No defaults: the game stores no zero values.
+namespace za;
+enum MoveType:ubyte { Normal, Fighting, Flying, Poison, Ground, Rock, Bug, Ghost, Steel, Fire, Water, Grass, Electric, Psychic, Ice, Dragon, Dark, Fairy }
+enum MoveCategory:ubyte { Status, Physical, Special }
+struct MoveInflict { Value:ubyte; ValueHigh:ubyte; Chance:ubyte; TurnMode:ubyte; Turn1:ubyte; Turn2:ubyte; Turn3:ubyte; }
+struct MoveStatAmps { Stat1:ubyte; Stage1:byte; Percent1:ubyte; Stat2:ubyte; Stage2:byte; Percent2:ubyte; Stat3:ubyte; Stage3:byte; Percent3:ubyte; }
+table Move {
+  MoveID:ushort; CanUseMove:bool; Type:MoveType; Quality:ubyte; Category:MoveCategory; Power:ubyte;
+  Accuracy:ubyte; PP:ubyte; Priority:byte; HitMax:ubyte; HitMin:ubyte; Inflict:MoveInflict;
+  CritStage:ubyte; Flinch:ubyte; EffectSequence:ushort; Recoil:byte; Healing:byte; Drain:ubyte;
+  Target:ubyte; StatAmps:MoveStatAmps; Unknown20:ubyte;
+  Flag_MakesContact:bool;
+  Flag_Charge:bool;
+  Flag_Recharge:bool;
+  Flag_Protect:bool;
+  Flag_Reflectable:bool;
+  Flag_Snatch:bool;
+  Flag_Mirror:bool;
+  Flag_Punch:bool;
+  Flag_Sound:bool;
+  Flag_Dance:bool;
+  Flag_Gravity:bool;
+  Flag_Defrost:bool;
+  Flag_DistanceTriple:bool;
+  Flag_Heal:bool;
+  Flag_IgnoreSubstitute:bool;
+  Flag_FailSkyBattle:bool;
+  Flag_AnimateAlly:bool;
+  Flag_Metronome:bool;
+  Flag_FailEncore:bool;
+  Flag_FailMeFirst:bool;
+  Flag_FutureAttack:bool;
+  Flag_Pressure:bool;
+  Flag_Combo:bool;
+  Flag_NoSleepTalk:bool;
+  Flag_NoAssist:bool;
+  Flag_FailCopycat:bool;
+  Flag_FailMimic:bool;
+  Flag_FailInstruct:bool;
+  Flag_Powder:bool;
+  Flag_Bite:bool;
+  Flag_Bullet:bool;
+  Flag_NoMultiHit:bool;
+  Flag_NoEffectiveness:bool;
+  Flag_SheerForce:bool;
+  Flag_Slicing:bool;
+  Flag_Wind:bool;
+  Flag_CantUseTwice:bool;
+  Flag_ZA58:bool;
+  Flag_ZA59:bool;
+  Flag_ZA60:bool;
+  Flag_ZA61:bool;
+  Flag_ZA62:bool;
+  Flag_ZA63:bool;
+  Flag_ZA64:bool;
+  Flag_ZA65:bool;
+  Flag_ZA66:bool;
+  Flag_ZA67:bool;
+  Flag_ZA68:bool;
+  Flag_ZA69:bool;
+  Flag_ZA70:bool;
+  Flag_ZA71:bool;
+  Flag_ZA72:bool;
+}
+table MoveTable { Table:[Move]; }
+root_type MoveTable;

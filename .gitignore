@@ -1,0 +1,23 @@
+# your own work and machine-specific files - never commit these
+mods/
+extracted/
+settings.json
+error_log.txt
+restored_files.txt
+__pycache__/
+*.pyc
+
+# game data must never be committed (dump your own copy)
+*.bntx
+*.trpfs
+*.trpfd
+*.bnk
+*.pck
+oo2core_*.dll
+
+# exported game model used to render the icon (game asset - regenerate locally, see tools/icon_render/serve.py)
+tools/icon_render/luxuryball.glb
+
+# files from pkZukan/PokeDocs (no licence): downloaded on first start by za_deps.py, never committed
+names/za_hashes_inside_fd.txt
+tools/schemas/pokedocs/
