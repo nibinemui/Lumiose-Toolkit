@@ -35,9 +35,10 @@ on it), a modded Switch (Atmosphere) or an emulator.
 ### Browse & extract
 - **Search by in-game name**: Pokémon (`pikachu`, `25`), clothing (`v-neck t-shirt`), or any file/folder name. Small typos are fine.
 - **Search the game's text**: every line of dialogue, item and move names in any language; click a result to jump to that line.
+- **Show** filter: list only textures, text, UI archives, models, models + textures, or animations.
 - **Preview every file type**:
   - **Textures** (`.bntx`): every BC1–BC7/BC6H format, with channels, mip levels, array layers, zoom and pixel values.
-  - **Models** (`.trmdl`): materials, meshes and bones, plus an interactive **3D viewer**.
+  - **Models** (`.trmdl`): shown in 3D right in the preview pane (interactive **3D viewer**), like textures are.
   - **Animations** (`.tranm`): play them on their model in the 3D viewer.
   - **Data**: FlatBuffer `.bin` files shown as readable JSON. This covers every Trinity format (`.trmtr`, `.trskl`, `.trmsh`, `.trscn`, …) and any `.bin` with a schema.
   - **Text** (`.dat`/`.tbl`): decoded message files.
@@ -46,6 +47,7 @@ on it), a modded Switch (Atmosphere) or an emulator.
 - **Batch extraction** (Ctrl+E): textures → PNG (+DDS), models → glTF/GLB (optionally with all animations), data → JSON, audio → WAV, and other files copied as-is.
 
 ### 3D viewer
+- **Right in the main window**: click a model (`.trmdl`) in the file list and it shows in 3D in the preview pane, where textures are shown. *Try on player body*, *Play in 3D* (animations) and the colour-variant buttons open there too; **Pop out (own window)** opens the same view in a separate window.
 - Orbit camera, wireframe, bones, textures on/off, lighting.
 - All animations of a model, with filter, speed, timeline and **Keep in place** (removes root motion).
 - Faithful colours: the game's layer-colour system, colour-table palettes, UV scale/offset and mirror/wrap modes.
@@ -202,10 +204,11 @@ Select files or folders, tick the conversions at the bottom, then press **Extrac
 
 ### Textures
 - **Import PNG into mod…**: replaces the texture. If the PNG has a different size, you choose whether to rebuild the texture at that size.
-- **Live edit in image editor**: exports the PNG and opens it in your default image editor. Every time you save, it is re-imported into the mod. Use **Open its model in 3D viewer** to watch the changes. Stop with **Stop live edits**.
+- **Live edit in image editor**: exports the PNG and opens it for editing - in Paint (Windows' *Edit* action) unless you pick your own editor (GIMP, Paint.NET, Krita, Photoshop…) with **Image editor…** above the texture. Every time you save, it is re-imported into the mod. Use **Open its model in 3D viewer** to watch the changes. Stop with **Stop live edits**.
 
 ### Models, clothing and the 3D viewer
-- **Open 3D viewer**, **Export glTF (.glb)…**
+- Selecting a model shows it in 3D in the preview pane (**Show in 3D**); **Open 3D viewer window** or **Pop out** opens it in its own window. **Export glTF (.glb)…**
+- To list only models, set **Show** (next to the search box) to *Models (.trmdl)*, *Models + textures* or *Animations (.tranm)*.
 - **Edit colours…** for materials.
 - **Try on player body** for `p1_`/`p2_` clothing.
 - In the viewer, *Variant* switches normal/shiny or the clothing **pattern**. The colour menus below it pick the clothing colours and skin tone.

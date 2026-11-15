@@ -258,11 +258,84 @@ def main():
     threading.Thread(target=srv.serve_forever, daemon=True).start()
 
     import webview
-    webview.create_window('Lumiose Toolkit 3D Viewer - ' + os.path.basename(model_path),
-                          'http://127.0.0.1:%d/viewer.html' % port, width=1280, height=800,
-                          background_color='#1B1B1D')
-    webview.start()
+    url = 'http://127.0.0.1:%d/viewer.html' % port
+    title = 'Lumiose Toolkit 3D Viewer - ' + os.path.basename(model_path)
+    embed = None
+    if '--embed' in args:
+        try:
+            embed = int(args[args.index('--embed') + 1])
+        except (ValueError, IndexError):
+            embed = None
+    if embed:
+        # inside the main window's preview pane: start off-screen, borderless and without taking focus,
+        # then become a child window of the pane (see embed_into)
+        title += '  #%d' % os.getpid()
+        win = webview.create_window(title, url, width=640, height=480, x=-32000, y=-32000, frameless=True,
+                                    shadow=False, focus=False, easy_drag=False, background_color='#1B1B1D')
+        webview.start(embed_into, (win, title, embed))
+    else:
+        webview.create_window(title, url, width=1280, height=800, background_color='#1B1B1D')
+        webview.start()
     srv.shutdown()
+
+
+def embed_into(win, title, parent):
+    """Make the viewer window a child of window `parent` (the main window's preview pane), keep it the
+    pane's size, and close the viewer when the pane goes away."""
+    import ctypes
+    import time
+    from ctypes import wintypes as wt
+    u = ctypes.windll.user32
+    u.FindWindowW.restype = wt.HWND
+    u.FindWindowW.argtypes = (wt.LPCWSTR, wt.LPCWSTR)
+    u.GetWindowLongPtrW.restype = ctypes.c_ssize_t
+    u.GetWindowLongPtrW.argtypes = (wt.HWND, ctypes.c_int)
+    u.SetWindowLongPtrW.restype = ctypes.c_ssize_t
+    u.SetWindowLongPtrW.argtypes = (wt.HWND, ctypes.c_int, ctypes.c_ssize_t)
+    u.SetParent.argtypes = (wt.HWND, wt.HWND)
+    u.SetParent.restype = wt.HWND
+    u.IsWindow.argtypes = (wt.HWND,)
+    u.GetClientRect.argtypes = (wt.HWND, ctypes.POINTER(wt.RECT))
+    u.SetWindowPos.argtypes = (wt.HWND, wt.HWND, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_uint)
+    parent = wt.HWND(parent)
+    hwnd = None
+    t0 = time.time()
+    while time.time() - t0 < 60:
+        if not u.IsWindow(parent):
+            win.destroy()
+            return
+        hwnd = u.FindWindowW(None, title)
+        if hwnd:
+            break
+        time.sleep(0.05)
+    if not hwnd:
+        log('embed: viewer window not found')
+        win.destroy()
+        return
+    GWL_STYLE, GWL_EXSTYLE = -16, -20
+    WS_CHILD, WS_POPUP, WS_CAPTION, WS_THICKFRAME = 0x40000000, 0x80000000, 0x00C00000, 0x00040000
+    WS_SYSMENU, WS_MINIMIZEBOX, WS_MAXIMIZEBOX, WS_CLIPCHILDREN = 0x00080000, 0x00020000, 0x00010000, 0x02000000
+    WS_EX_APPWINDOW, WS_EX_NOACTIVATE = 0x00040000, 0x08000000
+    style = u.GetWindowLongPtrW(hwnd, GWL_STYLE)
+    style = (style & ~(WS_POPUP | WS_CAPTION | WS_THICKFRAME | WS_SYSMENU | WS_MINIMIZEBOX | WS_MAXIMIZEBOX)) \
+        | WS_CHILD | WS_CLIPCHILDREN
+    u.SetWindowLongPtrW(hwnd, GWL_STYLE, style)
+    # no taskbar button; and once docked it may take keyboard focus (typing in the animation filter)
+    u.SetWindowLongPtrW(hwnd, GWL_EXSTYLE,
+                        u.GetWindowLongPtrW(hwnd, GWL_EXSTYLE) & ~(WS_EX_APPWINDOW | WS_EX_NOACTIVATE))
+    u.SetParent(hwnd, parent)
+    SWP_NOZORDER, SWP_NOACTIVATE, SWP_FRAMECHANGED, SWP_SHOWWINDOW = 0x4, 0x10, 0x20, 0x40
+    size = None
+    while u.IsWindow(parent):
+        r = wt.RECT()
+        u.GetClientRect(parent, ctypes.byref(r))
+        now = (r.right - r.left, r.bottom - r.top)
+        if now != size:
+            size = now
+            u.SetWindowPos(hwnd, None, 0, 0, max(1, now[0]), max(1, now[1]),
+                           SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED | SWP_SHOWWINDOW)
+        time.sleep(0.12)
+    win.destroy()
 
 
 if __name__ == '__main__':

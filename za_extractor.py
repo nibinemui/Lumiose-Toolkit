@@ -76,8 +76,12 @@ TYPE_FILTERS = {
     'Text (.dat)': ('.dat',),
     'UI archives (.arc)': ('.arc',),
     'Textures + archives': ('.bntx', '.arc'),
+    'Models (.trmdl)': ('.trmdl',),
+    'Models + textures': ('.trmdl', '.bntx'),
+    'Animations (.tranm)': ('.tranm',),
 }
-TYPE_LABELS = {'.bntx': 'Texture', '.dat': 'Text', '.tbl': 'Text labels', '.arc': 'Archive'}
+TYPE_LABELS = {'.bntx': 'Texture', '.dat': 'Text', '.tbl': 'Text labels', '.arc': 'Archive', '.trmdl': 'Model',
+               '.tranm': 'Animation'}
 MAX_RESULTS = 5000
 ZOOMS = ['Fit', '25%', '50%', '100%', '200%', '400%']
 CUBE_FACES = ['+X', '-X', '+Y', '-Y', '+Z', '-Z']
@@ -375,6 +379,7 @@ class App(tk.Tk):
             'recomp': self.recomp_var.get(), 'text_lang': self.text_lang.get(),
             'check_updates': self.settings.get('check_updates', True),
             'skip_version': self.settings.get('skip_version', ''),
+            'image_editor': self.settings.get('image_editor', ''),
         }
         try:
             with open(SETTINGS_PATH, 'w', encoding='utf-8') as f:
@@ -416,6 +421,7 @@ class App(tk.Tk):
         return ['the extraction'] if self.extracting else []
 
     def on_close(self):
+        self.stop_embedded()
         self.save_settings()
         self.cancel_flag.set()
         self.destroy()
@@ -655,6 +661,7 @@ class App(tk.Tk):
         ttk.Checkbutton(row2, text='Rebuild normal-map blue', variable=self.nrm_var,
                         command=self.redecode).pack(side='left', padx=10)
         ttk.Button(row2, text='Save view as PNG…', command=self.save_view).pack(side='left', padx=4)
+        ttk.Button(row2, text='Image editor…', command=self.pick_image_editor).pack(side='left')
 
         self.stack = ttk.Frame(right)
         self.stack.pack(fill='both', expand=True)
@@ -673,6 +680,18 @@ class App(tk.Tk):
         self.canvas.bind('<Motion>', self.on_canvas_motion)
         self.text = ScrolledText(self.stack, wrap='none', font=('Consolas', 10))
         self.text.configure(state='disabled')
+        # 3D view: the viewer runs as its own process and docks into model_host (see show_model_mode)
+        self.model_frame = ttk.Frame(self.stack)
+        mbar = ttk.Frame(self.model_frame)
+        mbar.pack(fill='x', pady=(0, 2))
+        self.model_info_var = tk.StringVar()
+        ttk.Label(mbar, textvariable=self.model_info_var, style='Dim.TLabel').pack(side='left')
+        ttk.Button(mbar, text='Pop out (own window)', command=self.pop_out_viewer).pack(side='right')
+        ttk.Button(mbar, text='Reload', command=lambda: self.embed_args and self.show_model_mode(*self.embed_args)
+                   ).pack(side='right', padx=4)
+        self.model_host = None
+        self.embed_proc = None
+        self.embed_args = None
         self.audio_frame = ttk.Frame(self.stack)
         self.audio_list = tk.Listbox(self.audio_frame, activestyle='none', font=('Consolas', 10), borderwidth=0,
                                      highlightthickness=0, selectmode='extended')
@@ -1752,6 +1771,10 @@ class App(tk.Tk):
         elif res['kind'] == 'audio':
             self.info_var.set(head + '   [audio · %d sounds]' % len(res['streams']))
             self.show_audio_mode([label for label, src in res['streams']])
+        elif res['kind'] == 'model' and res.get('path'):
+            first = (res.get('text') or '').strip().splitlines()
+            self.info_var.set(head + '   [model]' + (('\n' + first[0]) if first else ''))
+            self.show_model_mode(res['path'])
         else:
             self.info_var.set(head + '   [%s]' % res['kind'])
             self.show_text_mode(res['text'], wrap='none' if res['kind'] in ('other', 'archive', 'data', 'model')
@@ -1777,27 +1800,29 @@ class App(tk.Tk):
         acts = []
         if kind == 'clothing_variant':
             v = res['variant']
-            acts += [('Try on player body (these colours)', lambda: self.open_clothing_variant(v, True)),
-                     ('Open 3D viewer (these colours)', lambda: self.open_clothing_variant(v, False)),
+            acts += [('Try on player body (these colours)', lambda: self.open_clothing_variant(v, True, embed=True)),
+                     ('Show in 3D (these colours)', lambda: self.open_clothing_variant(v, False, embed=True)),
                      ('Edit clothing colours…', lambda: self.edit_clothing_colours(self.clothing_model(v['folder']), v)),
                      ('Edit pattern textures…', lambda: self.edit_pattern_textures(self.clothing_model(v['folder']), v))]
         if kind == 'model':
-            acts += [('Open 3D viewer', lambda: self.open_viewer(path)),
+            acts += [('Show in 3D', lambda: self.open_viewer(path, embed=True)),
+                     ('Open 3D viewer window', lambda: self.open_viewer(path)),
                      ('Edit colours…', lambda: self.edit_materials(path)),
                      ('Export glTF (.glb)…', lambda: self.export_model(path, res.get('anims', 0))),
                      ('Import edited glTF into mod… (experimental)', lambda: self.import_model(path))]
             if '\\p1_' in path or '\\p2_' in path or '/p1_' in path or '/p2_' in path:
-                acts.insert(1, ('Try on player body', lambda: self.try_on(path)))
+                acts.insert(1, ('Try on player body', lambda: self.try_on(path, embed=True)))
                 try:
                     has_colours = bool(zt.clothing_sets(path))
                 except Exception:  # noqa: BLE001
                     has_colours = False
                 if has_colours:
-                    acts.insert(3, ('Edit clothing colours…', lambda: self.edit_clothing_colours(path)))
-                    acts.insert(4, ('Edit pattern textures…', lambda: self.edit_pattern_textures(path)))
+                    acts.insert(4, ('Edit clothing colours…', lambda: self.edit_clothing_colours(path)))
+                    acts.insert(5, ('Edit pattern textures…', lambda: self.edit_pattern_textures(path)))
         elif kind == 'anim':
             if res.get('model'):
-                acts += [('Play in 3D viewer', lambda: self.open_viewer(res['model'], path)),
+                acts += [('Play in 3D', lambda: self.open_viewer(res['model'], path, embed=True)),
+                         ('Play in 3D viewer window', lambda: self.open_viewer(res['model'], path)),
                          ('Export with model (.glb)…', lambda: self.export_model(res['model'], 0, [path]))]
         elif kind == 'data' and path.lower().endswith('.trmtr'):
             acts += [('Edit colours…', lambda: self.edit_materials(zt.find_model_for(path) or path, path))]
@@ -1831,7 +1856,7 @@ class App(tk.Tk):
         for label, cmd in acts:
             ttk.Button(self.act_bar, text=label, command=cmd).pack(side='left', padx=(0, 4))
 
-    def open_viewer(self, model_path, anim_path=None, with_mod=True, extra=None):
+    def viewer_args(self, model_path, anim_path=None, with_mod=True, extra=None):
         args = viewer_command() + [model_path]
         if anim_path:
             args += ['--anim', anim_path]
@@ -1840,8 +1865,97 @@ class App(tk.Tk):
             args += ['--mod', m.romfs, '--root', self.root_var.get()]
         if extra:
             args += extra
+        return args, m
+
+    def open_viewer(self, model_path, anim_path=None, with_mod=True, extra=None, embed=False):
+        """3D viewer for a model: in the Browse tab's preview pane (embed=True) or in its own window."""
+        if embed:
+            self.show_model_mode(model_path, anim_path, extra)
+            return
+        args, m = self.viewer_args(model_path, anim_path, with_mod, extra)
         subprocess.Popen(args, cwd=APP_DIR)
         self.status_var.set('Opening the 3D viewer%s…' % (' (with mod "%s")' % m.name if m else ''))
+
+    # ---------------- 3D view in the preview pane ----------------
+    def show_model_mode(self, model_path, anim_path=None, extra=None):
+        """Show the 3D viewer inside the preview pane, where textures are shown."""
+        self.stop_embedded()
+        self.cur_img = None
+        self.tex_bar.pack_forget()
+        self.canvas_frame.pack_forget()
+        self.text.pack_forget()
+        self.audio_frame.pack_forget()
+        self.pixel_var.set('')
+        self.model_frame.pack(fill='both', expand=True)
+        # a fresh host each time: a viewer still docked in the old one closes itself with it
+        self.model_host = tk.Frame(self.model_frame, background='#1B1B1D', highlightthickness=0)
+        self.model_host.pack(fill='both', expand=True)
+        tk.Label(self.model_host, text='Loading 3D view…', background='#1B1B1D', foreground='#9a9a9a',
+                 font=('Segoe UI', 10)).place(relx=0.5, rely=0.5, anchor='center')
+        self.update_idletasks()
+        args, m = self.viewer_args(model_path, anim_path, True, extra)
+        self.embed_args = (model_path, anim_path, extra)
+        what = 'Try-on: ' if extra and '--outfit' in extra else ''
+        self.model_info_var.set('%s%s%s%s' % (what, os.path.basename(model_path),
+                                              ('   ·   ' + os.path.basename(anim_path)) if anim_path else '',
+                                              ('   ·   mod "%s"' % m.name) if m else ''))
+        try:
+            self.embed_proc = subprocess.Popen(args + ['--embed', str(self.model_host.winfo_id())], cwd=APP_DIR)
+        except OSError as e:
+            self.status_var.set('Could not start the 3D view: %s' % e)
+            return
+        self.status_var.set('Loading the 3D view%s…' % (' (with mod "%s")' % m.name if m else ''))
+        self.after(300, self._watch_embed, self.model_host, self.embed_proc, os.path.basename(model_path), 0)
+
+    def _watch_embed(self, host, proc, name, n):
+        """Status bar: tell when the docked 3D view has appeared (or failed to start)."""
+        if host is not self.model_host or proc is not self.embed_proc:
+            return
+        import ctypes
+        u = ctypes.windll.user32
+        u.FindWindowExW.restype = ctypes.c_void_p
+        u.FindWindowExW.argtypes = (ctypes.c_void_p, ctypes.c_void_p, ctypes.c_wchar_p, ctypes.c_wchar_p)
+        u.GetWindowTextW.argtypes = (ctypes.c_void_p, ctypes.c_wchar_p, ctypes.c_int)
+        docked, child = False, None
+        while True:                           # the viewer is the child titled "… 3D Viewer …"
+            child = u.FindWindowExW(host.winfo_id(), child, None, None)
+            if not child:
+                break
+            buf = ctypes.create_unicode_buffer(200)
+            u.GetWindowTextW(child, buf, 200)
+            if '3D Viewer' in buf.value:
+                docked = True
+                break
+        if docked:
+            self.status_var.set('3D view: %s - drag to orbit, scroll to zoom. "Pop out" opens it in its own window.'
+                                % name)
+            return
+        if proc.poll() is not None:
+            self.status_var.set('The 3D view closed unexpectedly - see error_log.txt, or use "Pop out".')
+            return
+        if n < 200:
+            self.after(300, self._watch_embed, host, proc, name, n + 1)
+
+    def hide_model_mode(self):
+        if hasattr(self, 'model_frame') and (self.model_frame.winfo_ismapped() or self.embed_proc is not None):
+            self.stop_embedded()
+            self.model_frame.pack_forget()
+
+    def stop_embedded(self):
+        p, self.embed_proc = self.embed_proc, None
+        if self.model_host is not None:
+            self.model_host.destroy()          # the viewer notices its parent is gone and closes
+            self.model_host = None
+        if p is not None and p.poll() is None:
+            try:
+                p.kill()                       # nothing to save in the viewer; its browser parts exit with it
+            except OSError:
+                pass
+
+    def pop_out_viewer(self):
+        if self.embed_args:
+            model_path, anim_path, extra = self.embed_args
+            self.open_viewer(model_path, anim_path, extra=extra)
 
     def import_model(self, model_path):
         m = self.current_mod()
@@ -1878,7 +1992,7 @@ class App(tk.Tk):
         best = next((c for c in cands if c.lower().startswith(stem.lower() + '.')), cands[0] if cands else None)
         return os.path.join(d, best) if best else None
 
-    def open_clothing_variant(self, v, outfit=True):
+    def open_clothing_variant(self, v, outfit=True, embed=False):
         """Open one shop variant (pattern + colours) in the 3D viewer, on the player or on its own."""
         model = self.clothing_model(v['folder'])
         if not model:
@@ -1891,7 +2005,7 @@ class App(tk.Tk):
             extra += ['--second', str(v['second'])]
         if outfit:
             extra.append('--outfit')
-        self.open_viewer(model, extra=extra)
+        self.open_viewer(model, extra=extra, embed=embed)
 
     def edit_clothing_colours(self, model_path, variant=None):
         if not model_path:
@@ -1911,8 +2025,8 @@ class App(tk.Tk):
         import za_colours
         za_colours.PatternTextureWindow(self, model_path, variant)
 
-    def try_on(self, model_path):
-        self.open_viewer(model_path, extra=['--outfit'])
+    def try_on(self, model_path, embed=False):
+        self.open_viewer(model_path, extra=['--outfit'], embed=embed)
 
     def edit_materials(self, model_path, trmtr=None):
         import za_mated
@@ -2000,6 +2114,7 @@ class App(tk.Tk):
 
     # audio
     def show_audio_mode(self, labels):
+        self.hide_model_mode()
         self.cur_img = None
         self.tex_bar.pack_forget()
         self.canvas_frame.pack_forget()
@@ -2236,9 +2351,9 @@ class App(tk.Tk):
             return
         self.live[png] = dict(mtime=os.path.getmtime(png), path=path, rel=rel, arc=arc_member, ti=ti, layer=layer,
                               mod=m, busy=False, count=0)
-        self.open_external(png)
-        self.status_var.set('Live edit: %s opened - every save goes into mod "%s" (keep this window open).'
-                            % (os.path.basename(png), m.name))
+        editor = self.open_in_editor(png)
+        self.status_var.set('Live edit: %s opened in %s - every save goes into mod "%s" (keep this window open).'
+                            % (os.path.basename(png), editor, m.name))
         if not self._live_after:
             self._live_after = self.after(1000, self.live_poll)
         self.set_actions(self.cur)
@@ -2248,6 +2363,34 @@ class App(tk.Tk):
             os.startfile(p)
         except OSError:
             subprocess.Popen(['explorer', p])
+
+    def open_in_editor(self, png):
+        """Open a PNG for editing: the image editor picked with "Image editor…", else Windows' "Edit" action
+        (Paint unless changed), else the default program. Returns a name for the status bar."""
+        ed = self.settings.get('image_editor', '')
+        if ed and os.path.isfile(ed):
+            try:
+                subprocess.Popen([ed, png])
+                return os.path.splitext(os.path.basename(ed))[0]
+            except OSError:
+                pass
+        try:
+            os.startfile(png, 'edit')
+            return 'your image editor'
+        except OSError:
+            self.open_external(png)
+            return 'the default program'
+
+    def pick_image_editor(self):
+        cur = self.settings.get('image_editor', '')
+        p = filedialog.askopenfilename(
+            title='Image editor for live editing (Cancel = Windows\' Edit action, usually Paint)',
+            initialdir=os.path.dirname(cur) if cur else os.environ.get('ProgramFiles', 'C:\\'),
+            filetypes=[('Programs', '*.exe')])
+        self.settings['image_editor'] = os.path.normpath(p) if p else ''
+        self.save_settings()
+        self.status_var.set('Live edits open in %s.' % (os.path.basename(p) if p else
+                                                         'Windows\' Edit action (usually Paint)'))
 
     def live_poll(self):
         self._live_after = None
@@ -2385,6 +2528,7 @@ class App(tk.Tk):
         self.render()
 
     def show_image_mode(self):
+        self.hide_model_mode()
         self.text.pack_forget()
         self.audio_frame.pack_forget()
         if not self.tex_bar.winfo_ismapped():
@@ -2392,6 +2536,7 @@ class App(tk.Tk):
         self.canvas_frame.pack(fill='both', expand=True)
 
     def show_text_mode(self, text, wrap='word'):
+        self.hide_model_mode()
         self.cur_img = None
         self.tex_bar.pack_forget()
         self.canvas_frame.pack_forget()
