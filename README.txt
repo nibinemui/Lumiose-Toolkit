@@ -6,6 +6,10 @@ The first start opens "Import game files" to unpack your game dump. The window h
 Browse & extract, Mods, Map, Pokémon data and Game data. "Dark mode" (top right) switches the theme.
 README.md is the full manual (features, installing, troubleshooting).
 
+WHAT'S NEW IN 1.3.1
+-------------------
+  * Fixed: the window sometimes started at its smallest size (900x520) instead of full size.
+
 WHAT'S NEW IN 1.3.0
 -------------------
   * Models show in 3D right in the preview pane when you click them ("Pop out" = own window).
