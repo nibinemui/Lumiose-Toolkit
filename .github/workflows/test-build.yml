@@ -1,0 +1,68 @@
+# Builds the Windows release on every push and checks that it starts (tools/smoke_test.py).
+# The zip it builds is kept for 7 days under the run's "Artifacts" - handy for testing before a release.
+# Releases themselves are still made by hand (python build_exe.py + gh release create).
+name: Test build
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - '.github/ISSUE_TEMPLATE/**'
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: test-build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt pyinstaller
+          python -m pip list
+
+      - name: Check every module compiles and imports
+        run: |
+          python -m compileall -q -x gftool_src .
+          python -c "import glob, importlib, os; mods = sorted(os.path.splitext(f)[0] for f in glob.glob('za_*.py')) + ['restore_missing', 'build_exe']; [importlib.import_module(m) for m in mods]; print('imported', len(mods), 'modules')"
+
+      - name: Build
+        run: python build_exe.py
+
+      - name: Smoke test (start the program like a first-time user)
+        run: python tools/smoke_test.py "dist/Lumiose Toolkit"
+
+      - name: Keep the test build
+        uses: actions/upload-artifact@v4
+        with:
+          name: Lumiose-Toolkit-test-build
+          path: dist/Lumiose-Toolkit-*-windows.zip
+          retention-days: 7
+          compression-level: 0
+
+      - name: Keep the error log
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: error-log
+          path: dist/Lumiose Toolkit/error_log.txt
+          if-no-files-found: ignore
+          retention-days: 7

@@ -442,7 +442,19 @@ class App(tk.Tk):
     def on_tk_error(self, exc, val, tb):
         text = ''.join(traceback.format_exception(exc, val, tb))
         log_error(text)
-        messagebox.showerror('Lumiose Toolkit - error', '%s\n\n(details saved to error_log.txt)' % val)
+        if messagebox.askyesno('Lumiose Toolkit - error',
+                               '%s\n\nThe details were saved to error_log.txt.\n\nReport this bug?' % val,
+                               icon='error', default='no'):
+            self.open_report(extra='%s: %s' % (exc.__name__, val))
+
+    def open_report(self, extra=None):
+        try:
+            import za_report
+            za_report.ReportWindow(self, extra=extra)
+        except Exception:  # noqa: BLE001
+            log_error(traceback.format_exc())
+            import webbrowser
+            webbrowser.open('https://github.com/%s/issues/new/choose' % za_version.REPO)
 
     # ---------------- theme ----------------
     def apply_theme(self):
@@ -572,6 +584,7 @@ class App(tk.Tk):
         self.update_btn = ttk.Button(stat, text='Updates…', command=self.open_updates)
         self.update_btn.pack(side='right', padx=(0, 8))
         ttk.Button(stat, text='Preferences…', command=self.open_preferences).pack(side='right', padx=(0, 4))
+        ttk.Button(stat, text='Report a bug…', command=self.open_report).pack(side='right', padx=(0, 4))
         self.update_rel = None          # newer release found on GitHub (see check_updates)
         ttk.Label(stat, textvariable=self.status_var).pack(side='left')
 

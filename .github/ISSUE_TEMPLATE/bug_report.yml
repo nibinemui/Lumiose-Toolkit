@@ -1,0 +1,60 @@
+name: Bug report
+description: Something doesn't work, shows an error or crashes
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting! The quickest way: in Lumiose Toolkit click **Report a bug…** (bottom right),
+        then **Copy details**, and paste them into the "Details from the toolkit" box below.
+        The details list your version, Windows version and recent errors. Your user name and folder
+        paths are replaced with placeholders - check the text before posting anyway.
+
+        Please **don't attach game files** (textures, models, archives from the game).
+
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What did you expect, and what happened instead? Copy the text of any error message.
+      placeholder: When I click "Show in 3D" on a clothing model, the 3D view stays black and an error says ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: How can it be repeated?
+      description: The steps that lead to the problem - which tab, which file, which button.
+      placeholder: |
+        1. Browse & extract tab, search "p2_upb0000"
+        2. Click the .trmdl file
+        3. Click "Show in 3D"
+    validations:
+      required: false
+
+  - type: textarea
+    id: details
+    attributes:
+      label: Details from the toolkit
+      description: Paste what **Report a bug… → Copy details** copied.
+      render: text
+    validations:
+      required: false
+
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Shown in the title bar, e.g. 1.3.1
+      placeholder: 1.3.1
+    validations:
+      required: true
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: Screenshots or anything else
+      description: Optional - drag screenshots in here.
+    validations:
+      required: false

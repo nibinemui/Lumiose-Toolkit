@@ -308,6 +308,8 @@ That index is made for exactly the mods in the package, so **build one combined 
 | No sound / audio list empty | The game's `audio` folder is missing from the game folder. Run **Import game files…** again; it copies it. |
 | Something else | Program errors are written to `error_log.txt` in the program folder; extraction errors go to `_extract_errors.txt` in the output folder. |
 
+**Reporting a bug:** click **Report a bug…** at the bottom right of the program (it also offers this when an error pops up). It collects your version, Windows version and recent errors, with your user name and folders replaced by placeholders. Click **Copy details**, then **Open bug report on GitHub**, and paste them into the form. Nothing is sent automatically. Please don't attach game files.
+
 ---
 
 ## Known limits
@@ -344,6 +346,11 @@ The release .exe is built from this repository. To run or change the Python sour
    python build_exe.py
    ```
    This creates `dist/Lumiose Toolkit/` and `dist/Lumiose-Toolkit-<version>-windows.zip`.
+5. Check that the build starts (main window, normal size, no errors):
+   ```bash
+   python tools/smoke_test.py "dist/Lumiose Toolkit"
+   ```
+   GitHub runs the build and this test on every push (**Actions → Test build**); each run keeps its zip for 7 days.
 
 ---
 
@@ -369,6 +376,7 @@ Lumiose Toolkit/
   za_update.py            updater (checks GitHub releases, installs a new version)
   za_editor.py            image editor window for live edits (built-in miniPaint, or Photopea)
   za_prefs.py             Preferences window
+  za_report.py            Report a bug window (collects anonymized details, opens the GitHub form)
   za_version.py           version number and release repository
   za_textedit.py          in-app text editor
   za_history.py           mod history / compare / restore window
@@ -381,7 +389,8 @@ Lumiose Toolkit/
   gen_trinity_fbs.py      builds Trinity schemas from GFTool's sources
   bfbs_dump.py            prints a binary schema (.bfbs) as text
   names/                  fallback name lists (+ the PokeDocs hash list, downloaded)
-  tools/                  helper programs, schemas, 3D viewer page, image editor pages, miniPaint, icon builder
+  tools/                  helper programs, schemas, 3D viewer page, image editor pages, miniPaint, icon builder,
+                          smoke_test.py (checks a built release starts)
   LICENSE                 GPL-2.0
   THIRD_PARTY_NOTICES.md, licenses/   licences of everything bundled
   source/                 (release download only) the complete source of that version
