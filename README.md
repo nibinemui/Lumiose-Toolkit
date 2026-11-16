@@ -46,7 +46,7 @@ on it), a modded Switch (Atmosphere) or an emulator.
   - **Animations** (`.tranm`): play them on their model in the 3D viewer.
   - **Data**: FlatBuffer `.bin` files shown as readable JSON. This covers every Trinity format (`.trmtr`, `.trskl`, `.trmsh`, `.trscn`, …) and any `.bin` with a schema.
   - **Text** (`.dat`/`.tbl`): decoded message files.
-  - **Audio** (Wwise `.bnk`/`.pck`): list and play sounds.
+  - **Audio** (Wwise `.bnk`/`.pck`): list and play sounds. The **Audio** tab lists them all by name.
   - **UI archives** (`.arc`): open like folders; the textures inside preview too.
 - **Batch extraction** (Ctrl+E): textures → PNG (+DDS), models → glTF/GLB (optionally with all animations), data → JSON, audio → WAV, and other files copied as-is.
 
@@ -86,9 +86,12 @@ on it), a modded Switch (Atmosphere) or an emulator.
   - Edit the **encounters** at a spawn: species, levels and weight.
   - Edit the **contents of item balls** and random items, with "Make unique" so other spots aren't affected.
   - Pick any **interior, dungeon or zone** from the Area list. Optionally lay a dungeon floor map underneath and align it; the alignment is saved per area.
+- **Audio tab**: every song, jingle, sound effect, Pokémon cry, voice and ambience sound (over 14,000), searchable by
+  name, with its type. Play, export and **replace** them with any audio file (WAV, MP3, OGG, FLAC, M4A…), with
+  volume, loudness matching and loop points.
 - **Experimental**:
   - Import an edited glTF back into a model.
-  - Replace a sound with a WAV.
+  - Replacing sounds (Audio tab) - tested in the program, not yet confirmed in-game.
 
 ### Mods
 - Mod projects with name, author, version and description; "Add original to mod" copies any file into a mod for hand editing.
@@ -258,6 +261,27 @@ Notes:
 - The move, item and shop layouts were reverse-engineered for this tool. Fields still named `Unknown…` are not identified yet.
 - The move, item, shop and clothing tables rebuild byte-for-byte identical when nothing is changed.
 
+### Audio tab
+The first time you open it, the tab builds its list of every sound and song (about a minute) and keeps it for next time.
+- **Names**: the game's sounds only have numbers, so the names are the game's own sound event names (`PLAY_BGM_VS_BOSS_01`,
+  `PLAY_PV_0359`), found in its data files - about 85% of sounds have one. Cries and Pokémon sounds also show the
+  Pokémon (`· Absol`), move sounds the move (`· Headbutt`). Search matches all of it, and the audio id.
+- **Type**: Music, Jingle (short tunes like healing at a Pokémon Center), Sound effect, Ambience, Pokémon cry, Voice
+  or Vibration (controller rumble). **Group** says more (Moves, Menus, Cutscenes, Battle…).
+- **Parts**: a song is often several audio files - an intro and a loop, layers, or versions per area or time of day -
+  shown as *part 1 of 3*. Play them to find the one you want; each part is replaced on its own.
+- **▶ Play** (or double-click / Space) plays your mod's version if it has one; **▶ Play original** plays the game's.
+- **Replace in current mod**: pick any audio file, set the volume or tick *Match the original's loudness* (it never
+  boosts so far that it distorts), and optionally set **loop points**:
+  - *Songs*: the game repeats the part between loop start and loop end. Without loop points the whole file loops.
+    The part before loop start plays as the intro; Wwise may also play it as a short lead-in into each repeat.
+  - *Sounds*: loop points are used when the game loops that sound (ambience and other `_LP` sounds).
+  - **▶ Preview** plays the result; with loop points it plays the seam (the end of the loop running into its start).
+  The new audio is stored as 16-bit PCM inside the sound bank (`audio/wwise/bin/Switch/*.bnk`), so a mod never needs
+  a copy of the 0.9 GB `Stream.pck`. Songs get their new length, so they don't cut off. Every replacement is checked
+  by playing the rebuilt bank back. PCM is bigger than the game's compressed audio (about 10 MB per minute of stereo).
+- **Restore original** puts the game's sound back. **History** on the Mods tab keeps every version too.
+
 ### Map tab
 - **Navigate**: mouse wheel zooms, dragging pans, clicking selects a point. *Find* searches point names and switches to the right area automatically.
 - **Edit a point**: change X/Y/Z/rotation and press **Apply**, or tick **Edit mode** and drag the selected point. **Duplicate** and **Delete** are below.
@@ -315,7 +339,7 @@ That index is made for exactly the mods in the package, so **build one combined 
 
 ## Known limits
 
-- **In-game confirmation**: clothing colour edits are confirmed working in Lumiose Online; other features are tested in the program but not yet confirmed in-game. Custom clothing colours (widened palettes) are new and need an in-game check. glTF model import and WAV sound replacement are marked experimental. Test them before sharing a mod.
+- **In-game confirmation**: clothing colour edits are confirmed working in Lumiose Online; other features are tested in the program but not yet confirmed in-game. Custom clothing colours (widened palettes) are new and need an in-game check. glTF model import and sound replacement are marked experimental. Test them before sharing a mod.
 - **Viewer approximations**: eye effects and special shaders (hologram, fur, emission) are simplified. Clothing is shown in its rest pose unless you use *Try on player body*.
 - **Interior and dungeon areas**: these reuse coordinates near the world origin, so they are told apart by the area code in point names. Floor-map backgrounds must be aligned by hand once per area.
 - **Duplicated map points**: a copy only spawns something if the spawner data tables have an entry with that name.
@@ -383,7 +407,9 @@ Lumiose Toolkit/
   za_textedit.py          in-app text editor
   za_history.py           mod history / compare / restore window
   za_import.py            experimental glTF → model import
-  za_audio.py             experimental WAV → Wwise import
+  za_audio.py             WAV reading and PCM .wem writing (used by za_soundbank)
+  za_soundbank.py         sound index (names, types) and replacing sounds in Wwise banks
+  za_audiotab.py          Audio tab
   za_names.py             name index (Pokémon, clothing)
   za_deps.py              downloads the PokeDocs files (hash list, schemas) on first start
   restore_missing.py      unpacks data.trpfs (used by Import game files and restore_missing.exe)

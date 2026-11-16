@@ -5,6 +5,7 @@ extracted/
 settings.json
 error_log.txt
 update_log.txt
+audio_index.json
 restored_files.txt
 __pycache__/
 *.pyc

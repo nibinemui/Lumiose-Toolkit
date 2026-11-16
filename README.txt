@@ -6,6 +6,14 @@ The first start opens "Import game files" to unpack your game dump. The window h
 Browse & extract, Mods, Map, Pokémon data and Game data. "Dark mode" (top right) switches the theme.
 README.md is the full manual (features, installing, troubleshooting).
 
+WHAT'S NEW IN 1.4.0
+-------------------
+  * Audio tab: every song, jingle, sound effect, Pokémon cry, voice and ambience (14,000+), searchable
+    by the game's own sound names (with Pokémon and move names), with a Type column. Play, export.
+  * Replace any of them with WAV, MP3, OGG, FLAC, M4A...: volume, match the original's loudness,
+    loop points (songs: where the game loops them), preview, restore original. Stored inside the
+    sound bank, so mods don't need a copy of Stream.pck. Experimental - check in-game.
+
 WHAT'S NEW IN 1.3.2
 -------------------
   * Fixed: imported models crashed the game. Rebuilt files lost values the game needs; every

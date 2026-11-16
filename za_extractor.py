@@ -567,6 +567,8 @@ class App(tk.Tk):
             self.draw_map()
         if hasattr(self, 'data_ui'):          # Game data tab: the scrolling form area follows the theme
             self.data_ui.canvas.configure(background=c['bg'])
+        if hasattr(self, 'audio_ui'):
+            self.audio_ui.recolour()
         self.menu.configure(background=c['panel'], foreground=c['fg'], activebackground=c['sel'],
                             activeforeground=c['selfg'], borderwidth=0)
         self.tree.tag_configure('name', foreground=c['accent'], font=('Segoe UI', 9, 'bold'))
@@ -643,6 +645,8 @@ class App(tk.Tk):
         self.nb.add(self.poke_tab, text='  Pokémon data  ')
         self.data_tab = ttk.Frame(self.nb)
         self.nb.add(self.data_tab, text='  Game data  ')
+        self.audio_tab = ttk.Frame(self.nb)
+        self.nb.add(self.audio_tab, text='  Audio  ')
 
         srch = ttk.Frame(B)
         srch.pack(fill='x', **pad)
@@ -816,6 +820,12 @@ class App(tk.Tk):
         except Exception:  # noqa: BLE001
             log_error(traceback.format_exc())
             ttk.Label(self.data_tab, text='Game data tab could not start - see error_log.txt').pack(pady=20)
+        try:
+            import za_audiotab
+            self.audio_ui = za_audiotab.AudioTab(self, self.audio_tab)
+        except Exception:  # noqa: BLE001
+            log_error(traceback.format_exc())
+            ttk.Label(self.audio_tab, text='Audio tab could not start - see error_log.txt').pack(pady=20)
         self.refresh_mods()
 
         def fetch_pokedocs():         # files from pkZukan/PokeDocs are downloaded, not shipped (no licence)
@@ -1930,7 +1940,7 @@ class App(tk.Tk):
             acts += [('▶ Play', self.play_audio), ('■ Stop', self.stop_audio),
                      ('Export selected (.wav)…', lambda: self.export_audio(False)),
                      ('Export all (.wav)…', lambda: self.export_audio(True)),
-                     ('Replace with WAV… (experimental)', lambda: self.replace_audio(path))]
+                     ('Replace in Audio tab…', lambda: self.replace_audio(path))]
         elif kind == 'data':
             acts += [('Open in table editor', lambda: self.open_table_editor(path)),
                      ('Export JSON…', lambda: self.export_json(path)),
@@ -2273,9 +2283,31 @@ class App(tk.Tk):
         self.run_bg('Exporting %d sound(s)' % len(sel), job, lambda n: self.status_var.set('Saved %d .wav to %s' % (n, d)))
 
     def replace_audio(self, path):
+        """Open the selected sound in the Audio tab, where it can be replaced (any format, loops, volume)."""
         sel = self._audio_sel()
         if len(sel) != 1:
             self.status_var.set('Select exactly one sound in the list to replace.')
+            return
+        try:
+            if path.lower().endswith('.pck'):
+                mid = [e for e in zm.parse_akpk(path)][sel[0][0]][0]
+            else:
+                import za_soundbank
+                with open(path, 'rb') as f:
+                    mid = za_soundbank.Bank(f.read()).media()[sel[0][0]][0]
+        except Exception:  # noqa: BLE001
+            log_error(traceback.format_exc())
+            self.status_var.set('Could not find that sound - open the Audio tab and search for it.')
+            return
+        ui = getattr(self, 'audio_ui', None)
+        if ui is not None:
+            ui.reveal(mid)
+        return
+
+    def replace_audio_old(self, path):
+        """Pre-1.4 replacement (PCM straight into the .bnk/.pck). Kept for reference; not used."""
+        sel = self._audio_sel()
+        if len(sel) != 1:
             return
         rel = self.rel_game_path(path)
         m = self.current_mod()

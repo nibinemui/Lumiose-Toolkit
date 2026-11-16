@@ -1,5 +1,25 @@
 # Patch notes
 
+## 1.4.0 - 2026-11-16
+
+### New
+- **Audio tab**: every song, jingle, sound effect, Pokémon cry, voice and ambience sound in the game (over 14,000), with:
+  - **Names** you can search: the game's own sound event names (like `PLAY_BGM_VS_BOSS_01`), found for about 85% of sounds. Cries and Pokémon sounds also show the Pokémon, move sounds the move.
+  - **Type**: Music, Jingle, Sound effect, Ambience, Pokémon cry, Voice or Vibration, plus a group (Moves, Menus, Cutscenes…).
+  - **Play**, **Export WAV…**, and a mark on every sound your current mod changes.
+- **Replace any sound or song** with WAV, MP3, OGG, FLAC, M4A and more:
+  - **Volume** slider, or **Match the original's loudness** (never boosted into distortion).
+  - **Loop points**: for songs, where the game loops them; for sounds, loop markers the game uses when it loops them.
+  - **Preview** plays the result, with loop points the loop seam.
+  - **Restore original** puts the game's sound back.
+
+### Improved
+- Replaced sounds go inside the sound bank, so a mod no longer needs a copy of the 0.9 GB `Stream.pck`. Songs get their new length, so they don't cut off or loop early. Every replacement is checked by playing the rebuilt bank back.
+- Browse: **Replace in Audio tab…** on a sound opens it in the Audio tab.
+
+### Note
+- Sound replacement is tested in the program but not confirmed in-game yet - try it before sharing a mod.
+
 ## 1.3.2 - 2026-11-15
 
 ### Fixed
