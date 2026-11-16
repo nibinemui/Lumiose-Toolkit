@@ -1954,7 +1954,8 @@ class App(tk.Tk):
                      ('Live edit in image editor', lambda: self.live_edit_texture(path))]
             mdl = zt.find_model_for(path) if '\ik_' in path or '/ik_' in path else None
             if mdl:
-                acts += [('Open its model in 3D viewer', lambda: self.open_viewer(mdl))]
+                acts += [('Show its model in 3D', lambda: self.open_viewer(mdl, embed=self.embed_pref())),
+                         ('Its model in viewer window', lambda: self.open_viewer(mdl))]
         elif kind == 'texture' and res.get('iid', '').startswith('A|'):
             arc, inner = res['iid'][2:].split('|', 1)
             acts += [('Import PNG into mod…', lambda: self.import_texture(arc, inner)),

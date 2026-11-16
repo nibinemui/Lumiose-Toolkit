@@ -12,7 +12,9 @@ WHAT'S NEW IN 1.4.0
     by the game's own sound names (with Pokémon and move names), with a Type column. Play, export.
   * Replace any of them with WAV, MP3, OGG, FLAC, M4A...: volume, match the original's loudness,
     loop points (songs: where the game loops them), preview, restore original. Stored inside the
-    sound bank, so mods don't need a copy of Stream.pck. Experimental - check in-game.
+    sound bank, so mods don't need a copy of Stream.pck. Song replacement is confirmed in-game.
+  * Texture live edit: "Show its model in 3D" opens the model in the preview pane (or a window, see
+    Preferences > 3D view); "Its model in viewer window" always opens its own window.
 
 WHAT'S NEW IN 1.3.2
 -------------------
@@ -68,7 +70,7 @@ WHAT'S NEW (2026-11-14, second round)
     Clothing shops, Hair & make-up, Trainers (teams) and Item balls - or any data file with a
     schema ("Open other data file…", or "Open in table editor" on a data file in Browse).
   * Textures: "Live edit in image editor" - every save of the PNG goes into the mod by itself;
-    "Open its model in 3D viewer" shows the change live.
+    "Show its model in 3D" shows the change live (in the preview pane, or its own window).
   * Text: "Edit text…" opens an in-app editor (search, edit, Ctrl+Enter, Save to current mod).
   * Mods tab: "History / compare / restore…" - every version of every mod file is kept; compare
     with the game original / previous version (text lines, data fields, textures side by side).

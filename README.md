@@ -91,7 +91,8 @@ on it), a modded Switch (Atmosphere) or an emulator.
   volume, loudness matching and loop points.
 - **Experimental**:
   - Import an edited glTF back into a model.
-  - Replacing sounds (Audio tab) - tested in the program, not yet confirmed in-game.
+  - Replacing sounds (Audio tab) - song replacement is confirmed working in-game; sound effects, cries and loop
+    points are not confirmed yet.
 
 ### Mods
 - Mod projects with name, author, version and description; "Add original to mod" copies any file into a mod for hand editing.
@@ -216,7 +217,7 @@ Select files or folders, tick the conversions at the bottom, then press **Extrac
 
 ### Textures
 - **Import PNG into mod…**: replaces the texture. If the PNG has a different size, you choose whether to rebuild the texture at that size.
-- **Live edit in image editor**: exports the PNG and opens it for editing. Every time you save, it is re-imported into the mod. Use **Open its model in 3D viewer** to watch the changes. Stop with **Stop live edits**.
+- **Live edit in image editor**: exports the PNG and opens it for editing. Every time you save, it is re-imported into the mod. Use **Show its model in 3D** to watch the changes - in the preview pane, or in its own window with **Its model in viewer window** (Preferences… > 3D view sets which one *Show* uses). Stop with **Stop live edits**.
   Which editor opens is set in **Preferences…** (bottom right, or **Image editor…** above the texture):
   - **Built-in editor: miniPaint** (default) - opens in a toolkit window and works offline: layers, brushes, selections, filters. Press **Ctrl+S** or **Save to mod** to save into your mod.
   - **Photopea (online)** - opens [photopea.com](https://www.photopea.com), a Photoshop-like editor, in a toolkit window. Use **File → Save** or **Save to mod**. Needs an internet connection; Photopea is a third-party service and its free version shows ads.
@@ -339,7 +340,7 @@ That index is made for exactly the mods in the package, so **build one combined 
 
 ## Known limits
 
-- **In-game confirmation**: clothing colour edits are confirmed working in Lumiose Online; other features are tested in the program but not yet confirmed in-game. Custom clothing colours (widened palettes) are new and need an in-game check. glTF model import and sound replacement are marked experimental. Test them before sharing a mod.
+- **In-game confirmation**: clothing colour edits and replacing songs are confirmed working in Lumiose Online; other features are tested in the program but not yet confirmed in-game. Custom clothing colours (widened palettes) are new and need an in-game check. glTF model import and sound replacement are marked experimental. Test them before sharing a mod.
 - **Viewer approximations**: eye effects and special shaders (hologram, fur, emission) are simplified. Clothing is shown in its rest pose unless you use *Try on player body*.
 - **Interior and dungeon areas**: these reuse coordinates near the world origin, so they are told apart by the area code in point names. Floor-map backgrounds must be aligned by hand once per area.
 - **Duplicated map points**: a copy only spawns something if the spawner data tables have an entry with that name.

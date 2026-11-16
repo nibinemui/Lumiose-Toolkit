@@ -16,9 +16,10 @@
 ### Improved
 - Replaced sounds go inside the sound bank, so a mod no longer needs a copy of the 0.9 GB `Stream.pck`. Songs get their new length, so they don't cut off or loop early. Every replacement is checked by playing the rebuilt bank back.
 - Browse: **Replace in Audio tab…** on a sound opens it in the Audio tab.
+- Textures: **Show its model in 3D** opens the texture's model in the preview pane, like other 3D views (or in its own window if **Preferences… → 3D view** says so). **Its model in viewer window** always opens a separate window.
 
 ### Note
-- Sound replacement is tested in the program but not confirmed in-game yet - try it before sharing a mod.
+- Replacing songs is confirmed working in-game. Sound effects, cries and loop points are tested in the program but not confirmed in-game yet - try them before sharing a mod.
 
 ## 1.3.2 - 2026-11-15
 

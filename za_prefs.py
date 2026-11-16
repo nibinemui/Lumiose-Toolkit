@@ -103,7 +103,7 @@ class PreferencesWindow(tk.Toplevel):
         ttk.Checkbutton(f, text='Show a model in 3D when you click it in the file list', variable=self.auto3d,
                         command=self.changed).pack(anchor='w')
         note(f, 'Off: clicking a model shows its parts, materials and bones as text; "Show in 3D" still works.')
-        head(f, 'Try on, Play in 3D and colour variants open')
+        head(f, "Try on, Play in 3D, colour variants and a texture's model open")
         self.place = tk.StringVar(value=s.get('viewer_place', 'pane'))
         ttk.Radiobutton(f, text='In the preview pane (next to the file list)', value='pane', variable=self.place,
                         command=self.changed).pack(anchor='w')
