@@ -5,7 +5,9 @@ armature), export .glb again, then import it here. Each game mesh is replaced by
 the same name ("pm0025_00_00_body_mesh_shape" or "mesh:<name>"); vertices are re-encoded in the
 mesh's original vertex format, bone weights are mapped back by bone name, and material parts are
 matched by material name. Writes .trmsh/.trmbf (and .trmdl with LODs pointing at the new mesh)
-into a mod folder. Shape keys (morphs) of replaced meshes are dropped.
+into a mod folder. Shape keys (morphs) of replaced meshes are dropped. Tangents are recomputed from
+the game's UVs; each vertex keeps its strongest bone influences (as many as the format holds).
+A file whose mesh names match none of the model's meshes is refused instead of written.
 """
 import base64
 import json
@@ -140,6 +142,49 @@ def _fmt_size(fmt):
     return zt.FMT_SIZE.get(fmt)
 
 
+def compute_tangents(P, N, UV, idx):
+    """Per-vertex tangents (x, y, z, handedness) from positions, normals and the game's UVs.
+    Checked against the game's own tangents: 97-100% agree in direction and handedness. glTF tangents
+    are not used: Blender computes them for flipped UVs, so their handedness is wrong for the game."""
+    n = len(P)
+    t1, t2 = np.zeros((n, 3)), np.zeros((n, 3))
+    tri = idx[:len(idx) - len(idx) % 3].reshape(-1, 3)
+    if len(tri):
+        e1, e2 = P[tri[:, 1]] - P[tri[:, 0]], P[tri[:, 2]] - P[tri[:, 0]]
+        d1, d2 = UV[tri[:, 1]] - UV[tri[:, 0]], UV[tri[:, 2]] - UV[tri[:, 0]]
+        det = d1[:, 0] * d2[:, 1] - d2[:, 0] * d1[:, 1]
+        r = np.where(np.abs(det) > 1e-12, 1.0 / np.where(det == 0, 1, det), 0.0)[:, None]
+        sdir = (e1 * d2[:, 1:2] - e2 * d1[:, 1:2]) * r
+        tdir = (e2 * d1[:, 0:1] - e1 * d2[:, 0:1]) * r
+        for k in range(3):
+            np.add.at(t1, tri[:, k], sdir)
+            np.add.at(t2, tri[:, k], tdir)
+    t = t1 - N * (N * t1).sum(1, keepdims=True)              # Gram-Schmidt against the normal
+    ln = np.linalg.norm(t, axis=1, keepdims=True)
+    fallback = np.cross(N, [0.0, 0.0, 1.0])                  # vertices without usable UVs
+    fallback[np.linalg.norm(fallback, axis=1) < 1e-6] = [1.0, 0.0, 0.0]
+    fallback /= np.linalg.norm(fallback, axis=1, keepdims=True)
+    t = np.where(ln > 1e-9, t / np.where(ln > 0, ln, 1), fallback)
+    w = np.where((np.cross(N, t) * t2).sum(1) < 0, -1.0, 1.0)[:, None]
+    return np.concatenate([t, w], 1)
+
+
+def strongest_influences(J, W, slots):
+    """Sort each vertex's bone influences strongest first, keep `slots` of them and make the kept
+    weights add up to 1 (the game stores unused slots as 0 at the end)."""
+    order = np.argsort(-W, axis=1, kind='stable')
+    J = np.take_along_axis(J, order, 1)
+    W = np.take_along_axis(W, order, 1)
+    if J.shape[1] < slots:
+        J = np.pad(J, ((0, 0), (0, slots - J.shape[1])))
+        W = np.pad(W, ((0, 0), (0, slots - W.shape[1])))
+    J, W = J[:, :slots].copy(), W[:, :slots].copy()
+    J[W <= 0] = 0
+    s = W.sum(1, keepdims=True)
+    W = np.where(s > 0, W / np.where(s > 0, s, 1), np.eye(1, slots))
+    return J, W
+
+
 def import_gltf(glb_path, trmdl_path, mod, log=print):
     """Replace the geometry of trmdl_path's full-detail mesh with glb_path; write into `mod`.
     Returns a list of report lines."""
@@ -165,6 +210,7 @@ def import_gltf(glb_path, trmdl_path, mod, log=print):
                 if nm:
                     gmesh.setdefault(nm, (node['mesh'], node.get('skin')))
     gmat = [m.get('name', '') for m in g.j.get('materials', [])]
+    replaced = 0
 
     for mi, mesh in enumerate(msh['Meshes']):
         name = mesh.get('Name', '')
@@ -183,6 +229,10 @@ def import_gltf(glb_path, trmdl_path, mod, log=print):
         if skin_i is not None and skel:
             joints = g.j['skins'][skin_i]['joints']
             joint_to_bone = np.array([skel.index.get(g.j['nodes'][j].get('name', ''), 0) for j in joints] or [0])
+            unknown = sorted({g.j['nodes'][j].get('name', '') for j in joints} - set(skel.index))
+            if unknown:
+                report.append('%s: bones not in the game skeleton (weights on them move with the root): %s'
+                              % (name, ', '.join(unknown[:8]) + (' …' if len(unknown) > 8 else '')))
         # concatenate primitives
         P, N, T, UV0, UV1, C, J, W, idx_by_part = [], [], [], [], [], [], [], [], {p: [] for p in part_names}
         base = 0
@@ -238,7 +288,16 @@ def import_gltf(glb_path, trmdl_path, mod, log=print):
         UV1[:, 1] = 1 - UV1[:, 1]
         ln = np.linalg.norm(N, axis=1, keepdims=True)
         N = N / np.where(ln > 0, ln, 1)
+        all_tris = np.concatenate([np.concatenate(v) for v in idx_by_part.values() if v] or [np.zeros(0, np.int64)])
+        T = compute_tangents(P, N, UV0, all_tris)
         B = np.cross(N, T[:, :3]) * T[:, 3:4]
+        # bone influences: strongest first, as many as the vertex format holds (4 per BLEND_INDEX element)
+        slots = 4 * max(1, sum(1 for el in elements if el.get('vertexUsage') == 'BLEND_INDEX'))
+        dropped = int((np.sort(W, 1)[:, ::-1][:, slots:] > 0.01).any(1).sum()) if W.shape[1] > slots else 0
+        if dropped:
+            report.append('%s: %d vertices had more than %d bone influences - kept the %d strongest'
+                          % (name, dropped, slots, slots))
+        J, W = strongest_influences(J, W, slots)
         # bone weights -> raw blend indices in this mesh's index space
         mode = mode_by_mesh.get(name, 'static')
         raw = np.zeros_like(J)
@@ -289,10 +348,12 @@ def import_gltf(glb_path, trmdl_path, mod, log=print):
             elif usage == 'COLOR':
                 v = C
             elif usage == 'BLEND_INDEX':
-                v = raw[:, 4 * bi:4 * bi + 4]
+                # _encode stores (x, y, z, w) as slots (w, x, y, z); pre-rotate so the strongest
+                # influence lands in the first slot, unused ones at the end - like the game's files
+                v = raw[:, 4 * bi:4 * bi + 4][:, [1, 2, 3, 0]]
                 bi += 1
             elif usage == 'BLEND_WEIGHTS':
-                v = W[:, 4 * wi:4 * wi + 4]
+                v = W[:, 4 * wi:4 * wi + 4][:, [1, 2, 3, 0]]
                 wi += 1
             else:
                 continue
@@ -318,7 +379,18 @@ def import_gltf(glb_path, trmdl_path, mod, log=print):
         tb['VertexBuffer'] = [{'Bytes': list(layers[k].tobytes())} for k in sorted(layers)]
         tb['IndexBuffer'] = [{'Bytes': list(ib)}]
         tb['MorphTargets'] = []
+        replaced += 1
+        empty = [p.get('MaterialName', '') for p in mesh['meshParts'] if not p['indexCount']]
+        if empty:
+            report.append('%s: no triangles for material %s - those parts will be invisible'
+                          % (name, ', '.join('"%s"' % e for e in empty)))
         report.append('replaced %s: %d vertices, %d triangles, skinning "%s"' % (name, nv, len(idx) // 3, mode))
+
+    if not replaced:
+        names = ', '.join(sorted(m.get('Name', '') for m in msh['Meshes']))
+        raise ImportError_('None of the meshes in this glTF file match %s, so nothing was changed.\n\n'
+                           'The file must come from this model (exported with Lumiose Toolkit), with the '
+                           'mesh objects still named like: %s' % (os.path.basename(trmdl_path), names))
 
     # write into the mod
     rels = {}

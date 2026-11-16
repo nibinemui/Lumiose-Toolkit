@@ -447,6 +447,40 @@ class App(tk.Tk):
                                icon='error', default='no'):
             self.open_report(extra='%s: %s' % (exc.__name__, val))
 
+    def offer_repair(self, found):
+        """Ask once to restore values that versions up to 1.3.1 dropped from rebuilt files."""
+        lines = ['• %s: %s' % (m.name, rel) for m, rel, n in found[:10]]
+        if len(found) > 10:
+            lines.append('• … and %d more' % (len(found) - 10))
+        ok = messagebox.askyesno(
+            'Repair mod files',
+            '%d file(s) in your mods were saved by an older version of Lumiose Toolkit and are missing '
+            'values the game needs. This can crash the game (for example imported models).\n\n%s\n\n'
+            'Repair them now? Nothing else in the files changes, and the old versions stay in History.'
+            % (len(found), '\n'.join(lines)), icon='warning')
+        if not ok:
+            self.settings['repair_defaults_done'] = True     # don't ask again
+            self.save_settings()
+            return
+        mods = {id(m): m for m, rel, n in found}
+        for m in mods.values():
+            m.snapshot()
+        fixed, failed = 0, []
+        for m, rel, n in found:
+            try:
+                zm.repair_dropped_defaults(m.path_for(rel), os.path.join(self.root_var.get(), *rel.split('/')))
+                fixed += 1
+            except Exception:  # noqa: BLE001
+                log_error(traceback.format_exc())
+                failed.append(rel)
+        for m in mods.values():
+            m.snapshot('repaired (missing values restored)')
+        if not failed:
+            self.settings['repair_defaults_done'] = True
+            self.save_settings()
+        self.status_var.set('Repaired %d mod file(s).%s' % (fixed, (' Could not repair: ' + ', '.join(failed)) if failed else ''))
+        self.refresh_mods()
+
     def open_report(self, extra=None):
         try:
             import za_report
@@ -802,6 +836,19 @@ class App(tk.Tk):
                 first = self._recomp_found[0]
                 self.q.put(lambda: self.recomp_var.get() or self.recomp_var.set(first))
         threading.Thread(target=find_installs, daemon=True).start()
+
+        repair_root = self.root_var.get()          # read here: tkinter variables belong to this thread
+
+        def check_mod_files():        # files rebuilt by 1.3.1 or older may miss values the game needs
+            try:
+                root = repair_root
+                if root and os.path.isdir(root) and not self.settings.get('repair_defaults_done'):
+                    found = zm.find_files_to_repair(root)
+                    if found:
+                        self.q.put(lambda: self.offer_repair(found))
+            except Exception:  # noqa: BLE001
+                log_error(traceback.format_exc())
+        threading.Thread(target=check_mod_files, daemon=True).start()
 
         # first start (or a folder without game files): offer to import them
         try:

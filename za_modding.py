@@ -88,8 +88,9 @@ def schema_for(path):
     return None
 
 
-def to_json(path, schema=None):
-    """Decode a FlatBuffer file to JSON text using its schema."""
+def to_json(path, schema=None, defaults=False):
+    """Decode a FlatBuffer file to JSON text using its schema. defaults=True also lists scalar fields
+    that are not stored, with the schema's default value."""
     schema = schema or schema_for(path)
     if not schema:
         raise ModError('No schema known for ' + os.path.basename(path))
@@ -99,7 +100,8 @@ def to_json(path, schema=None):
         shutil.copyfile(path, src)
         sch = os.path.join(td, 'schema' + os.path.splitext(schema)[1])
         shutil.copyfile(schema, sch)
-        _run([FLATC, '--json', '--strict-json', '--raw-binary', '--natural-utf8', '-o', td, sch, '--', src])
+        _run([FLATC, '--json', '--strict-json', '--raw-binary', '--natural-utf8']
+             + (['--defaults-json'] if defaults else []) + ['-o', td, sch, '--', src])
         with open(os.path.join(td, 'in.json'), encoding='utf-8') as f:
             return f.read()
 
@@ -112,7 +114,11 @@ def from_json(json_text, schema, out_path):
             f.write(json_text)
         sch = os.path.join(td, 'schema' + os.path.splitext(schema)[1])
         shutil.copyfile(schema, sch)
-        _run([FLATC, '-b', '-o', td, sch, jp])
+        # --force-defaults: write every field the JSON has, even when it equals the schema's default.
+        # The game's real defaults differ for some fields (e.g. vertexDeclarationIndex and
+        # vertexElementSizeIndex in .trmsh default to -1), so a stored 0 must stay stored or the game
+        # reads -1 and crashes. Fields missing from the JSON stay missing, so it round-trips exactly.
+        _run([FLATC, '-b', '--force-defaults', '-o', td, sch, jp])
         built = [p for p in os.listdir(td) if p not in ('data.json', os.path.basename(sch))]
         if not built:
             raise ModError('flatc produced no output')
@@ -654,6 +660,81 @@ class Mod:
 
 
 HISTORY_MAX = 30                  # versions kept per file
+
+
+# ---------------------------------------------------------------------------
+# repair: versions up to 1.3.1 rebuilt FlatBuffer files without --force-defaults, which dropped every
+# stored field whose value equalled the schema default (0). Where the game's own default differs
+# (e.g. .trmsh vertexDeclarationIndex = -1), the game then read the wrong value and could crash.
+# ---------------------------------------------------------------------------
+
+def _missing_scalars(orig, mod, full, path=()):
+    """Fields stored in the game's file but missing from the mod's file, with the value the mod's file
+    means for them (its schema default, from `full` = the mod file decoded with --defaults-json).
+    Lists are only compared where they have the same length, so changed structures are left alone."""
+    out = []
+    if isinstance(orig, dict) and isinstance(mod, dict) and isinstance(full, dict):
+        for k, v in orig.items():
+            if k not in mod:
+                if not isinstance(v, (dict, list)) and k in full and not isinstance(full[k], (dict, list)):
+                    out.append((path + (k,), full[k]))
+            else:
+                out += _missing_scalars(v, mod[k], full.get(k), path + (k,))
+    elif isinstance(orig, list) and isinstance(mod, list) and isinstance(full, list)             and len(orig) == len(mod) == len(full):
+        for i, (a, b, c) in enumerate(zip(orig, mod, full)):
+            out += _missing_scalars(a, b, c, path + (i,))
+    return out
+
+
+def dropped_defaults(mod_file, game_file, schema=None):
+    """[(field path, value)] that an older version dropped from mod_file; [] when nothing is missing."""
+    schema = schema or schema_for(game_file)
+    if not schema:
+        return []
+    orig = json.loads(to_json(game_file, schema))
+    mod = json.loads(to_json(mod_file, schema))
+    full = json.loads(to_json(mod_file, schema, defaults=True))
+    return _missing_scalars(orig, mod, full)
+
+
+def repair_dropped_defaults(mod_file, game_file, schema=None):
+    """Write the dropped fields back into mod_file (same values the file already meant, now stored
+    explicitly like the game does). Returns how many fields were restored."""
+    schema = schema or schema_for(game_file)
+    missing = dropped_defaults(mod_file, game_file, schema)
+    if not missing:
+        return 0
+    mod = json.loads(to_json(mod_file, schema))
+    for path, value in missing:
+        o = mod
+        for k in path[:-1]:
+            o = o[k]
+        o[path[-1]] = value
+    from_json(json.dumps(mod), schema, mod_file)
+    return len(missing)
+
+
+REPAIR_EXTS = ('.trmsh', '.trmdl', '.trmbf', '.trmtr', '.trskl', '.tracm', '.tranm', '.trscn', '.trins', '.bin',
+               '.trpmcatalog', '.trmmt')
+
+
+def find_files_to_repair(game_root, mods=None):
+    """[(mod, rel, number of dropped fields)] over all mods. Skips files the game doesn't have."""
+    out = []
+    for m in (mods if mods is not None else list_mods()):
+        for rel in m.files():
+            if os.path.splitext(rel)[1].lower() not in REPAIR_EXTS:
+                continue
+            game = os.path.join(game_root, *rel.split('/'))
+            if not os.path.isfile(game) or not schema_for(game):
+                continue
+            try:
+                n = len(dropped_defaults(m.path_for(rel), game))
+            except Exception:  # noqa: BLE001 - unreadable or not a FlatBuffer: leave it alone
+                continue
+            if n:
+                out.append((m, rel, n))
+    return out
 HISTORY_MAX_SIZE = 96 << 20       # bigger files (sound packages) are not versioned
 
 

@@ -304,6 +304,7 @@ That index is made for exactly the mods in the package, so **build one combined 
 | 3D viewer window is blank | Install the WebView2 Runtime. |
 | "Couldn't check for updates" | You're offline, or GitHub is limiting requests for a while. Click **Check again** later, or download the new version from the Releases page. |
 | An update didn't finish | See `update_log.txt` in the program folder. Close any 3D viewer windows and update again, or install the new zip by hand (see [Updating](#updating)). |
+| Game crashes with a mod made with 1.3.1 or older (e.g. an imported model) | Those versions dropped values from rebuilt files. Start 1.3.2 or newer and click **Yes** when it offers to repair mod files, then install the mod again. Re-import models to also get the improved import. |
 | "No schema known for …" | That data file has no known layout yet; it can still be extracted as raw bytes. |
 | No sound / audio list empty | The game's `audio` folder is missing from the game folder. Run **Import game files…** again; it copies it. |
 | Something else | Program errors are written to `error_log.txt` in the program folder; extraction errors go to `_extract_errors.txt` in the output folder. |

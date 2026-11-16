@@ -146,8 +146,9 @@ def emit(root, enums, types):
                 used[idx] = True
             used[fid] = True
             attrs = ['id: %d' % fid] + (['deprecated'] if dep else [])
-            # No default values: the game stores e.g. -1 explicitly, so its real default is 0.
-            # Declaring GFTool's -1 defaults would make flatc drop those values on rebuild.
+            # No default values: the game stores e.g. -1 explicitly in some files and 0 in others, so no
+            # single default is right. za_modding.from_json writes with --force-defaults instead, which
+            # keeps exactly the fields a file had (a dropped 0 would be read by the game as its -1 default).
             if fname in types or fname in enums or fname in unions:
                 fname = fname + '_'          # flatc: a field may not share a type's name
             parts.append((fid, '  %s: %s (%s);' % (fname, t, ', '.join(attrs))))

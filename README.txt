@@ -6,6 +6,16 @@ The first start opens "Import game files" to unpack your game dump. The window h
 Browse & extract, Mods, Map, Pokémon data and Game data. "Dark mode" (top right) switches the theme.
 README.md is the full manual (features, installing, troubleshooting).
 
+WHAT'S NEW IN 1.3.2
+-------------------
+  * Fixed: imported models crashed the game. Rebuilt files lost values the game needs; every
+    rebuilt file now keeps all of its original values. Mod files saved by older versions are
+    found at startup and can be repaired with one click (old versions stay in History).
+  * Model import: tangents are computed from the UVs (Blender's were wrong or missing), each vertex
+    keeps its strongest bone influences, and a glTF file from a different model is refused.
+  * "Report a bug..." button (bottom right): collects version, system and recent errors, with your
+    user name and folders hidden, and opens the bug report form on GitHub.
+
 WHAT'S NEW IN 1.3.1
 -------------------
   * Fixed: the window sometimes started at its smallest size (900x520) instead of full size.
