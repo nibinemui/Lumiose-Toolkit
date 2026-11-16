@@ -18,6 +18,10 @@
 - Browse: **Replace in Audio tab…** on a sound opens it in the Audio tab.
 - Textures: **Show its model in 3D** opens the texture's model in the preview pane, like other 3D views (or in its own window if **Preferences… → 3D view** says so). **Its model in viewer window** always opens a separate window.
 
+### Fixed
+- **Renaming a mod** now renames its folder too, and the current mod and load order follow it. Before, only the name inside the mod changed and the program could switch to another mod.
+- **Texture preview shows your mod's version**: when the current mod has its own copy of a texture, the preview shows it (marked "your mod … version"); **Show game original** shows the game's. After every save from the image editor (or **Import PNG into mod…**) the preview updates by itself, so you can see the edit went into the mod.
+
 ### Note
 - Replacing songs is confirmed working in-game. Sound effects, cries and loop points are tested in the program but not confirmed in-game yet - try them before sharing a mod.
 

@@ -744,8 +744,34 @@ def list_mods():
             if os.path.isdir(os.path.join(MODS_DIR, d))]
 
 
+def folder_name(name):
+    """Folder name for a mod name (characters Windows doesn't allow become _)."""
+    return re.sub(r'[<>:"/\\|?*]+', '_', name).strip().rstrip('.') or 'New Mod'
+
+
+def rename_mod(mod, new_name):
+    """Rename a mod: its name in mod.json and its folder. Returns the Mod at its new place."""
+    new_name = new_name.strip()
+    if not new_name:
+        raise ModError('A mod needs a name.')
+    old = mod.folder
+    new = os.path.join(os.path.dirname(old), folder_name(new_name))
+    if new != old:
+        if os.path.normcase(new) != os.path.normcase(old) and os.path.exists(new):
+            raise ModError('There is already a mod folder called "%s".' % os.path.basename(new))
+        try:
+            os.rename(old, new)
+        except OSError as e:
+            raise ModError('Could not rename the folder "%s" (%s). Close anything that has a file of this mod '
+                           'open, e.g. a 3D viewer or Explorer window, and try again.' % (os.path.basename(old), e))
+    m = Mod(new)
+    m.info['name'] = new_name
+    m.save()
+    return m
+
+
 def create_mod(name, author='', description=''):
-    safe = re.sub(r'[<>:"/\\|?*]+', '_', name).strip() or 'New Mod'
+    safe = folder_name(name)
     folder = os.path.join(MODS_DIR, safe)
     if os.path.exists(folder):
         raise ModError('A mod called "%s" already exists.' % safe)

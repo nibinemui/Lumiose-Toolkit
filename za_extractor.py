@@ -739,6 +739,9 @@ class App(tk.Tk):
                             command=self.render).pack(side='left')
         ttk.Checkbutton(row2, text='Rebuild normal-map blue', variable=self.nrm_var,
                         command=self.redecode).pack(side='left', padx=10)
+        self.tex_orig_var = tk.BooleanVar(value=False)
+        self.tex_orig_chk = ttk.Checkbutton(row2, text='Show game original', variable=self.tex_orig_var,
+                                            command=lambda: self.refresh_preview(keep=True))
         ttk.Button(row2, text='Save view as PNG…', command=self.save_view).pack(side='left', padx=4)
         ttk.Button(row2, text='Image editor…', command=lambda: self.open_preferences('editor')).pack(side='left')
 
@@ -1110,12 +1113,40 @@ class App(tk.Tk):
         m = self.selected_mod()
         if not m:
             return
+        old_name, old_folder = m.name, m.folder
+        new_name = self.mod_fields['name'].get().strip()
+        note = ''
+        if new_name != old_name or zm.folder_name(new_name) != os.path.basename(old_folder):
+            try:
+                m = zm.rename_mod(m, new_name)
+            except zm.ModError as e:
+                messagebox.showerror('Rename mod', str(e))
+                return
+            # everything that points at the old folder or name follows the mod
+            self.order = [('mod', m.folder) if e == ('mod', old_folder) else e for e in self.order]
+            for e in self.live.values():
+                if os.path.normcase(e['mod'].folder) == os.path.normcase(old_folder):
+                    e['mod'] = m
+            if self.mod_var.get() in (old_name, os.path.basename(old_folder)):
+                self.mod_var.set(m.name)
+            rd = self.recomp_var.get()
+            if rd and os.path.isfile(os.path.join(rd, 'mods', zm.folder_name(old_name), 'za_mod_info.json')):
+                note = (' Its copy installed in ZA Recomp is still called "%s" - install it again and remove the old '
+                        'one on Recomp\'s Mods page.' % old_name)
         for k, v in self.mod_fields.items():
             m.info[k] = v.get().strip()
         m.info['description'] = self.mod_desc.get('1.0', 'end').strip()
         m.save()
-        self.status_var.set('Saved details of "%s"' % m.name)
+        self.status_var.set('Saved details of "%s"%s.%s' % (
+            m.name, (' (renamed from "%s", folder mods\\%s)' % (old_name, os.path.basename(m.folder)))
+            if m.name != old_name else '', note))
         self.refresh_mods()
+        names = list(self.mods_list.get(0, 'end'))
+        if m.name in names:
+            self.mods_list.selection_clear(0, 'end')
+            self.mods_list.selection_set(names.index(m.name))
+            self.mods_list.see(names.index(m.name))
+            self.show_mod()
 
     def remove_mod_files(self):
         m = self.selected_mod()
@@ -1776,6 +1807,8 @@ class App(tk.Tk):
         token = self.preview_token
         self.info_var.set('Loading…')
         rebuild_nrm = self.nrm_var.get()  # tk variables may only be read on the main thread
+        mod_src = self.mod_copy_of(iid)    # (mod name, file in the mod) when the current mod has its own copy
+        show_orig = self.tex_orig_var.get()
 
         def work():
             res = {'iid': iid}
@@ -1815,6 +1848,15 @@ class App(tk.Tk):
                     res['text'] = js if len(js) < 400_000 else (
                         js[:400_000] + '\n\n… (truncated in the preview - use "Export JSON" for the full file)')
                 elif kind == 'texture':
+                    if mod_src:
+                        res['mod_name'] = mod_src[0]
+                        if not show_orig:
+                            with open(mod_src[1], 'rb') as f:
+                                mdata = f.read()
+                            if iid.startswith('A|'):
+                                mdata = dict(zf.parse_sarc(mdata)).get(iid[2:].split('|', 1)[1], data)
+                            data, res['from_mod'] = mdata, True
+                            res['size'] = len(data)
                     b = zf.Bntx(data)
                     res['bntx'] = b
                     t = b.textures[0]
@@ -1866,6 +1908,23 @@ class App(tk.Tk):
             b = res['bntx']
             names = ['%d: %s' % (i, t.name) for i, t in enumerate(b.textures)]
             self.tex_combo.configure(values=names)
+            if res.get('mod_name'):
+                res['src_note'] = ('   ·   your mod "%s" version' % res['mod_name'] if res.get('from_mod') else
+                                   '   ·   game original (your mod "%s" has its own version)' % res['mod_name'])
+                self.tex_orig_chk.pack(side='left', padx=(10, 0))
+            else:
+                self.tex_orig_chk.pack_forget()
+            head += res.get('src_note', '')
+            keep, self._keep_view = getattr(self, '_keep_view', None), None
+            if keep and keep[0] == res['iid'] and keep[1] in names:      # refreshed after a save: same view
+                self.tex_var.set(keep[1])
+                self.update_tex_controls()
+                self.layer_var.set(keep[2])
+                self.mip_var.set(keep[3])
+                self.show_image_mode()
+                self.redecode()
+                self.set_actions(res)
+                return
             self.tex_var.set(names[0])
             self.layer_var.set(0)
             self.mip_var.set(0)
@@ -2178,6 +2237,34 @@ class App(tk.Tk):
         self.data_ui._started = True
         self.data_ui.open_path(path)
 
+    def mod_copy_of(self, iid):
+        """(mod name, path) when the current mod has its own copy of the previewed file (or of the archive a
+        previewed texture is in), else None. Main thread only (reads tkinter variables)."""
+        if iid.startswith('F|'):
+            path = iid[2:]
+        elif iid.startswith('A|'):
+            path = iid[2:].split('|', 1)[0]
+        else:
+            return None
+        m = self.current_mod(ask=False)
+        rel = self.rel_game_path(path) if m else None
+        if rel and os.path.isfile(m.path_for(rel)):
+            return m.name, m.path_for(rel)
+        return None
+
+    def refresh_preview(self, keep=False, only_iid=None):
+        """Preview the selected file again (e.g. after the mod's copy changed); keep=True keeps the texture,
+        layer and mip shown. only_iid: only when that file is the one being previewed."""
+        cur = (self.cur or {}).get('iid')
+        if not cur or (only_iid and cur != only_iid):
+            return
+        sel = self.tree.selection()
+        if not sel or self.split_iid(self.tree.focus() if self.tree.focus() in sel else sel[0])[1] != cur:
+            return
+        if keep and self.cur.get('kind') == 'texture':
+            self._keep_view = (cur, self.tex_var.get(), self.layer_var.get(), self.mip_var.get())
+        self.on_tree_select()
+
     def rel_game_path(self, path):
         root = os.path.normcase(os.path.abspath(self.root_var.get()))
         p = os.path.abspath(path)
@@ -2456,7 +2543,8 @@ class App(tk.Tk):
             m.add_bytes(rel, new)
             return rel, '; '.join(note)
         self.run_bg('Encoding texture (BC compression can take a few seconds)', job,
-                    lambda r: self.mod_changed(m, r[0], r[1]))
+                    lambda r: (self.mod_changed(m, r[0], r[1]), self.tex_orig_var.set(False),
+                               self.refresh_preview(keep=True)))
 
     # ---------------- live texture editing ----------------
     def live_edit_texture(self, path, arc_member=None, ti=None, layer=None):
@@ -2566,9 +2654,12 @@ class App(tk.Tk):
         def done(note):
             e['busy'] = False
             e['count'] += 1
-            self.status_var.set('Live edit: %s re-imported into "%s" (%d×) %s' % (
-                os.path.basename(png), m.name, e['count'], note))
+            self.status_var.set('Live edit: saved into mod "%s" (%d×) at %s - the preview shows it. %s' % (
+                m.name, e['count'], time.strftime('%H:%M:%S'), note))
             self.refresh_mods()
+            self.tex_orig_var.set(False)
+            self.refresh_preview(keep=True, only_iid=('A|%s|%s' % (e['path'], e['arc'])) if e['arc']
+                                 else 'F|' + e['path'])
 
         def work():
             try:
@@ -2638,7 +2729,8 @@ class App(tk.Tk):
         t = self.cur_texture()
         if not t:
             return
-        head = '%s   (%s)' % (self.cur.get('name', ''), human_size(self.cur.get('size', 0)))
+        head = '%s   (%s)%s' % (self.cur.get('name', ''), human_size(self.cur.get('size', 0)),
+                                self.cur.get('src_note', ''))
         desc = t.describe()
         if t.is_cubemap:
             desc += '   showing face %s' % CUBE_FACES[self.layer_var.get() % 6]

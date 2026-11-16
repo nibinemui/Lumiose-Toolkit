@@ -13,6 +13,8 @@ WHAT'S NEW IN 1.4.0
   * Replace any of them with WAV, MP3, OGG, FLAC, M4A...: volume, match the original's loudness,
     loop points (songs: where the game loops them), preview, restore original. Stored inside the
     sound bank, so mods don't need a copy of Stream.pck. Song replacement is confirmed in-game.
+  * Fixed: renaming a mod renames its folder too. The texture preview shows your mod's version
+    ("Show game original" to compare) and updates after every save from the image editor.
   * Texture live edit: "Show its model in 3D" opens the model in the preview pane (or a window, see
     Preferences > 3D view); "Its model in viewer window" always opens its own window.
 

@@ -217,7 +217,8 @@ Select files or folders, tick the conversions at the bottom, then press **Extrac
 
 ### Textures
 - **Import PNG into mod…**: replaces the texture. If the PNG has a different size, you choose whether to rebuild the texture at that size.
-- **Live edit in image editor**: exports the PNG and opens it for editing. Every time you save, it is re-imported into the mod. Use **Show its model in 3D** to watch the changes - in the preview pane, or in its own window with **Its model in viewer window** (Preferences… > 3D view sets which one *Show* uses). Stop with **Stop live edits**.
+- **Your mod's version**: when the current mod has its own copy of a texture, the preview shows that one (the line above the picture says so); tick **Show game original** to compare.
+- **Live edit in image editor**: exports the PNG and opens it for editing. Every time you save, it is re-imported into the mod and the preview updates. Use **Show its model in 3D** to watch the changes - in the preview pane, or in its own window with **Its model in viewer window** (Preferences… > 3D view sets which one *Show* uses). Stop with **Stop live edits**.
   Which editor opens is set in **Preferences…** (bottom right, or **Image editor…** above the texture):
   - **Built-in editor: miniPaint** (default) - opens in a toolkit window and works offline: layers, brushes, selections, filters. Press **Ctrl+S** or **Save to mod** to save into your mod.
   - **Photopea (online)** - opens [photopea.com](https://www.photopea.com), a Photoshop-like editor, in a toolkit window. Use **File → Save** or **Save to mod**. Needs an internet connection; Photopea is a third-party service and its free version shows ads.
