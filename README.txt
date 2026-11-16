@@ -12,7 +12,10 @@ WHAT'S NEW IN 1.3.2
     rebuilt file now keeps all of its original values. Mod files saved by older versions are
     found at startup and can be repaired with one click (old versions stay in History).
   * Model import: tangents are computed from the UVs (Blender's were wrong or missing), each vertex
-    keeps its strongest bone influences, and a glTF file from a different model is refused.
+    keeps its strongest bone influences, and a glTF file from a different model is refused. It warns
+    when a part ends up on the other side of the body from the bones it follows (e.g. a mirrored wing).
+  * "Patch notes" button (bottom right): what changed in every version. The What's new window
+    also opens by itself once after each update. All versions are in CHANGELOG.md.
   * "Report a bug..." button (bottom right): collects version, system and recent errors, with your
     user name and folders hidden, and opens the bug report form on GitHub.
 

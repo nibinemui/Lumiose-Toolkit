@@ -65,7 +65,7 @@ def main(folder):
         return 1
     for rel in ('restore_missing.exe', 'tools/texconv/texconv.exe', 'tools/flatc/flatc.exe',
                 'tools/vgmstream/vgmstream-cli.exe', 'tools/viewer/viewer.html', 'LICENSE', 'source/za_extractor.py',
-                'licenses/bundled-python/README.txt'):
+                'licenses/bundled-python/README.txt', 'CHANGELOG.md'):
         check(os.path.isfile(os.path.join(folder, rel)), '%s is included' % rel)
     if os.path.isfile(log):
         os.remove(log)            # only errors from this run count

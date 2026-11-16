@@ -1,0 +1,65 @@
+# Patch notes
+
+## 1.3.2 - 2026-11-15
+
+### Fixed
+- **Imported models crashed the game.** When the toolkit rebuilt a game file, it dropped every stored value of 0. For some values the game's default is -1, so an imported model's mesh pointed at a vertex layout that doesn't exist. Every rebuilt file now keeps all of its original values (checked on every file type).
+- **Repair for older mods**: mod files saved by 1.3.1 or older are found when the program starts, and it offers to repair them once. Only the missing values are restored; the old versions stay in History. Skeletons, materials, clothing animation data and the Pokémon resource table could be affected too.
+
+### Improved
+- **Model import**:
+  - Tangents are computed from the UVs, matching the game's own. Blender doesn't export them, so shading was wrong before.
+  - Each vertex keeps its strongest bone influences, stored the way the game stores them.
+  - A warning when a part ends up on the other side of the body from the bones it follows (for example a mirrored wing), because it will swing around in-game.
+  - Warnings for bones the game skeleton doesn't have and for materials left with no triangles.
+  - A glTF file from a different model is refused instead of written.
+
+### New
+- **Report a bug…** (bottom right, also offered when an error pops up): collects your version, Windows version and recent errors, with your user name and folders replaced by placeholders. Copy them and paste them into the bug report form on GitHub; nothing is sent automatically.
+- **Patch notes** (bottom right): these notes, in a What's new window. It also opens by itself once after each update.
+
+## 1.3.1 - 2026-11-15
+
+### Fixed
+- The window sometimes started at its smallest size (900×520) instead of full size.
+
+## 1.3.0 - 2026-11-15
+
+### New
+- **3D view in the main window**: click a model in the file list and it shows in 3D in the preview pane, with orbit, animations, variants and clothing colours. *Try on player body*, *Play in 3D* and the colour-variant buttons open there too. **Pop out (own window)** still gives you the separate viewer.
+- **Built-in image editor**: live texture edits open in **miniPaint**, bundled and working offline. **Ctrl+S** or **Save to mod** saves straight into your mod, and the 3D view refreshes.
+- **Photopea** as an option: opens photopea.com in a toolkit window with your texture loaded. It needs an internet connection and its free version shows ads.
+- **Preferences…** (bottom right): theme, interface size, update check, image editor, 3D view (click-to-3D, pane or window, texture quality) and how many history versions each mod file keeps.
+- **Show filter**: *Models (.trmdl)*, *Models + textures* and *Animations (.tranm)*.
+
+### Fixed
+- **Live edit** opened the PNG in the Windows photo viewer instead of an editor.
+
+## 1.2.0 - 2026-11-14
+
+### New
+- **Custom clothing colours**: in **Edit clothing colours…**, **Custom colour…** opens a colour wheel with a hex code box. The palette gets private cells, so other clothing keeps its exact colours.
+- **Edit pattern textures…**: every texture of a clothing pattern with a preview and what it does, which ones other items share, and live editing in your image editor.
+- **Mod conflict check**: **Check conflicts** on the Mods tab lists every game file that more than one mod changes: your mods, the load order and the mods installed in ZA Recomp / Lumiose Online, with which version the game uses.
+- **Install to Recomp** warns before installing over files another installed mod changes.
+
+## 1.1.0 - 2026-11-14
+
+### New
+- **Built-in updater**: the toolkit checks GitHub for a new version when it starts. **★ Update to x.y.z** (bottom right) downloads it, checks it and installs it, keeping your mods and settings.
+- **Clothing colour variants**: every colour variant the game sells is listed under each clothing item in Search, with its in-game colour names, item id and price. **Try on player body** and **Open 3D viewer** show exactly that variant.
+- **Clothing colour editor**: change which palette colour each in-game colour option uses, saved into your mod, with a live 3D preview. *Confirmed working in-game.*
+- **Game data → Clothing items**: **Try on**, **View in 3D** and **Edit colours…** buttons.
+
+### Improved
+- Scrollbars on the Pokémon data and Game data lists, and the Game data tab follows the dark theme.
+
+## 1.0.0 - 2026-11-14
+
+The first Windows release.
+- **Import game files**: unpacks your own game dump, with stop and resume.
+- **Browse & extract**: search by in-game name, file name or game text; preview textures, models, text, data files and sounds; export to PNG/DDS, glTF, JSON, WAV and text.
+- **3D viewer**: models with variants (Normal / Shiny…), animations with "Keep in place", and **Try on player body** for player clothing with all player animations.
+- **Edit and mod**: import PNGs into textures (also inside UI archives), edit text, material colours with a live 3D preview, game data tables (moves, items, shops, clothing, trainers, item balls), Pokémon data (types, abilities, stats, moves, evolutions) and map spawns and item balls.
+- **Mods tab**: mod projects, history / compare / restore for every file, packages for ZA Recomp, Switch (Atmosphere) and emulators, and **Install to Recomp**.
+- *Experimental*: import an edited glTF model, and replace sounds with a WAV.

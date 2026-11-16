@@ -27,14 +27,14 @@ OUT = os.path.join(DIST, NAME)
 
 HIDDEN = ['za_map', 'za_pokedit', 'za_dataedit', 'za_textedit', 'za_history', 'za_import', 'za_mated',
           'za_audio', 'za_viewer', 'za_deps', 'za_names', 'za_trinity', 'za_formats', 'za_modding',
-          'za_setup', 'restore_missing', 'za_colours', 'za_conflicts', 'za_update', 'za_version', 'za_editor', 'za_prefs', 'za_report',
+          'za_setup', 'restore_missing', 'za_colours', 'za_conflicts', 'za_update', 'za_version', 'za_editor', 'za_prefs', 'za_report', 'za_whatsnew',
           'webview', 'webview.platforms.edgechromium', 'webview.platforms.winforms']
 # big packages that may be installed but are never used by the program
 EXCLUDE = ['torch', 'tensorflow', 'cv2', 'matplotlib', 'scipy', 'pandas', 'IPython', 'jupyter', 'notebook',
            'accelerate', 'transformers', 'absl', 'sklearn', 'PyQt5', 'PyQt6', 'PySide2', 'PySide6']
 
 SOURCE_FILES = [f for f in os.listdir(HERE) if f.endswith('.py')] + [
-    'Lumiose Toolkit.bat', 'requirements.txt', '.gitignore', 'README.md', 'README.txt', 'LICENSE',
+    'Lumiose Toolkit.bat', 'requirements.txt', '.gitignore', 'README.md', 'README.txt', 'CHANGELOG.md', 'LICENSE',
     'THIRD_PARTY_NOTICES.md', 'lumiose_toolkit.ico']
 # from tools/: everything except files that are downloaded at run time
 SKIP_TOOLS = {os.path.join('tools', 'schemas', 'pokedocs'), os.path.join('tools', 'icon_render', 'luxuryball.glb')}
@@ -127,7 +127,7 @@ def main():
         if f != 'za_hashes_inside_fd.txt':                    # PokeDocs file: downloaded at run time
             shutil.copy2(os.path.join(HERE, 'names', f), os.path.join(OUT, 'names', f))
     copytree(os.path.join(HERE, 'licenses'), os.path.join(OUT, 'licenses'))
-    for f in ('LICENSE', 'THIRD_PARTY_NOTICES.md', 'README.md', 'README.txt', 'lumiose_toolkit.ico'):
+    for f in ('LICENSE', 'THIRD_PARTY_NOTICES.md', 'README.md', 'README.txt', 'CHANGELOG.md', 'lumiose_toolkit.ico'):
         shutil.copy2(os.path.join(HERE, f), os.path.join(OUT, f))
     src = os.path.join(OUT, 'source')
     os.makedirs(src, exist_ok=True)

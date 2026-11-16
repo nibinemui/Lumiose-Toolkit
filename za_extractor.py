@@ -300,6 +300,7 @@ class App(tk.Tk):
         self.variant_by_id = {}     # dress-up item id -> clothing colour variant (search results)
         self._live_after = None
         self.settings = self.load_settings()
+        self.started_with_settings = bool(self.settings)     # False on a brand-new install
         scale = self.settings.get('ui_scale', 1.0)
         if isinstance(scale, (int, float)) and 0.75 <= scale <= 2.0 and abs(scale - 1.0) > 0.01:
             self.tk.call('tk', 'scaling', float(self.tk.call('tk', 'scaling')) * scale)   # interface size
@@ -481,6 +482,13 @@ class App(tk.Tk):
         self.status_var.set('Repaired %d mod file(s).%s' % (fixed, (' Could not repair: ' + ', '.join(failed)) if failed else ''))
         self.refresh_mods()
 
+    def open_whats_new(self, since=None, after_update=False):
+        try:
+            import za_whatsnew
+            za_whatsnew.WhatsNewWindow(self, since=since, after_update=after_update)
+        except Exception:  # noqa: BLE001
+            log_error(traceback.format_exc())
+
     def open_report(self, extra=None):
         try:
             import za_report
@@ -619,6 +627,7 @@ class App(tk.Tk):
         self.update_btn.pack(side='right', padx=(0, 8))
         ttk.Button(stat, text='Preferences…', command=self.open_preferences).pack(side='right', padx=(0, 4))
         ttk.Button(stat, text='Report a bug…', command=self.open_report).pack(side='right', padx=(0, 4))
+        ttk.Button(stat, text='Patch notes', command=self.open_whats_new).pack(side='right', padx=(0, 4))
         self.update_rel = None          # newer release found on GitHub (see check_updates)
         ttk.Label(stat, textvariable=self.status_var).pack(side='left')
 
@@ -836,6 +845,18 @@ class App(tk.Tk):
                 first = self._recomp_found[0]
                 self.q.put(lambda: self.recomp_var.get() or self.recomp_var.set(first))
         threading.Thread(target=find_installs, daemon=True).start()
+
+        # patch notes: once after each update
+        try:
+            import za_whatsnew
+            show, since = za_whatsnew.startup_check(self.settings if self.started_with_settings else {})
+            if self.settings.get('last_seen_version') != za_version.VERSION:
+                self.settings['last_seen_version'] = za_version.VERSION
+                self.save_settings()
+            if show:
+                self.after(900, lambda: self.open_whats_new(since=since, after_update=True))
+        except Exception:  # noqa: BLE001
+            log_error(traceback.format_exc())
 
         repair_root = self.root_var.get()          # read here: tkinter variables belong to this thread
 

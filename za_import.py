@@ -185,6 +185,19 @@ def strongest_influences(J, W, slots):
     return J, W
 
 
+def wrong_side_share(P, bones, W, bone_x):
+    """Share of vertices that sit on the other side (left/right) of the body from their main bone.
+    Only vertices and bones clearly off the centre line count."""
+    if not len(P):
+        return 0.0
+    main = np.asarray(bones)[np.arange(len(P)), np.argmax(W, 1)]
+    bx = bone_x[np.clip(main, 0, len(bone_x) - 1)]
+    use = (np.abs(bx) > 0.03) & (np.abs(P[:, 0]) > 0.03)
+    if use.sum() < 10:
+        return 0.0
+    return float((np.sign(bx[use]) != np.sign(P[use, 0])).mean())
+
+
 def import_gltf(glb_path, trmdl_path, mod, log=print):
     """Replace the geometry of trmdl_path's full-detail mesh with glb_path; write into `mod`.
     Returns a list of report lines."""
@@ -195,6 +208,19 @@ def import_gltf(glb_path, trmdl_path, mod, log=print):
     mode_by_mesh = {}
     for s in orig.submeshes:
         mode_by_mesh.setdefault(s.name, getattr(s, 'joint_mode', 'static'))
+    # where each original mesh sits relative to its bones (to spot parts moved to the other side)
+    bone_x = np.array([w[0, 3] for w in skel.world_matrices()]) if skel and skel.bones else None
+    orig_side = {}
+    if bone_x is not None:
+        for s in orig.submeshes:
+            try:
+                zt.remap_joints(s, skel)
+                if s.name not in orig_side and 'JOINTS' in s.attrs:
+                    orig_side[s.name] = wrong_side_share(np.asarray(s.attrs['POSITION'], float)[:, :3],
+                                                         np.asarray(s.attrs['JOINTS'], np.int64),
+                                                         np.asarray(s.attrs['WEIGHTS'], float), bone_x)
+            except Exception:  # noqa: BLE001 - only used for a warning
+                pass
     trmsh_path = orig.mesh_paths[0]
     msh = json.loads(zm.to_json(trmsh_path))
     trmbf_path = os.path.join(os.path.dirname(trmsh_path), msh['bufferFilePath'])
@@ -304,6 +330,13 @@ def import_gltf(glb_path, trmdl_path, mod, log=print):
         bw_table = mesh.setdefault('boneWeight', [])
         if joint_to_bone is not None and mode not in ('static', 'static (external skeleton)'):
             bones = joint_to_bone[np.clip(J.astype(np.int64), 0, len(joint_to_bone) - 1)]
+            if bone_x is not None and name in orig_side:
+                now = wrong_side_share(P, bones, W, bone_x)
+                if now - orig_side[name] > 0.25:
+                    report.append('WARNING %s: %.0f%% of it is now on the other side of the body from the bones it '
+                                  'follows (was %.0f%%) - mirrored or moved across? In-game it will swing around with '
+                                  'those bones. Move it back, or re-weight it to bones on its new side.'
+                                  % (name, 100 * now, 100 * orig_side[name]))
             if mode == 'joint':
                 lut = np.array([max(b.joint, 0) for b in skel.bones])
                 raw = lut[bones]

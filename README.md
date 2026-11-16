@@ -378,6 +378,7 @@ Lumiose Toolkit/
   za_editor.py            image editor window for live edits (built-in miniPaint, or Photopea)
   za_prefs.py             Preferences window
   za_report.py            Report a bug window (collects anonymized details, opens the GitHub form)
+  za_whatsnew.py          What's new window (shows CHANGELOG.md once after each update)
   za_version.py           version number and release repository
   za_textedit.py          in-app text editor
   za_history.py           mod history / compare / restore window
@@ -392,6 +393,7 @@ Lumiose Toolkit/
   names/                  fallback name lists (+ the PokeDocs hash list, downloaded)
   tools/                  helper programs, schemas, 3D viewer page, image editor pages, miniPaint, icon builder,
                           smoke_test.py (checks a built release starts)
+  CHANGELOG.md            patch notes of every version (Patch notes button in the program)
   LICENSE                 GPL-2.0
   THIRD_PARTY_NOTICES.md, licenses/   licences of everything bundled
   source/                 (release download only) the complete source of that version
