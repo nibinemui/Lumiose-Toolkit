@@ -521,7 +521,7 @@ class App(tk.Tk):
         self.after(10, lambda: self.set_titlebar(dark))
         self.render()
 
-    def set_titlebar(self, dark):
+    def set_titlebar(self, dark, tries=0):
         """Ask Windows 10/11 to draw a dark (or light) title bar."""
         try:
             import ctypes
@@ -531,7 +531,12 @@ class App(tk.Tk):
                 if ctypes.windll.dwmapi.DwmSetWindowAttribute(hwnd, attr, ctypes.byref(val),
                                                              ctypes.sizeof(val)) == 0:
                     break
-            # nudge the window so the title bar repaints
+            # nudge the window so the title bar repaints - only once it is on screen: before that its size
+            # reads as 1x1 and the nudge would shrink the window to its minimum size
+            if not self.winfo_ismapped() or self.winfo_width() < 100:
+                if tries < 40:
+                    self.after(150, lambda: self.set_titlebar(dark, tries + 1))
+                return
             w, h = self.winfo_width(), self.winfo_height()
             self.geometry('%dx%d' % (w + 1, h))
             self.after(20, lambda: self.geometry('%dx%d' % (w, h)))
