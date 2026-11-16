@@ -9,6 +9,10 @@ on it), a modded Switch (Atmosphere) or an emulator.
 > **No game files are included.** You need your own legally dumped copy of the game.
 > This project is not affiliated with Nintendo, The Pokémon Company, Game Freak or Creatures.
 
+[![Watch the 4-minute tour of Lumiose Toolkit](docs/tour.jpg)](https://nibinemui.github.io/Lumiose-Toolkit/)
+
+**▶ [Watch the video tour](https://nibinemui.github.io/Lumiose-Toolkit/)** - the full program in 4 minutes, plus what's new in 1.2 and 1.3.
+
 ---
 
 ## Contents
