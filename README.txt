@@ -10,6 +10,8 @@ WHAT'S NEW IN 1.5.0
 -------------------
   * Mod merging: mods that change the same game data table or text are merged row by row when you build
     or install them together (instead of one overwriting the other).
+  * Textures say what they are (About column, preview header) and search matches it: "pikachu body",
+    "billboard", "poster", "marble", "poke ball icon"... Japanese map names get their English meaning.
   * New clothing items: Game data > Clothing items > "New item from this..." makes a new buyable item
     (own model copy, ids, name, price, shop) without replacing anything. Back up your save first.
 

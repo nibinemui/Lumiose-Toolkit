@@ -214,6 +214,7 @@ Already unpacked the game with another tool? Click **I already have the files ‚Ä
 
 ### Browse & extract
 Type in the search box at the top left to search. Use **in: Files & names** for names, or **in: Game text** plus a language to search the text.
+Textures are also found by **what they show**: the **About** column describes each one (the Pok√©mon, clothing item, character, building, map object or icon it belongs to, the part, and what the texture does), and search matches that too - try `pikachu body`, `billboard`, `poster`, `neon`, `marble` or `poke ball icon`. Japanese words in map names get their English meaning (`kanban (signboard)`), and accents don't matter.
 Click a file to preview it. The buttons above the preview change with the file type. Right-click files for Extract, *Add original file(s) to current mod*, *Show in Explorer* and *Copy path*.
 Select files or folders, tick the conversions at the bottom, then press **Extract selected** (Ctrl+E).
 
@@ -414,6 +415,7 @@ Lumiose Toolkit/
   za_report.py            Report a bug window (collects anonymized details, opens the GitHub form)
   za_merge.py             merges mods that change the same data table or text (3-way, row by row)
   za_newitem.py           new clothing items (copies an item: model, .ccdata, ids, names, shop)
+  za_texnames.py          plain-English texture descriptions for Browse (About column, search)
   za_whatsnew.py          What's new window (shows CHANGELOG.md once after each update)
   za_version.py           version number and release repository
   za_textedit.py          in-app text editor

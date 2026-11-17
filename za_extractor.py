@@ -676,10 +676,12 @@ class App(tk.Tk):
 
         # --- file tree
         left = ttk.Frame(paned)
-        self.tree = ttk.Treeview(left, columns=('size', 'type'), selectmode='extended')
+        self.tree = ttk.Treeview(left, columns=('size', 'type', 'about'), selectmode='extended')
         self.tree.heading('#0', text='Name')
         self.tree.heading('size', text='Size')
         self.tree.heading('type', text='Type')
+        self.tree.heading('about', text='About')
+        self.tree.column('about', width=260, stretch=True)
         self.tree.column('#0', width=380, stretch=True)
         self.tree.column('size', width=80, anchor='e', stretch=False)
         self.tree.column('type', width=85, stretch=False)
@@ -1399,7 +1401,8 @@ class App(tk.Tk):
         if info:
             label = info['type'].split(' (')[0] + ' ?'
             text = '%s   (%s · %s)' % (text, info['type'], info['owner'])
-        self.tree.insert(parent, 'end', iid, text=text, values=(human_size(size), label))
+        about = self.about(path) if ext == '.bntx' else ''
+        self.tree.insert(parent, 'end', iid, text=text, values=(human_size(size), label, about))
         if ext == '.arc':
             self.tree.insert(iid, 'end', iid + '|dummy', text='…')
 
@@ -1477,16 +1480,28 @@ class App(tk.Tk):
                 if self._index_token is not token:
                     return
             names = zn.build(root)
-            self.q.put(lambda: self.index_done(token, out, buckets, names))
+            tex = {}
+            try:                               # plain-English texture descriptions (search + About column)
+                import za_texnames
+                desc = za_texnames.Describer(root, names)
+                for rel, p in out:
+                    if rel.endswith('.bntx'):
+                        d = desc.describe(rel)
+                        if d:
+                            tex[rel] = (d, desc.search_text(rel, d))
+            except Exception:  # noqa: BLE001
+                log_error(traceback.format_exc())
+            self.q.put(lambda: self.index_done(token, out, buckets, names, tex))
 
         threading.Thread(target=work, daemon=True).start()
 
-    def index_done(self, token, out, buckets, names):
+    def index_done(self, token, out, buckets, names, tex=None):
         if token is not self._index_token:
             return
         self.index = out
         self.buckets = buckets
         self.names = names
+        self.tex_desc = tex or {}
         self.index_ready = True
         self.index_var.set('%d files indexed · %d Pokémon/clothing names' % (len(out), len(names)))
         if self.search_var.get().strip():
@@ -1652,13 +1667,21 @@ class App(tk.Tk):
             self.tree.delete('N|0|dummy')
             self.populate_name('N|0')
 
-        # 2) file / folder paths
-        terms = q.replace('\\', '/').split()
+        # 2) file / folder paths, and what textures show (za_texnames descriptions)
+        try:
+            import za_texnames
+            q_plain = za_texnames.plain(q)
+        except Exception:  # noqa: BLE001
+            q_plain = q
+        terms = q_plain.replace('\\', '/').split()
         alts = [(t, t.replace('-', '').replace("'", '')) for t in terms]
         hits = []
+        tex = getattr(self, 'tex_desc', {})
         for rel, p in self.index:
             r = rel.replace('\\', '/')
-            if all(a in r or b in r for a, b in alts) and (exts is None or r.endswith(exts)):
+            if rel in tex:
+                r = r + ' ' + tex[rel][1]
+            if all(a in r or b in r for a, b in alts) and (exts is None or r.split(' ', 1)[0].endswith(exts)):
                 hits.append((rel, p))
                 if len(hits) >= MAX_RESULTS:
                     break
@@ -1913,9 +1936,13 @@ class App(tk.Tk):
             b = res['bntx']
             names = ['%d: %s' % (i, t.name) for i, t in enumerate(b.textures)]
             self.tex_combo.configure(values=names)
+            about = self.about(res.get('path')) if res.get('path') else ''
+            if about:
+                res['src_note'] = '   ·   ' + about
             if res.get('mod_name'):
-                res['src_note'] = ('   ·   your mod "%s" version' % res['mod_name'] if res.get('from_mod') else
-                                   '   ·   game original (your mod "%s" has its own version)' % res['mod_name'])
+                res['src_note'] = res.get('src_note', '') + (
+                    '   ·   your mod "%s" version' % res['mod_name'] if res.get('from_mod') else
+                    '   ·   game original (your mod "%s" has its own version)' % res['mod_name'])
                 self.tex_orig_chk.pack(side='left', padx=(10, 0))
             else:
                 self.tex_orig_chk.pack_forget()
@@ -2250,6 +2277,17 @@ class App(tk.Tk):
         self.nb.select(self.data_tab)
         self.data_ui._started = True
         self.data_ui.open_path(path)
+
+    def about(self, path):
+        """Plain-English description of a game texture ('' if none)."""
+        tex = getattr(self, 'tex_desc', None)
+        if not tex or not path:
+            return ''
+        try:
+            rel = os.path.relpath(os.path.abspath(path), os.path.abspath(self.root_var.get())).lower()
+        except ValueError:
+            return ''
+        return tex.get(rel, ('',))[0]
 
     def mod_copy_of(self, iid):
         """(mod name, path) when the current mod has its own copy of the previewed file (or of the archive a
