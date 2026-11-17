@@ -10,6 +10,7 @@ import io
 import json
 import math
 import os
+import re
 import struct
 
 import numpy as np
@@ -124,6 +125,32 @@ def set_override(game_root, mod_romfs):
     """Read files from a mod's romfs instead of the game folder where the mod has them."""
     _OVERRIDE['root'] = os.path.normcase(os.path.abspath(game_root)) if game_root else None
     _OVERRIDE['romfs'] = mod_romfs if mod_romfs and os.path.isdir(mod_romfs) else None
+    set_game_root(game_root)
+
+
+_GAME = {'root': None}
+
+
+def set_game_root(game_root):
+    """The game folder, so a model that only exists in a mod (e.g. a new clothing item) still finds the
+    shared files it points at (palettes, the player body...) in the game folder."""
+    _GAME['root'] = os.path.abspath(game_root) if game_root else None
+
+
+def located(path):
+    """`path`, or - when it points into a mod's romfs where the file doesn't exist - the game's copy."""
+    if not path or os.path.exists(path) or not _GAME['root']:
+        return path
+    m = re.search(r'[\\/]romfs[\\/](.+)$', path)
+    if m:
+        cand = os.path.join(_GAME['root'], m.group(1))
+        if os.path.exists(cand):
+            return cand
+    return path
+
+
+def _join(base, rel):
+    return located(os.path.normpath(os.path.join(base, rel)))
 
 
 def resolve(path):
@@ -134,7 +161,7 @@ def resolve(path):
             cand = os.path.join(romfs, os.path.relpath(p, root))
             if os.path.isfile(cand):
                 return cand
-    return path
+    return located(path)              # a mod-only model pointing at shared game files (player body, palettes)
 
 
 def read_file(path):
@@ -243,7 +270,7 @@ class Material:
         for tex in t.tables(2):
             f = tex.string(1)
             if f:
-                self.textures[tex.string(0)] = os.path.normpath(os.path.join(base_dir, f))
+                self.textures[tex.string(0)] = _join(base_dir, f)
                 slot = tex.u32(2)
                 if slot < len(samplers):
                     s = samplers[slot]
@@ -357,7 +384,7 @@ def read_trmmt(path):
     base = os.path.dirname(path)
     out = []
     for st in root.tables(2):
-        sets = {'name': st.string(0), 'trmtr': [os.path.normpath(os.path.join(base, f)) for f in st.strings(1)],
+        sets = {'name': st.string(0), 'trmtr': [_join(base, f) for f in st.strings(1)],
                 'groups': {}}
         for g in st.tables(3):
             data = g.table(10)
@@ -773,7 +800,7 @@ class Outfit:
         sk_t = root.table(2)
         local = None
         if sk_t and sk_t.string(0):
-            sp = os.path.normpath(os.path.join(base_dir, sk_t.string(0)))
+            sp = _join(base_dir, sk_t.string(0))
             if os.path.isfile(sp):
                 local = Skeleton(sp)
         # add the piece's own bones, parented by name to the body (or to their local parent)
@@ -803,7 +830,7 @@ class Outfit:
                 if b.joint >= 0:
                     local_j2n[b.joint] = local_map.get(li, 0)
         mats = {}
-        files = [os.path.normpath(os.path.join(base_dir, p)) for p in root.strings(3)]
+        files = [_join(base_dir, p) for p in root.strings(3)]
         ov = None
         if self.variant and self.variant_piece and os.path.normcase(trmdl) == os.path.normcase(self.variant_piece):
             files, ov = (self.variant[0] or files), self.variant[1]
@@ -824,7 +851,7 @@ class Outfit:
         apply_overrides(mats, ov)
         for name, mat in mats.items():
             self.materials['%s:%s' % (stem, name)] = mat
-        subs = read_meshes(os.path.normpath(os.path.join(base_dir, mesh_paths[first])))
+        subs = read_meshes(_join(base_dir, mesh_paths[first]))
         done = set()
         for s in subs:
             s.material = '%s:%s' % (stem, s.material)
@@ -912,12 +939,12 @@ class Model:
         lods = root.tables(4)
         levels = [e.u32(0) for e in lods[0].tables(0)] if lods else []
         first = levels[0] if levels and levels[0] < len(mesh_paths) else 0
-        self.mesh_paths = [os.path.normpath(os.path.join(base, mesh_paths[first]))] if mesh_paths else []
+        self.mesh_paths = [_join(base, mesh_paths[first])] if mesh_paths else []
         self.lod_count = max(len(levels), 1)
         sk = root.table(2)
         skp = sk.string(0) if sk else ''
-        self.skeleton_path = os.path.normpath(os.path.join(base, skp)) if skp else None
-        self.material_paths = [os.path.normpath(os.path.join(base, p)) for p in root.strings(3)]
+        self.skeleton_path = _join(base, skp) if skp else None
+        self.material_paths = [_join(base, p) for p in root.strings(3)]
         if material_paths:
             self.material_paths = list(material_paths)
         self.skeleton = None

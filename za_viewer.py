@@ -165,9 +165,16 @@ def main():
         zt.set_override(args[args.index('--root') + 1], state.mod_romfs)
     state.variants = zt.material_variants(model_path)
     anim_dir = None
+    game_root = args[args.index('--root') + 1] if '--root' in args else None
+    outside = bool(game_root) and not os.path.normcase(os.path.abspath(model_path)).startswith(
+        os.path.normcase(os.path.abspath(game_root)) + os.sep)     # a new item that only exists in a mod
+    if game_root:
+        zt.set_game_root(game_root)
     if '--outfit' in args:
         # clothing try-on: model_path is the clicked piece; build the outfit around it
         chara = os.path.dirname(os.path.dirname(os.path.dirname(model_path)))      # .../ik_chara
+        if outside:
+            chara = os.path.join(game_root, 'ik_chara')         # body, default clothes, animations: the game's
         base_skel = os.path.join(chara, 'model_pc_base', 'model', 'p0_base.trskl')
         pieces = zt.default_outfit(model_path, os.path.join(chara, 'model_pc'))
         state.outfit = (base_skel, pieces)
@@ -182,9 +189,12 @@ def main():
         state.clothing = {}
     if state.clothing:
         root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(model_path))))
+        if outside:
+            root = game_root
         try:
             import za_names
-            names = za_names.clothing_colour_names(root, os.path.basename(os.path.dirname(model_path)))
+            names = za_names.clothing_colour_names(root, os.path.basename(os.path.dirname(model_path)),
+                                                   state.mod_romfs)
         except Exception:  # noqa: BLE001
             names = {}
         for label, cs in state.clothing.items():

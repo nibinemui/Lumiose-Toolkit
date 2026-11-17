@@ -1361,6 +1361,7 @@ class App(tk.Tk):
             self.status_var.set('No game folder yet - click "Import game files…" or Browse… at the top.')
             return
         root = os.path.normpath(self.root_var.get())
+        zt.set_game_root(root)                 # mod-only models (new clothing) find shared game files
         if reindex:
             self.arc_cache.clear()
         if not os.path.isdir(root):
@@ -1507,19 +1508,65 @@ class App(tk.Tk):
         if self.search_var.get().strip():
             self.run_search()
 
+    def mod_extras(self):
+        """The current mod's own additions for search: files the game doesn't have, and new clothing items
+        (names from its tables). Cached until the mod's files change."""
+        m = self.current_mod(ask=False)
+        if m is None or not os.path.isdir(m.romfs):
+            return None
+        root = os.path.normpath(self.root_var.get())
+        paths = []
+        for dp, dn, fn in os.walk(m.romfs):
+            paths += [os.path.join(dp, f) for f in fn]
+        sig = (m.romfs, root, len(paths), max((os.path.getmtime(x) for x in paths), default=0))
+        cache = getattr(self, '_mod_extras', None)
+        if cache and cache[0] == sig:
+            return cache[1]
+        pm_re = re.compile(r'pm\d{4}')
+        model_re = re.compile(r'(?<![a-z])[a-z]{3}\d{4}_\d\d_[a-z0-9]+')
+        files, buckets = [], {}
+        for p in paths:
+            rel = os.path.relpath(p, m.romfs)
+            if os.path.exists(os.path.join(root, rel)):
+                continue                       # changed game files are found through the game's path
+            rl = rel.lower()
+            files.append((rl, p))
+            for k in set(pm_re.findall(rl)) | set(model_re.findall(rl)):
+                buckets.setdefault(k, []).append((rl, p))
+        try:
+            names = zn.mod_clothing(root, m.romfs)
+        except Exception:  # noqa: BLE001
+            log_error(traceback.format_exc())
+            names = []
+        ex = {'name': m.name, 'romfs': os.path.normpath(m.romfs), 'files': files, 'buckets': buckets, 'names': names}
+        self._mod_extras = (sig, ex)
+        return ex
+
+    def shown_path(self, p):
+        """How a path is listed: relative to the game folder, or '[mod name] path' for a file only a mod has."""
+        root = os.path.normpath(self.root_var.get())
+        ex = getattr(self, '_mod_extras', (None, None))[1]
+        if ex and os.path.normcase(os.path.abspath(p)).startswith(os.path.normcase(ex['romfs']) + os.sep):
+            return '[%s]  %s' % (ex['name'], os.path.relpath(p, ex['romfs']))
+        return os.path.relpath(p, root)
+
     def name_nodes(self, entry, exts):
         """Top-level folders/files that belong to a named Pokémon / clothing item."""
         root = os.path.normpath(self.root_var.get())
         pat = entry.pattern
         nodes, seen, count = [], set(), 0
-        for rel, p in self.buckets.get(pat, []):
+        ex = getattr(self, '_mod_extras', (None, None))[1]
+        for rel, p in self.buckets.get(pat, []) + ((ex or {}).get('buckets', {}).get(pat, [])):
             if exts is not None and not rel.endswith(exts):
                 continue
             count += 1
-            parts = os.path.relpath(p, root).split(os.sep)
+            base = root
+            if ex and os.path.normcase(os.path.abspath(p)).startswith(os.path.normcase(ex['romfs']) + os.sep):
+                base = ex['romfs']
+            parts = os.path.relpath(p, base).split(os.sep)
             i = next((j for j, s in enumerate(parts) if pat in s.lower()), len(parts) - 1)
             if i < len(parts) - 1:
-                node = ('D', os.path.join(root, *parts[:i + 1]))
+                node = ('D', os.path.join(base, *parts[:i + 1]))
             else:
                 node = ('F', os.path.normpath(p))
             if node not in seen:
@@ -1533,8 +1580,9 @@ class App(tk.Tk):
         prefix = '~%s~' % iid[2:]
         root = os.path.normpath(self.root_var.get())
         if entry.kind == 'Clothing' and getattr(entry, 'key', None):
+            m = self.current_mod(ask=False)
             try:
-                variants = zn.clothing_variants(root).get(entry.key, [])
+                variants = zn.clothing_variants(root, m.romfs if m else None).get(entry.key, [])
             except Exception:  # noqa: BLE001
                 variants = []
             if variants:
@@ -1549,7 +1597,7 @@ class App(tk.Tk):
                                                                ', $%d' % v['price'] if v['price'] else ''),
                                          values=('', 'Variant'))
         for kind, path in nodes:
-            rel = os.path.relpath(path, root)
+            rel = self.shown_path(path)
             if kind == 'D':
                 did = prefix + 'D|' + path
                 if not self.tree.exists(did):
@@ -1642,9 +1690,10 @@ class App(tk.Tk):
         self.tree.delete(*self.tree.get_children())
         self.name_hits = {}
 
-        # 1) in-game names (Pokémon, clothing)
+        # 1) in-game names (Pokémon, clothing) + new items in the current mod
+        ex = self.mod_extras()
         groups, unknown = [], []
-        for entry in zn.search(self.names, q, limit=25):
+        for entry in zn.search(self.names + ((ex or {}).get('names') or []), q, limit=25):
             if not entry.pattern:
                 unknown.append(entry)
                 continue
@@ -1677,7 +1726,7 @@ class App(tk.Tk):
         alts = [(t, t.replace('-', '').replace("'", '')) for t in terms]
         hits = []
         tex = getattr(self, 'tex_desc', {})
-        for rel, p in self.index:
+        for rel, p in self.index + [(r.replace('/', os.sep), p) for r, p in ((ex or {}).get('files') or [])]:
             r = rel.replace('\\', '/')
             if rel in tex:
                 r = r + ' ' + tex[rel][1]
@@ -1694,7 +1743,7 @@ class App(tk.Tk):
                 size = os.path.getsize(p)
             except OSError:
                 size = 0
-            self.insert_file('', os.path.normpath(p), os.path.relpath(p, root), size)
+            self.insert_file('', os.path.normpath(p), self.shown_path(p), size)
         more = ' (showing first %d)' % MAX_RESULTS if len(hits) >= MAX_RESULTS else ''
         msg = '%d file match(es)%s' % (len(hits), more)
         if groups:
@@ -2192,6 +2241,9 @@ class App(tk.Tk):
     def clothing_model(self, folder):
         """The .trmdl of a clothing model folder (ik_chara/model_pc/<folder>)."""
         d = os.path.join(self.root_var.get(), 'ik_chara', 'model_pc', folder)
+        m = self.current_mod(ask=False)
+        if not os.path.isdir(d) and m is not None:            # a new item: its model is only in the mod
+            d = m.path_for('ik_chara/model_pc/' + folder)
         try:
             cands = sorted(f for f in os.listdir(d) if f.lower().endswith('.trmdl'))
         except OSError:
@@ -2318,11 +2370,18 @@ class App(tk.Tk):
         self.on_tree_select()
 
     def rel_game_path(self, path):
+        """Game path (forward slashes) of a file in the game folder - or in the current mod's romfs (files
+        only a mod has, e.g. a new clothing item's). None if it is in neither."""
         root = os.path.normcase(os.path.abspath(self.root_var.get()))
         p = os.path.abspath(path)
-        if not os.path.normcase(p).startswith(root + os.sep):
-            return None
-        return os.path.relpath(p, root).replace(os.sep, '/')
+        if os.path.normcase(p).startswith(root + os.sep):
+            return os.path.relpath(p, root).replace(os.sep, '/')
+        m = self.current_mod(ask=False)
+        if m is not None:
+            romfs = os.path.normcase(os.path.abspath(m.romfs))
+            if os.path.normcase(p).startswith(romfs + os.sep):
+                return os.path.relpath(p, os.path.abspath(m.romfs)).replace(os.sep, '/')
+        return None
 
     def current_mod(self, ask=True):
         name = self.mod_var.get()

@@ -444,17 +444,22 @@ def search(entries, query, limit=40):
     return [e for _, e in scored[:limit]]
 
 
-def clothing_colour_names(root, folder):
+def clothing_colour_names(root, folder, romfs=None):
     """{(set, group): [colour name per choice]} for a clothing model folder, from the dress-up data
     (texturePath '<folder>_<set>_r<main>_c<second>' with primaryColor / secondaryColor labels)."""
     import json
     import za_modding as zm
     try:
-        rows = json.loads(zm.to_json(os.path.join(root, 'world', 'exl', 'dress_up_data', 'dress_up_data',
-                                                  'dress_up_data.bin')))['items']
+        rows = json.loads(zm.to_json(_mod_file(root, romfs, DRESS_REL)))['items']
     except Exception:  # noqa: BLE001
         return {}
     names = _dressup_names(root)
+    np_ = _mod_file(root, romfs, NAME_REL)
+    if romfs and np_.startswith(romfs):
+        try:
+            names = dict(names, **_read_msg(np_))
+        except (OSError, ValueError, struct.error):
+            pass
     out = {}
     pre = folder + '_'
     for r in rows:
@@ -491,21 +496,93 @@ def parse_texture_path(tp):
             'second': int(m.group('c')) if m.group('c') else None}
 
 
-def clothing_variants(root):
+DRESS_REL = ('world', 'exl', 'dress_up_data', 'dress_up_data', 'dress_up_data.bin')
+GROUP_REL = ('world', 'exl', 'dress_up_data', 'dress_up_group_data', 'dress_up_group_data.bin')
+NAME_REL = ('ik_message', 'dat', 'English', 'common', 'dressup_item_name.dat')
+
+
+def _mod_file(root, romfs, rel):
+    """The mod's copy of a game file if it has one, else the game's."""
+    if romfs and os.path.isfile(os.path.join(romfs, *rel)):
+        return os.path.join(romfs, *rel)
+    return os.path.join(root, *rel)
+
+
+def _stamp(*paths):
+    out = []
+    for p in paths:
+        try:
+            st = os.stat(p)
+            out.append((os.path.normcase(p), st.st_size, st.st_mtime_ns))
+        except OSError:
+            out.append((p, 0, 0))
+    return tuple(out)
+
+
+_MOD_ITEMS = {}
+
+
+def mod_clothing(root, romfs):
+    """NameEntry list of clothing items a mod adds (new items): names from the mod's group table and text."""
+    if not romfs or not os.path.isfile(os.path.join(romfs, *DRESS_REL)):
+        return []
+    import json
+    import za_modding as zm
+    paths = [os.path.join(romfs, *DRESS_REL), _mod_file(root, romfs, GROUP_REL), _mod_file(root, romfs, NAME_REL)]
+    key = _stamp(*paths)
+    if key in _MOD_ITEMS:
+        return _MOD_ITEMS[key]
+    out = []
+    try:
+        game_types = {k for _, k, _ in _dressup_rows(root)}
+        rows = json.loads(zm.to_json(paths[0]))['items']
+        groups = {}
+        if os.path.isfile(paths[1]):
+            gj = json.loads(zm.to_json(paths[1]))
+            groups = {g.get('type'): g.get('name_label') for g in gj.get('groups', [])}
+        names = _read_msg(paths[2]) if os.path.isfile(paths[2]) else {}
+        seen = set()
+        for r in rows:
+            t = r.get('type', '')
+            if t in game_types or t in seen:
+                continue
+            seen.add(t)
+            info = parse_texture_path(r.get('texturePath', ''))
+            if not info:
+                continue
+            model = re.sub(r'^p\d_', '', info['folder'])
+            name = (names.get(groups.get(t, ''), '') or '').strip() or t
+            cat = CLOTHING_CATS.get(r.get('id', 0) // 1000000, '?')
+            out.append(NameEntry(name, 'Clothing', 'new item in your mod · %s · %s' % (cat, model), model,
+                                 extra='%s %s new mod' % (t, model), key=t))
+    except Exception:  # noqa: BLE001 - a broken table just means no names
+        out = []
+    _MOD_ITEMS[key] = out
+    return out
+
+
+def clothing_variants(root, romfs=None):
     """{dress-up key: [variant, ...]} where a variant = {'id', 'key', 'folder', 'set', 'main', 'second',
-    'main_name', 'second_name', 'price', 'texturePath'} - every colour variant the game sells. Cached."""
-    k = os.path.normcase(os.path.abspath(root))
+    'main_name', 'second_name', 'price', 'texturePath'} - every colour variant the game sells. Cached.
+    With romfs (the current mod's), the mod's clothing table is used - new items included."""
+    dp = _mod_file(root, romfs, DRESS_REL)
+    k = (os.path.normcase(os.path.abspath(root)),) + _stamp(dp)
     if k in _VARIANTS:
         return _VARIANTS[k]
     import json
     import za_modding as zm
     out = {}
     try:
-        rows = json.loads(zm.to_json(os.path.join(root, 'world', 'exl', 'dress_up_data', 'dress_up_data',
-                                                  'dress_up_data.bin')))['items']
+        rows = json.loads(zm.to_json(dp))['items']
     except Exception:  # noqa: BLE001
         rows = []
     names = _dressup_names(root)
+    np_ = _mod_file(root, romfs, NAME_REL)
+    if romfs and np_.startswith(romfs):
+        try:
+            names = dict(names, **_read_msg(np_))
+        except (OSError, ValueError, struct.error):
+            pass
     for r in rows:
         info = parse_texture_path(r.get('texturePath', ''))
         if not info:

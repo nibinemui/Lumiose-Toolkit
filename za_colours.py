@@ -323,7 +323,8 @@ class ClothingColourEditor(tk.Toplevel):
         self.slots = trmmt_slots(bytes(self.data), os.path.dirname(self.tp))
         if not self.slots:
             raise NoColours('This item has no colour options to edit.')
-        self.names = zn.clothing_colour_names(app.root_var.get(), self.folder)
+        cm = app.current_mod(ask=False)
+        self.names = zn.clothing_colour_names(app.root_var.get(), self.folder, cm.romfs if cm else None)
         self.sets = []
         for s in self.slots:
             if s['set'] not in self.sets:
