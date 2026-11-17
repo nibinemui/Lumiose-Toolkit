@@ -1,0 +1,15 @@
+// Player customisation list per category: ik_chara/savm_pc/<category>/<category>.ccdatam
+// One entry per colour variant of every item in the category. dress_up_data's texturePath names an entry.
+// Worked out for Lumiose Toolkit from the game's files (every .ccdatam of the game round-trips with it).
+
+table CCMEntry {
+  name: string;      // "<item folder>_<variant>", e.g. "p0_acc0000_00_round_normal_00"
+  ccdata: string;    // "../../sav_pc/<item folder>/<item folder>.ccdata"
+  variant: string;   // e.g. "normal_00" (a CCVariant name in that .ccdata)
+}
+
+table CCDataM {
+  entries: [CCMEntry];
+}
+
+root_type CCDataM;

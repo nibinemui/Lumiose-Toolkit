@@ -96,6 +96,8 @@ on it), a modded Switch (Atmosphere) or an emulator.
 
 ### Mods
 - Mod projects with name, author, version and description; "Add original to mod" copies any file into a mod for hand editing.
+- **Merging**: when several mods change the same game data table or text file, building or installing them together merges them row by row instead of one mod overwriting the other.
+- **New clothing items**: make a new, buyable item from any existing one (its own model copy, ids, name and shop), without replacing anything in the game.
 - **History**: every version of every changed file is kept. Compare any version with the game original or the previous version (text line by line, data field by field, textures side by side), and restore any version.
 - **Load order** across your own mods and downloaded mods (`.zip` or folders).
 - **Conflict check**: finds game files that more than one mod changes - your own mods, downloaded mods and the mods already installed in ZA Recomp / Lumiose Online (including other people's). It tells real conflicts from identical copies and shows which mod wins in-game (from Recomp's Mods page order). *Install to Recomp* warns before installing over another mod's files.
@@ -254,6 +256,12 @@ Pick a Pokémon on the left, edit it, then press **Save changes to current mod**
 
 ### Game data tab
 1. Pick a table, find a row and edit its fields.
+   - **Clothing items → New item from this…** makes a new clothing item from the selected one: a copy of its model in a
+     new folder (`ik_chara/model_pc/<…>7000_00_<label>`), new item ids (series 60 and up, unused by the game), its name
+     in every language, and optionally a shop that sells it. Nothing in the game is replaced. Then change its look with
+     **Edit a texture…** (live edit) or replace files in its model folder. **Save data**: buying it stores its id in
+     your save - keep the mod installed while a save has the item and back up saves first. Online, other players need
+     the same mod to see it.
    - Names are shown for moves, items, species, natures and clothing. Comboboxes filter as you type.
    - Nested lists (a shop's items, a trainer's conditions) have **Add copy / Add new / Remove / Up / Down**.
    - **Duplicate row**, **Delete row** and **Edit row as JSON…** work on whole rows.
@@ -305,7 +313,7 @@ A mod is just a folder: `Lumiose Toolkit\mods\<name>\romfs\<game paths>` plus `m
 On the **Mods** tab:
 1. Select your mod and fill in its details. You can see and remove its files there.
 2. Use **History / compare / restore…** (or double-click a file) to see every saved version, compare it, or roll it back.
-3. Add the mods you want to the **load order**. The top one wins when two mods change the same file. **Check conflicts** opens a list of every file that more than one mod changes. It covers your mods, the load order and the mods installed in ZA Recomp / Lumiose Online, and shows which version the game uses.
+3. Add the mods you want to the **load order**. When two mods change the same **game data table** (shops, items, clothing, moves…) or **text file**, they are **merged**: rows each mod adds are all kept, and only a field both change differently goes to the higher mod (the build log lists it). For other files (models, textures, sounds) the top one wins. Identical copies are never a conflict. Merging happens when you build or install the mods **together** - mods installed separately in ZA Recomp still replace each other's files. **Check conflicts** opens a list of every file that more than one mod changes. It covers your mods, the load order and the mods installed in ZA Recomp / Lumiose Online, and shows which version the game uses.
 4. Pick the targets and press **Build packages**:
    - **ZA Recomp / Lumiose Online**: `<name>/romfs/…`. Or press **Install to Recomp** to copy it straight into Recomp's `mods` folder, then turn it on in the Mods page and start the game with **▶ ZA Recomp** or **▶ Lumiose Online**. Recomp builds the file index itself, so no patched `data.trpfd` is needed, and mods can be switched on and off individually.
    - **Switch (Atmosphere)**: copy the `atmosphere` folder to the root of the SD card.
@@ -404,6 +412,8 @@ Lumiose Toolkit/
   za_editor.py            image editor window for live edits (built-in miniPaint, or Photopea)
   za_prefs.py             Preferences window
   za_report.py            Report a bug window (collects anonymized details, opens the GitHub form)
+  za_merge.py             merges mods that change the same data table or text (3-way, row by row)
+  za_newitem.py           new clothing items (copies an item: model, .ccdata, ids, names, shop)
   za_whatsnew.py          What's new window (shows CHANGELOG.md once after each update)
   za_version.py           version number and release repository
   za_textedit.py          in-app text editor

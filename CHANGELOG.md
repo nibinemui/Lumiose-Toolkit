@@ -1,5 +1,15 @@
 # Patch notes
 
+## 1.5.0 - 2026-11-16
+
+### New
+- **Mod merging**: when several mods change the same game data table (shops, items, clothing, moves…) or text file, **Build package(s)** and **Install to Recomp** merge them row by row instead of letting one mod overwrite the other. Rows each mod adds are all kept; only a field two mods change differently goes to the higher mod in the load order (listed in the build log). Identical copies are never a conflict. **Check conflicts** marks such files "Different - mergeable". Mods that each add items to the same shop now all keep their items.
+- **New clothing items** (Game data → Clothing items → **New item from this…**): a new, buyable item made from an existing one - its own copy of the model, new item ids, its name in every language, a price and a shop. Nothing in the game is replaced. **Edit a texture…** live-edits its textures. Back up your save before trying new items: buying one stores its id in the save.
+- The toolkit can now open the player customisation files (`.ccdata`, `.ccdatam`) and the clothing group table, so they can be viewed, edited and merged like other data.
+
+### Note
+- New clothing items are tested in the program but not confirmed in-game yet.
+
 ## 1.4.0 - 2026-11-16
 
 ### New

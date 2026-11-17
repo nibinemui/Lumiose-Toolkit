@@ -262,16 +262,26 @@ class ConflictWindow(tk.Toplevel):
     def fill(self):
         self.tree.delete(*self.tree.get_children())
         res = self.results
-        diff = [c for c in res if not c['same']]
+        root = self.app.root_var.get()
+        try:
+            import za_merge
+            for c in res:
+                c['mergeable'] = (not c['same'] and bool(root) and
+                                  (za_merge.is_text(c['rel']) or za_merge.is_table(c['rel'], root)))
+        except Exception:  # noqa: BLE001
+            pass
+        diff = [c for c in res if not c['same'] and not c.get('mergeable')]
+        mergeable = [c for c in res if c.get('mergeable')]
         same = [c for c in res if c['same']]
-        self.summary.set('%d mod(s) checked: %s, %d identical cop%s.' % (
+        self.summary.set('%d mod(s) checked: %s, %d mergeable, %d identical cop%s.' % (
             self.n_src, ('%d real conflict%s' % (len(diff), '' if len(diff) == 1 else 's')) if diff else 'no real conflicts',
-            len(same), 'y' if len(same) == 1 else 'ies'))
+            len(mergeable), len(same), 'y' if len(same) == 1 else 'ies'))
         for i, c in enumerate(res):
             if c['same'] and not self.v_same.get():
                 continue
             iid = self.tree.insert('', 'end', 'c%d' % i, text=c['rel'], open=not c['same'],
-                                   values=(c['kind'], 'Identical copies' if c['same'] else 'Different (conflict)',
+                                   values=(c['kind'], 'Identical copies' if c['same'] else
+                                           ('Different - mergeable' if c.get('mergeable') else 'Different (conflict)'),
                                            c['winner'] or ''),
                                    tags=() if c['same'] else ('diff',))
             for e in c['entries']:
@@ -293,6 +303,10 @@ class ConflictWindow(tk.Toplevel):
         c = self.results[int(iid[1:])]
         if c['same']:
             self.hint.set('Every mod has the same %s here, so it doesn\'t matter which one wins.' % c['kind'].lower())
+        elif c.get('mergeable'):
+            self.hint.set('Game data/text: put these mods in the load order and use "Install to Recomp" or "Build '
+                          'package(s)" once for all of them - their rows are merged into one file. Installed in ZA '
+                          'Recomp as separate mods, only one version is used.')
         else:
             self.hint.set('%s  Mods with the same letter have the same file.' % HINTS.get(
                 c['kind'], 'Only one mod\'s version of this file is used.'))

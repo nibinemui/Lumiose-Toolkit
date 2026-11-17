@@ -1273,8 +1273,11 @@ class App(tk.Tk):
                 self.log_build('Install cancelled: %d conflict(s) with installed mods.' % len(clash))
                 return
 
+        game_root = self.root_var.get()
+
         def job():
-            return zm.install_recomp(mods, rd, name, log=lambda s: self.q.put(lambda s=s: self.log_build(s)))
+            return zm.install_recomp(mods, rd, name, log=lambda s: self.q.put(lambda s=s: self.log_build(s)),
+                                     game_root=game_root)
         self.run_bg('Installing into ZA Recomp', job,
                     lambda d: self.log_build('Done. Start ZA Recomp / Lumiose Online - the mod "%s" is on its Mods page '
                                              '(order and on/off are set there).' % os.path.basename(d)))
@@ -1313,9 +1316,11 @@ class App(tk.Tk):
                                           initialvalue='My mod pack') or 'My mod pack'
         self.log_build('Building "%s" from %d mod(s) for: %s' % (name, len(mods), ', '.join(zm.TARGETS[t] for t in targets)))
 
+        game_root = self.root_var.get()
+
         def job():
             return zm.build_package(mods, out, targets, romfs, name,
-                                    log=lambda s: self.q.put(lambda s=s: self.log_build(s)))
+                                    log=lambda s: self.q.put(lambda s=s: self.log_build(s)), game_root=game_root)
         self.run_bg('Building packages', job, lambda r: (self.log_build('Done: %d package(s) in %s' % (len(r[0]), out)),
                                                           os.startfile(out)))
 
@@ -2168,6 +2173,15 @@ class App(tk.Tk):
         best = next((c for c in cands if c.lower().startswith(stem.lower() + '.')), cands[0] if cands else None)
         return os.path.join(d, best) if best else None
 
+    def new_clothing_item(self, src_type, price=None):
+        """Game data > Clothing items > New item from this…: a new buyable item copied from this one."""
+        try:
+            import za_newitem
+            za_newitem.open_dialog(self, src_type, price)
+        except Exception as e:  # noqa: BLE001
+            log_error(traceback.format_exc())
+            messagebox.showerror('New clothing item', str(e))
+
     def open_clothing_variant(self, v, outfit=True, embed=False):
         """Open one shop variant (pattern + colours) in the 3D viewer, on the player or on its own."""
         model = self.clothing_model(v['folder'])
@@ -2553,6 +2567,10 @@ class App(tk.Tk):
         texture shown in the preview; pass them for a texture that isn't previewed (e.g. pattern textures)."""
         rel = self.rel_game_path(path)
         m = self.current_mod()
+        if m and not rel:                    # a file only the mod has (e.g. a new clothing item's texture)
+            r = os.path.normcase(os.path.abspath(path))
+            if r.startswith(os.path.normcase(os.path.abspath(m.romfs)) + os.sep):
+                rel = os.path.relpath(os.path.abspath(path), m.romfs).replace(os.sep, '/')
         if not m or not rel:
             return
         if ti is None:

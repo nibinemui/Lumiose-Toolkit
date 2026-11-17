@@ -1,0 +1,15 @@
+// Clothing groups: world/exl/dress_up_data/dress_up_group_data/dress_up_group_data.bin
+// Links a clothing item's "type" (dress_up_data) to its display name label in
+// ik_message/dat/<language>/common/dressup_item_name. Worked out for Lumiose Toolkit (round-trips exactly).
+
+table DressUpGroup {
+  type: string;        // = dress_up_data type, e.g. "upb_blousonshirt_1"
+  group: int;          // group number
+  name_label: string;  // label of the item's name, e.g. "dressup_item_group_001"
+}
+
+table DressUpGroupData {
+  groups: [DressUpGroup];
+}
+
+root_type DressUpGroupData;

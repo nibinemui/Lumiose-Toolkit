@@ -58,7 +58,10 @@ NAMED_SCHEMAS = {'dress_up_data.bin': 'dress_up_data.fbs', 'poke_resource_table.
 # schemas reverse-engineered for this tool (tools/schemas/za); every one rebuilds the game file byte-for-byte
 ZA_SCHEMAS = {'waza_array.bin': 'za_waza.fbs', 'item_data.bin': 'za_item.fbs',
               'shop_item_lineup.bin': 'za_shop_item_lineup.fbs', 'shop_dress_up_lineup.bin': 'za_shop_dressup_lineup.fbs',
-              'shop_hair_make_lineup.bin': 'za_shop_dressup_lineup.fbs'}
+              'shop_hair_make_lineup.bin': 'za_shop_dressup_lineup.fbs',
+              'dress_up_group_data.bin': 'za_dress_up_group_data.fbs'}
+# player customisation files, by extension (faces use another layout and are left out)
+ZA_EXT_SCHEMAS = {'ccdata': 'za_ccdata.fbs', 'ccdatam': 'za_ccdatam.fbs'}
 
 
 def schema_for(path):
@@ -83,6 +86,8 @@ def schema_for(path):
         if os.path.isfile(p):
             return p
     n = ZA_SCHEMAS.get(os.path.basename(path).lower())
+    if n is None and not os.path.basename(path).lower().startswith('p0_face'):
+        n = ZA_EXT_SCHEMAS.get(e)
     if n and os.path.isfile(os.path.join(SCHEMAS, 'za', n)):
         return os.path.join(SCHEMAS, 'za', n)
     return None
@@ -833,11 +838,14 @@ def _mod_source(m):
     return m.name, m.files(), m.read
 
 
-def merge_mods(mods):
-    """mods: highest priority first. Returns ({rel: (mod name, reader)}, conflicts {rel: [names]})."""
+def merge_mods(mods, game_root=None, log=None):
+    """mods: highest priority first. Returns ({rel: (mod name, reader)}, conflicts {rel: [names]}).
+    With game_root, data tables and text that several mods change are merged row by row (za_merge):
+    those files come back as ('merged: A + B', reader) and are not in conflicts unless a field was changed
+    differently by two mods. Byte-identical copies are never a conflict."""
     winners, conflicts = {}, {}
-    for m in mods:
-        name, files, reader = _mod_source(m)
+    sources = [_mod_source(m) for m in mods]
+    for name, files, reader in sources:
         for rel in files:
             if rel.lower() == 'arc/data.trpfd':
                 continue                        # never ship someone else's index; we build our own
@@ -845,6 +853,35 @@ def merge_mods(mods):
                 conflicts.setdefault(rel, [winners[rel][0]]).append(name)
             else:
                 winners[rel] = (name, reader)
+    if conflicts:
+        try:
+            import za_merge
+            merged, report = za_merge.merge_all(
+                [(n, [f for f in fs if f.lower() != 'arc/data.trpfd'], r) for n, fs, r in sources], game_root, log)
+        except Exception as e:  # noqa: BLE001 - merging is a bonus; never block packaging
+            merged, report = {}, {}
+            if log:
+                log('mod merging skipped: %s' % e)
+        same = {}
+        for rel, rep in report.items():
+            if rep['how'] == 'identical':
+                conflicts.pop(rel, None)
+                same.setdefault(' and '.join('"%s"' % n for n in rep['mods']), []).append(rel)
+                continue
+            data = merged[rel]
+            winners[rel] = ('merged: ' + ' + '.join(rep['mods']), lambda r, d=data: d)
+            if rep['conflicts']:
+                conflicts[rel] = rep['mods']
+            else:
+                conflicts.pop(rel, None)
+            if log:
+                log('merged %s from %s%s' % (rel, ' + '.join('"%s"' % n for n in rep['mods']),
+                                            ('; %d field(s) changed differently: %s' % (
+                                                len(rep['conflicts']), '; '.join(rep['conflicts'][:3])))
+                                            if rep['conflicts'] else ' (no clashes)'))
+        if log:
+            for who, rels in same.items():
+                log('%d file(s) are the same in %s - no conflict (e.g. %s)' % (len(rels), who, rels[0]))
     return winners, conflicts
 
 
@@ -933,13 +970,13 @@ def find_recomp_installs():
     return out
 
 
-def install_recomp(mods, recomp_dir, name, log=print):
+def install_recomp(mods, recomp_dir, name, log=print, game_root=None):
     """Copy the merged mod files into ZA Recomp's mods folder (mods/<name>/romfs). Recomp handles
     the file index itself; order / on-off is managed on its Mods page. Replaces an earlier copy."""
     exe = os.path.join(recomp_dir, 'lasrecomp.exe')
     if not os.path.isfile(exe):
         raise ModError('ZA Recomp not found in %s (lasrecomp.exe missing).' % recomp_dir)
-    winners, conflicts = merge_mods(mods)
+    winners, conflicts = merge_mods(mods, game_root, log)
     if not winners:
         raise ModError('The selected mod(s) contain no files.')
     safe = re.sub(r'[<>:"/\\|?*]+', '_', name).strip()
@@ -969,10 +1006,10 @@ TARGETS = {
 }
 
 
-def build_package(mods, out_dir, targets, game_romfs=None, package_name=None, log=print):
+def build_package(mods, out_dir, targets, game_romfs=None, package_name=None, log=print, game_root=None):
     """Merge `mods` (highest priority first) and write one .zip per target into out_dir.
     Returns list of written zip paths. Needs game_romfs (with arc/data.trpfd) for switch/emulator."""
-    winners, conflicts = merge_mods(mods)
+    winners, conflicts = merge_mods(mods, game_root, log)
     if not winners:
         raise ModError('The selected mod(s) contain no files.')
     name = package_name or (mods[0].name if len(mods) == 1 else 'Combined mods')

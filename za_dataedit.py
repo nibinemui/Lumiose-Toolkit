@@ -46,7 +46,8 @@ PRESETS = [
          actions=[('Try on', lambda tab, v: tab.app.open_clothing_variant(v, True)),
                   ('View in 3D', lambda tab, v: tab.app.open_clothing_variant(v, False)),
                   ('Edit colours…', lambda tab, v: tab.app.edit_clothing_colours(tab.app.clothing_model(v['folder']), v)),
-                ('Edit textures…', lambda tab, v: tab.app.edit_pattern_textures(tab.app.clothing_model(v['folder']), v))]),
+                ('Edit textures…', lambda tab, v: tab.app.edit_pattern_textures(tab.app.clothing_model(v['folder']), v)),
+                  ('New item from this…', lambda tab, v: tab.app.new_clothing_item(v['type'], v.get('price')))]),
     dict(name='Clothing shops', rel='world/exl/shop/shop_dress_up_lineup/shop_dress_up_lineup.bin',
          schema=os.path.join(ZA, 'za_shop_dressup_lineup.fbs'), rows='Table', label=lambda r, N: r.get('id', '?'),
          lookups={'itemId': 'clothing'}, note='Which clothes each boutique sells (prices are in "Clothing items").'),
@@ -563,7 +564,7 @@ class DataTab:
         if not v:
             self.app.status_var.set('This row has no model to show.')
             return
-        v.update(id=r.get('id', 0))
+        v.update(id=r.get('id', 0), type=r.get('type', ''), price=r.get('price'))
         fn(self, v)
 
     def dup_row(self):

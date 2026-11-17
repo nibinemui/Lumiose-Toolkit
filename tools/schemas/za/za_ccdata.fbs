@@ -1,0 +1,48 @@
+// Player character customisation data: ik_chara/sav_pc/<item folder>/<item folder>.ccdata
+// One per clothing item / hairstyle / accessory: which model parts it is made of and its colour variants.
+// Worked out for Lumiose Toolkit from the game's files (every .ccdata of the game round-trips with it).
+
+table CCLayer {
+  color: string;          // palette layer, e.g. "color_ftw_00"
+  index: int;             // which palette entry
+}
+
+table CCVariantPart {
+  part: string;           // part name, e.g. "ftw" (matches CCPart.name)
+  set: string;            // material set, e.g. "normal"
+  layers: [CCLayer];
+}
+
+table CCVariant {
+  name: string;           // e.g. "normal_00" - the item's texturePath in dress_up_data ends with it
+  parts: [CCVariantPart];
+}
+
+table CCPart {
+  name: string;           // "default" (the player base body) or the part, e.g. "ftw"
+  is_base: ubyte;
+  model: string;          // ../../model_pc/<folder>/<model>.trmdl
+  material_set: string;   // ../../model_pc/<folder>/<model>.trmmt
+  _unused4: ubyte (deprecated);
+  texture_set: string;    // e.g. "tex_00"
+  names: [string];
+  _unused7: ubyte (deprecated);
+  animations: [string];
+  animation_groups: [string];
+  flag10: ubyte;
+}
+
+table CCExtra {
+  a: string;
+  b: string;
+  c: string;
+}
+
+table CCData {
+  parts: [CCPart];
+  extra: CCExtra;
+  _unused2: ubyte (deprecated);
+  variants: [CCVariant];
+}
+
+root_type CCData;

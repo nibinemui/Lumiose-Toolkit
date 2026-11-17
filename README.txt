@@ -6,6 +6,13 @@ The first start opens "Import game files" to unpack your game dump. The window h
 Browse & extract, Mods, Map, Pokémon data and Game data. "Dark mode" (top right) switches the theme.
 README.md is the full manual (features, installing, troubleshooting).
 
+WHAT'S NEW IN 1.5.0
+-------------------
+  * Mod merging: mods that change the same game data table or text are merged row by row when you build
+    or install them together (instead of one overwriting the other).
+  * New clothing items: Game data > Clothing items > "New item from this..." makes a new buyable item
+    (own model copy, ids, name, price, shop) without replacing anything. Back up your save first.
+
 WHAT'S NEW IN 1.4.0
 -------------------
   * Audio tab: every song, jingle, sound effect, Pokémon cry, voice and ambience (14,000+), searchable
