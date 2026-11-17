@@ -2301,6 +2301,14 @@ class App(tk.Tk):
                 self.log_build(line)
         self.run_bg('Checking new items', job, done)
 
+    def open_data_row(self, rel, row, item=-1):
+        """Search game data: open table `rel` at `row` in the Game data tab."""
+        if not hasattr(self, 'data_ui'):
+            return
+        self.nb.select(self.data_tab)
+        self.data_ui._started = True
+        self.data_ui.open_at(rel, row, item)
+
     def test_checklist(self):
         """Mods tab: what to check in game, made from what the selected (or current) mod changes."""
         m = self.selected_mod() or self.current_mod(ask=False)

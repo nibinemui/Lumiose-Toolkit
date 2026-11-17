@@ -331,6 +331,7 @@ class DataTab:
         self.rel = None
         self.dirty = False
         self.cur = None
+        self._goto = None          # (rel, row, item) to select once that table has loaded
         self.build()
         app.nb.bind('<<NotebookTabChanged>>', self.on_tab, add='+')
         self._started = False
@@ -347,6 +348,7 @@ class DataTab:
         self.preset_box.pack(side='left', padx=4)
         self.preset_box.bind('<<ComboboxSelected>>', lambda e: self.open_preset(self.preset_var.get()))
         ttk.Button(top, text='Open other data file…', command=self.open_other).pack(side='left', padx=4)
+        ttk.Button(top, text='Search all tables…', command=self.search_all).pack(side='left')
         ttk.Button(top, text='Save changes to current mod', command=self.save).pack(side='right')
         self.dirty_var = tk.StringVar()
         ttk.Label(top, textvariable=self.dirty_var, style='Dim.TLabel').pack(side='right', padx=8)
@@ -415,6 +417,54 @@ class DataTab:
     def confirm_discard(self):
         return not self.dirty or messagebox.askyesno(
             'Lumiose Toolkit', 'You have unsaved changes in this table. Discard them?')
+
+    def search_all(self):
+        import za_datasearch
+        za_datasearch.open_window(self.app)
+
+    def open_at(self, rel, row, item=-1):
+        """Open table `rel` and select row `row` (item: the matching item of the row's list, for the status)."""
+        self._goto = (rel, row, item)
+        if self.data is not None and self.rel == rel and not self.dirty:
+            self._apply_goto()
+            return
+        self.open_path(os.path.join(self.app.root_var.get(), *rel.split('/')))
+
+    def _apply_goto(self):
+        if not self._goto or self._goto[0] != self.rel:
+            return
+        rel, row, item = self._goto
+        self._goto = None
+        if self.q.get():
+            self.q.set('')
+        if self.preset.get('only') and self.only_var.get():
+            self.only_var.set(False)
+            self.fill_rows()
+        if not self.list.exists(str(row)):
+            return
+        self.list.selection_set(str(row))
+        self.list.focus(str(row))
+        self.list.see(str(row))
+        self.select_row()
+        if item < 0:
+            return
+
+        def pick():
+            # grouped tables: select the matching item in the row's list, which opens its fields below it.
+            # Runs after the row's own select event has rebuilt the form.
+            def lists(w):
+                for c in w.winfo_children():
+                    if isinstance(c, tk.Listbox):
+                        yield c
+                    yield from lists(c)
+            lb = next((x for x in lists(self.form) if x.size() > item), None)
+            if lb is not None:
+                lb.selection_clear(0, 'end')
+                lb.selection_set(item)
+                lb.see(item)
+                lb.event_generate('<<ListboxSelect>>')
+            self.app.status_var.set("The match is item %d of the row's list (selected on the right)." % (item + 1))
+        self.parent.after(150, pick)
 
     def open_preset(self, name):
         p = next(p for p in PRESETS if p['name'] == name)
@@ -505,6 +555,8 @@ class DataTab:
             self.q.set('')       # refills the list
         else:
             self.fill_rows()
+        if self._goto:
+            self._apply_goto()
 
     # ---------------- rows ----------------
     def row_label(self, i, r):

@@ -1,5 +1,13 @@
 # Patch notes
 
+## 1.6.2 - 2026-11-17
+
+### New
+- **Search all tables…** (Game data tab): one search across every data table the toolkit can read - over 2,200 tables and 80,000 rows: moves, items, shops, clothing, hair, trainers, Pokémon stats, encounters, spawners, wild zones, model and AI parameters and more. Search by name or number: "Pikachu", "Tackle", "Poke Ball", "a0403_w01", "25 alpha". Pokémon, move and item numbers are searchable by their names, every word must match, a number matches whole numbers only, and accents don't matter. Double-click a result to open that row in the Game data tab; for tables that keep their rows in groups (encounters, spawners), the matching entry is selected too. Tables your current mod changes are searched in the mod's version (marked [mod]). The first search builds an index in about a minute; after that only changed tables are read again.
+
+### Improved
+- Mods tab: **My mods** and the mod's **file list** have scrollbars; the file list also scrolls sideways, so long paths are readable.
+
 ## 1.6.1 - 2026-11-17
 
 ### Fixed

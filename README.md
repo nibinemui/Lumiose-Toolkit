@@ -89,6 +89,7 @@ on it), a modded Switch (Atmosphere) or an emulator.
   - **Trainers**: team species, level, moves, item, nature, ability, IVs, EVs, shiny and ball.
   - **Item balls**: contents and drop weights.
   - **Any other data file** with a schema ("Open other data file…" or "Open in table editor").
+  - **Search all tables…**: one search across every table (over 2,200), by name or number, that opens the matching row.
 - **Map editor**:
   - Shows the Lumiose City map with every placement layer: Pokémon spawns, item balls, random items, NPCs, walking NPCs, royale cards and move gimmicks.
   - Move, rotate, duplicate and delete points.
@@ -282,7 +283,11 @@ Pick a Pokémon on the left, edit it, then press **Save changes to current mod**
 - TM moves and egg moves can be move names or numbers.
 
 ### Game data tab
-1. Pick a table, find a row and edit its fields.
+1. Pick a table, find a row and edit its fields. Not sure which table? **Search all tables…** searches every data
+   table at once: type names or numbers (`Pikachu`, `Tackle`, `a0403_w01`, `25 alpha`) and double-click a result to
+   open that row. Pokémon, move and item numbers can be found by their names; a number matches whole numbers only. The
+   first search builds an index (about a minute, saved as `data_index.json.gz`); tables in the current mod are searched
+   in the mod's version.
    - **Clothing items → New item from this…** makes a new clothing item from the selected one: a copy of its model in a
      new folder (`ik_chara/model_pc/<…>7000_00_<label>`), new item ids (series 60 and up, unused by the game), its name
      in every language, and optionally a shop that sells it. Nothing in the game is replaced. Then change its look with
@@ -449,6 +454,7 @@ Lumiose Toolkit/
   za_merge.py             merges mods that change the same data table or text (3-way, row by row)
   za_newitem.py           new clothing items and hairstyles (copies one: model, .ccdata, ids, names, shop/salon)
   za_checklist.py         in-game test checklist made from what a mod changes
+  za_datasearch.py        Search all tables (index of every data table's rows, search window)
   za_texnames.py          plain-English texture descriptions for Browse (About column, search)
   za_whatsnew.py          What's new window (shows CHANGELOG.md once after each update)
   za_version.py           version number and release repository
