@@ -39,12 +39,17 @@ on it), a modded Switch (Atmosphere) or an emulator.
 ### Browse & extract
 - **Search by in-game name**: Pokémon (`pikachu`, `25`), clothing (`v-neck t-shirt`), or any file/folder name. Small typos are fine.
 - **Search the game's text**: every line of dialogue, item and move names in any language; click a result to jump to that line.
+- **Find textures by what they show**: every texture has a plain-English description in the **About** column - the
+  Pokémon, clothing item, character, building, map object or icon it belongs to, the part, and what it does (colour,
+  bumps, colour regions…). Search matches it too: `pikachu body`, `billboard`, `poster`, `marble`, `poke ball icon`.
+  Japanese words in map names get their English meaning (`kanban (signboard)`), and accents don't matter.
 - **Show** filter: list only textures, text, UI archives, models, models + textures, or animations.
 - **Preview every file type**:
   - **Textures** (`.bntx`): every BC1–BC7/BC6H format, with channels, mip levels, array layers, zoom and pixel values.
+    When your current mod has its own version of a texture, the preview shows that one (**Show game original** to compare).
   - **Models** (`.trmdl`): shown in 3D right in the preview pane (interactive **3D viewer**), like textures are.
   - **Animations** (`.tranm`): play them on their model in the 3D viewer.
-  - **Data**: FlatBuffer `.bin` files shown as readable JSON. This covers every Trinity format (`.trmtr`, `.trskl`, `.trmsh`, `.trscn`, …) and any `.bin` with a schema.
+  - **Data**: FlatBuffer `.bin` files shown as readable JSON. This covers every Trinity format (`.trmtr`, `.trskl`, `.trmsh`, `.trscn`, …), the player customisation files (`.ccdata`, `.ccdatam`, the clothing group table) and any `.bin` with a schema.
   - **Text** (`.dat`/`.tbl`): decoded message files.
   - **Audio** (Wwise `.bnk`/`.pck`): list and play sounds. The **Audio** tab lists them all by name.
   - **UI archives** (`.arc`): open like folders; the textures inside preview too.
@@ -60,10 +65,14 @@ on it), a modded Switch (Atmosphere) or an emulator.
 - **Clothing patterns and colours**, just like the in-game boutique: pick the pattern, main colour, second colour and skin tone. Colours use their in-game names (e.g. "Scizor Orange").
 - **Every shop variant**: a clothing search result lists all its colour variants (with id and price), and *Game data → Clothing items* has *Try on* / *View in 3D* per row; both open the viewer on exactly that variant.
 - **Live reload**: the viewer refreshes by itself whenever your mod changes.
+- **A texture's model**: *Show its model in 3D* on a texture opens the model it belongs to (in the pane or a window,
+  set in Preferences), so texture edits show on the model as you save them.
 
 ### Editing (everything is saved into the *current mod*, never into the game files)
 - **Textures**:
-  - Import a PNG. It is re-compressed to the original format with all mips, optionally at a new size. Textures inside `.arc` archives work too.
+  - Import a **PNG or DDS**. A PNG is re-compressed to the original format with all mips, optionally at a new size. A DDS
+    in the texture's own format goes in exactly as it is (no recompression); any other DDS is compressed like a PNG.
+    Textures inside `.arc` archives and every layer of array textures work too. The preview updates to show the result.
   - **Live editing**: opens the texture in an image editor; every save is imported automatically and shows in the 3D viewer. Choose the editor in **Preferences**: the built-in **miniPaint** (offline), **Photopea** in a window (online), Paint, or any program you have.
 - **Material colours**: colour pickers and numbers for every material parameter, with a live 3D preview.
 - **Clothing colours**: *Edit clothing colours…* changes which palette colour each in-game colour option uses (per pattern and layer, picked from the item's palette swatches), saved into your mod, with a live 3D preview. *Confirmed working in-game (Lumiose Online).*
@@ -90,16 +99,21 @@ on it), a modded Switch (Atmosphere) or an emulator.
   name, with its type. Play, export and **replace** them with any audio file (WAV, MP3, OGG, FLAC, M4A…), with
   volume, loudness matching and loop points.
 - **Experimental**:
-  - Import an edited glTF back into a model.
+  - Import an edited glTF back into a model. Tangents are recomputed from the UVs, each vertex keeps its strongest bone
+    influences, and it warns when a part ends up on the other side of the body from the bones it follows (e.g. a
+    mirrored wing), about unknown bones and about materials left without triangles. A file from a different model is
+    refused.
   - Replacing sounds (Audio tab) - song replacement is confirmed working in-game; sound effects, cries and loop
     points are not confirmed yet.
 
 ### Mods
-- Mod projects with name, author, version and description; "Add original to mod" copies any file into a mod for hand editing.
+- Mod projects with name, author, version and description; "Add original to mod" copies any file into a mod for hand editing. Renaming a mod renames its folder too.
 - **Merging**: when several mods change the same game data table or text file, building or installing them together merges them row by row instead of one mod overwriting the other.
 - **New clothing items**: make a new, buyable item from any existing one (its own model copy, ids, name and shop), without replacing anything in the game.
 - **History**: every version of every changed file is kept. Compare any version with the game original or the previous version (text line by line, data field by field, textures side by side), and restore any version.
 - **Load order** across your own mods and downloaded mods (`.zip` or folders).
+- **Repair**: mod files saved by 1.3.1 or older (which could crash the game, e.g. imported models) are found when the
+  program starts, and it offers to repair them once; the old versions stay in History.
 - **Conflict check**: finds game files that more than one mod changes - your own mods, downloaded mods and the mods already installed in ZA Recomp / Lumiose Online (including other people's). It tells real conflicts from identical copies and shows which mod wins in-game (from Recomp's Mods page order). *Install to Recomp* warns before installing over another mod's files.
 - **Packaging** for:
   - **ZA Recomp / Lumiose Online**: one-click "Install to Recomp", or a package to install from the Mods page.
@@ -117,6 +131,11 @@ on it), a modded Switch (Atmosphere) or an emulator.
 - **Import game files** unpacks your dump right inside the program (see [below](#importing-your-game-files)).
 - **Built-in updater**: checks GitHub for a new version when the program starts and installs it with one click,
   keeping your mods and settings (see [Updating](#updating)).
+- **Patch notes** (bottom right): what changed in every version, in a *What's new* window that also opens by itself
+  once after each update.
+- **Report a bug…** (bottom right, and offered when an error pops up): collects your version, Windows version and
+  recent errors with your user name and folders hidden, and opens the bug report form on GitHub; nothing is sent
+  automatically.
 - Unnamed hash files are identified by their contents.
 
 ---
@@ -159,6 +178,8 @@ when it starts. When a newer version is out, a **★ Update to x.y.z** button ap
 2. Click **Download and install**. The program downloads the release zip from GitHub and checks it
    (size and SHA-256 checksum).
 3. Confirm. Lumiose Toolkit closes, copies the new files into its folder and starts again.
+
+After an update, the **What's new** window shows what changed (any time later: **Patch notes**, bottom right).
 
 Your `mods`, `packages`, `extracted` folders, `settings.json`, imported game files and downloaded PokeDocs
 files are kept: the update only replaces the program's own files. **Skip this version** hides the button
