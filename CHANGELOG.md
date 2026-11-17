@@ -1,5 +1,13 @@
 # Patch notes
 
+## 1.6.1 - 2026-11-17
+
+### Fixed
+- **Numbers 90-99** (Preferences → Mods → Your number) made 5-digit model folder numbers and creating a new item or hairstyle failed. They now use folders 6000-6900. Numbers 60-89 are unchanged.
+- **New hairstyle from this…** on a hairstyle that only exists in a mod gave a file error; it now asks you to start from one of the game's hairstyles.
+- The **Test checklist** window no longer takes over mouse-wheel scrolling in the rest of the program.
+- **Add original to mod** is no longer offered for files that only a mod has (there is no original).
+
 ## 1.6.0 - 2026-11-16
 
 ### New

@@ -6,6 +6,11 @@ The first start opens "Import game files" to unpack your game dump. The window h
 Browse & extract, Mods, Map, Pokémon data and Game data. "Dark mode" (top right) switches the theme.
 README.md is the full manual (features, installing, troubleshooting).
 
+WHAT'S NEW IN 1.6.1
+-------------------
+  * Fixed: numbers 90-99 (Preferences > Mods) broke new items and hairstyles; they now work.
+  * Fixed: smaller issues with new hairstyles, the Test checklist window and "Add original to mod".
+
 WHAT'S NEW IN 1.6.0
 -------------------
   * New hairstyles: Game data > "Hairstyles, hair colours & make-up" > "New hairstyle from this..." makes
