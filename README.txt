@@ -6,6 +6,15 @@ The first start opens "Import game files" to unpack your game dump. The window h
 Browse & extract, Mods, Map, Pokémon data and Game data. "Dark mode" (top right) switches the theme.
 README.md is the full manual (features, installing, troubleshooting).
 
+WHAT'S NEW IN 1.6.0
+-------------------
+  * New hairstyles: Game data > "Hairstyles, hair colours & make-up" > "New hairstyle from this..." makes
+    a new hairstyle (own model and hair animations, id, name, salons) without replacing anything.
+  * Test checklist... (Mods tab): what to check in game, made from what the mod changes. Tick, copy, save.
+  * Check new items (Mods tab): checks a mod's new clothing items and hairstyles before you share it.
+  * Your own id series (Preferences > Mods): each person picks a number so new items never clash.
+  * New clothing items now work in Search, Try on, Show in 3D and Edit colours.
+
 WHAT'S NEW IN 1.5.1
 -------------------
   * Fixed: new clothing items made in different mods could get the same item ids and clash when the

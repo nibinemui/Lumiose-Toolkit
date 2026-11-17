@@ -25,9 +25,9 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.11'
           cache: pip
@@ -51,7 +51,7 @@ jobs:
         run: python tools/smoke_test.py "dist/Lumiose Toolkit"
 
       - name: Keep the test build
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: Lumiose-Toolkit-test-build
           path: dist/Lumiose-Toolkit-*-windows.zip
@@ -60,7 +60,7 @@ jobs:
 
       - name: Keep the error log
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: error-log
           path: dist/Lumiose Toolkit/error_log.txt

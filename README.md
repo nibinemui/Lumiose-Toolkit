@@ -109,7 +109,11 @@ on it), a modded Switch (Atmosphere) or an emulator.
 ### Mods
 - Mod projects with name, author, version and description; "Add original to mod" copies any file into a mod for hand editing. Renaming a mod renames its folder too.
 - **Merging**: when several mods change the same game data table or text file, building or installing them together merges them row by row instead of one mod overwriting the other.
-- **New clothing items**: make a new, buyable item from any existing one (its own model copy, ids, name and shop), without replacing anything in the game.
+- **New clothing items**: make a new, buyable item from any existing one (its own model copy, ids, name and shop), without replacing anything in the game. They work everywhere in the program: Search, Try on, Show in 3D and Edit colours.
+- **New hairstyles**: make a new hairstyle from any existing one (its own model and hair animations, id, name and salons).
+- **Check new items**: checks a mod's new clothing items and hairstyles before you share it (ids, files, names in every language, shops and salons).
+- **Your own id series** (Preferences → Mods): each person who makes new items picks a different number, so items made on different computers never get the same ids.
+- **Test checklist**: a list of what to check in the game, made from what the mod changes, to tick off, copy and share.
 - **History**: every version of every changed file is kept. Compare any version with the game original or the previous version (text line by line, data field by field, textures side by side), and restore any version.
 - **Load order** across your own mods and downloaded mods (`.zip` or folders).
 - **Repair**: mod files saved by 1.3.1 or older (which could crash the game, e.g. imported models) are found when the
@@ -284,7 +288,11 @@ Pick a Pokémon on the left, edit it, then press **Save changes to current mod**
      in every language, and optionally a shop that sells it. Nothing in the game is replaced. Then change its look with
      **Edit a texture…** (live edit) or replace files in its model folder. **Save data**: buying it stores its id in
      your save - keep the mod installed while a save has the item and back up saves first. Online, other players need
-     the same mod to see it.
+     the same mod to see it. Several people making items? Each sets a different **Your number** in
+     **Preferences… → Mods** (60-99): number 61 gets folders `…7100…` and ids `…61…`, number 62 `…7200…`, and so on.
+   - **Hairstyles, hair colours & make-up → New hairstyle from this…** (on a hairstyle row - its name is a model folder
+     like `p0_hrs0002_00_medium`): a copy of its model and hair animations in a new folder, a new id, its name in every
+     language and the salons you tick. The same save note applies.
    - Names are shown for moves, items, species, natures and clothing. Comboboxes filter as you type.
    - Nested lists (a shop's items, a trainer's conditions) have **Add copy / Add new / Remove / Up / Down**.
    - **Duplicate row**, **Delete row** and **Edit row as JSON…** work on whole rows.
@@ -337,6 +345,9 @@ On the **Mods** tab:
 1. Select your mod and fill in its details. You can see and remove its files there.
 2. Use **History / compare / restore…** (or double-click a file) to see every saved version, compare it, or roll it back.
 3. Add the mods you want to the **load order**. When two mods change the same **game data table** (shops, items, clothing, moves…) or **text file**, they are **merged**: rows each mod adds are all kept, and only a field both change differently goes to the higher mod (the build log lists it). For other files (models, textures, sounds) the top one wins. Identical copies are never a conflict. Merging happens when you build or install the mods **together** - mods installed separately in ZA Recomp still replace each other's files. **Check conflicts** opens a list of every file that more than one mod changes. It covers your mods, the load order and the mods installed in ZA Recomp / Lumiose Online, and shows which version the game uses.
+   **Check new items** checks the selected mod's new clothing items and hairstyles (ids, files, names, shops) and
+   writes the result to the build log. **Test checklist…** lists what to check in the game for that mod - tick what
+   works, then copy or save it for whoever tests with you.
 4. Pick the targets and press **Build packages**:
    - **ZA Recomp / Lumiose Online**: `<name>/romfs/…`. Or press **Install to Recomp** to copy it straight into Recomp's `mods` folder, then turn it on in the Mods page and start the game with **▶ ZA Recomp** or **▶ Lumiose Online**. Recomp builds the file index itself, so no patched `data.trpfd` is needed, and mods can be switched on and off individually.
    - **Switch (Atmosphere)**: copy the `atmosphere` folder to the root of the SD card.
@@ -436,7 +447,8 @@ Lumiose Toolkit/
   za_prefs.py             Preferences window
   za_report.py            Report a bug window (collects anonymized details, opens the GitHub form)
   za_merge.py             merges mods that change the same data table or text (3-way, row by row)
-  za_newitem.py           new clothing items (copies an item: model, .ccdata, ids, names, shop)
+  za_newitem.py           new clothing items and hairstyles (copies one: model, .ccdata, ids, names, shop/salon)
+  za_checklist.py         in-game test checklist made from what a mod changes
   za_texnames.py          plain-English texture descriptions for Browse (About column, search)
   za_whatsnew.py          What's new window (shows CHANGELOG.md once after each update)
   za_version.py           version number and release repository

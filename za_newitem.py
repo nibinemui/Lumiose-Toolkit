@@ -27,6 +27,10 @@ import za_modding as zm
 DRESS_DATA = 'world/exl/dress_up_data/dress_up_data/dress_up_data.bin'
 GROUP_DATA = 'world/exl/dress_up_data/dress_up_group_data/dress_up_group_data.bin'
 LINEUP = 'world/exl/shop/shop_dress_up_lineup/shop_dress_up_lineup.bin'
+HAIR_DATA = 'world/exl/hair_make_data/hair_make_data/hair_make_data.bin'
+HAIR_LINEUP = 'world/exl/shop/shop_hair_make_lineup/shop_hair_make_lineup.bin'
+HAIR_LIST = 'ik_chara/savm_pc/hrs/hrs.ccdatam'
+FIRST_HAIR_ID = 5000       # new hairstyle ids: 5000 + 20 * (series - 60) + n (the game uses blocks 1-1402)
 NAMES = 'ik_message/dat/%s/common/dressup_item_name'
 FIRST_SERIES = 60          # new item ids use series 60+ (the game uses 00-31)
 FIRST_NUMBER = 7000        # new model folders: <prefix>_<cat>7000_00_<label> and up (the game uses 0000-1xxx)
@@ -445,8 +449,11 @@ def check_mod(root, mod):
         problems += 1
         lines.append('   ✗ ' + msg)
     item_start = [0]
+    hair_lines, hair_problems = _check_hair(root, mod)
     if not os.path.isfile(mod.path_for(DRESS_DATA)):
-        return ['This mod has no clothing table, so it has no new clothing items to check.'], 0
+        if hair_lines:
+            return hair_lines, hair_problems
+        return ['This mod has no new clothing items or hairstyles to check.'], 0
     game, _ = _decode(root, None, DRESS_DATA)
     game_ids = {r.get('id') for r in game[_rows_key(game)]}
     game_types = {r.get('type') for r in game[_rows_key(game)]}
@@ -454,7 +461,7 @@ def check_mod(root, mod):
     rows = data[_rows_key(data)]
     new = [r for r in rows if r.get('type') not in game_types]
     if not new:
-        return ['No new clothing items in this mod.'], 0
+        return (hair_lines or ['No new clothing items in this mod.']), hair_problems
     ids = [r.get('id') for r in rows]
     dup = sorted({i for i in ids if ids.count(i) > 1})
     groups, _ = _decode(root, mod, GROUP_DATA)
@@ -554,4 +561,242 @@ def check_mod(root, mod):
                 if any(r.get('id') in sold for r in rs) else ''))
     head = ('%d new item(s) checked: %s.' % (len(by_type), 'no problems' if not problems else
                                                '%d problem(s)' % problems))
-    return [head, ''] + lines, problems
+    return [head, ''] + lines + ([''] + hair_lines if hair_lines else []), problems + hair_problems
+
+
+def _check_hair(root, mod):
+    """Check the mod's new hairstyles: model, .ccdata, hairstyle list, name, salons, ids."""
+    if not os.path.isfile(mod.path_for(HAIR_DATA)):
+        return [], 0
+    import za_formats as zf
+    game, _ = _decode(root, None, HAIR_DATA)
+    gids = {r.get('id') for r in game[_rows_key(game)]}
+    gnames = {r.get('name') for r in game[_rows_key(game)]}
+    data, _ = _decode(root, mod, HAIR_DATA)
+    new = [r for r in data[_rows_key(data)] if str(r.get('name', '')).startswith('p0_hrs') and r.get('name') not in gnames]
+    if not new:
+        return [], 0
+    lines, problems = [], 0
+    lst, _ = _decode(root, mod, HAIR_LIST)
+    listed = {e.get('name') for e in lst.get('entries', [])}
+    lu, _ = _decode(root, mod, HAIR_LINEUP)
+    offered = {}
+    for r in lu[_rows_key(lu)]:
+        for it in r.get('items', []):
+            offered.setdefault(it.get('itemId'), []).append(r.get('id'))
+    ids = [r.get('id') for r in data[_rows_key(data)]]
+    langs = sorted(d for d in os.listdir(os.path.join(root, 'ik_message', 'dat'))
+                   if os.path.isfile(os.path.join(root, *(NAMES % d).split('/')) + '.dat'))
+    texts = {}
+    for lang in langs:
+        try:
+            texts[lang] = dict(zip(zf.parse_tbl(_read(root, mod, NAMES % lang + '.tbl')),
+                                   zf.decode_msg(_read(root, mod, NAMES % lang + '.dat'))))
+        except Exception:  # noqa: BLE001
+            texts[lang] = {}
+    for r in new:
+        folder, hid = r.get('name'), r.get('id')
+        nm = texts.get('English', {}).get(r.get('label'), '') or folder
+        lines.append('%s  (hairstyle, id %s, %s)' % (nm, hid, folder))
+        bad = []
+        if hid in gids or ids.count(hid) > 1:
+            bad.append('id %s is used by another hair / make-up entry' % hid)
+        if not os.path.isdir(mod.path_for('ik_chara/model_pc/' + folder)):
+            bad.append('model folder ik_chara/model_pc/%s is missing' % folder)
+        if not os.path.isfile(mod.path_for('ik_chara/sav_pc/%s/%s.ccdata' % (folder, folder))):
+            bad.append('ik_chara/sav_pc/%s/%s.ccdata is missing' % (folder, folder))
+        if folder not in listed:
+            bad.append('not in the hairstyle list (%s)' % HAIR_LIST)
+        missing = [lang for lang in langs if not texts.get(lang, {}).get(r.get('label'))]
+        if missing:
+            bad.append('no name in %d language(s): %s' % (len(missing), ', '.join(missing)))
+        for b in bad:
+            lines.append('   ✗ ' + b)
+        problems += len(bad)
+        if not bad:
+            lines.append('   ✓ complete: model, .ccdata, hairstyle list, name in %d languages%s' % (
+                len(langs), ', offered by ' + ', '.join(offered[hid]) if hid in offered else ' (no salon offers it)'))
+    return ['%d new hairstyle(s) checked: %s.' % (len(new), 'no problems' if not problems else '%d problem(s)' % problems),
+            ''] + lines, problems
+
+
+# ---------------------------------------------------------------------------------------------------------
+# new hairstyles
+# ---------------------------------------------------------------------------------------------------------
+
+def _copy_tree(src_dir, mod, rel_dir, written):
+    for f in sorted(os.listdir(src_dir)):
+        p = os.path.join(src_dir, f)
+        if os.path.isfile(p):
+            mod.add_file('%s/%s' % (rel_dir, f), p)
+            written.append('%s/%s' % (rel_dir, f))
+
+
+def create_hairstyle(root, mod, src_folder, name, label='custom', salons=('hairsalon_normal_lineup',), log=None,
+                     series=FIRST_SERIES):
+    """A new hairstyle from an existing one (its model folder, e.g. p0_hrs0002_00_medium): model, hair motion
+    and cutscene animations, .ccdata, the hairstyle list, a hair_make_data row, its name in every language,
+    and the salons that offer it. Returns a report dict."""
+    say = log or (lambda s: None)
+    hair, h_schema = _decode(root, mod, HAIR_DATA)
+    hk = _rows_key(hair)
+    rows = hair[hk]
+    src = next((r for r in rows if r.get('name') == src_folder), None)
+    if src is None:
+        raise ItemError('No hairstyle with the model folder %s.' % src_folder)
+    folder = new_folder_name(root, mod, src_folder, label, series)
+    written = []
+    # model + animations
+    src_dir = os.path.join(root, 'ik_chara', 'model_pc', src_folder)
+    _copy_tree(src_dir, mod, 'ik_chara/model_pc/' + folder, written)
+    for kind in ('motion_pc', 'demo_pc'):
+        d = os.path.join(root, 'ik_chara', kind, src_folder)
+        if os.path.isdir(d):
+            _copy_tree(d, mod, 'ik_chara/%s/%s' % (kind, folder), written)
+    say('copied the model and its animations: %d files' % len(written))
+    # .ccdata
+    cc, cc_schema = _decode(root, None, 'ik_chara/sav_pc/%s/%s.ccdata' % (src_folder, src_folder))
+    for part in cc.get('parts', []):
+        for k in ('model', 'material_set'):
+            if part.get(k):
+                part[k] = part[k].replace('/%s/' % src_folder, '/%s/' % folder)
+    cc_rel = 'ik_chara/sav_pc/%s/%s.ccdata' % (folder, folder)
+    _encode(mod, cc_rel, cc, cc_schema)
+    written.append(cc_rel)
+    # hairstyle list
+    lst, l_schema = _decode(root, mod, HAIR_LIST)
+    for e in [e for e in lst['entries'] if e.get('name', '').startswith(src_folder)]:
+        lst['entries'].append({'name': e['name'].replace(src_folder, folder),
+                               'ccdata': '../../sav_pc/%s/%s.ccdata' % (folder, folder), 'variant': e.get('variant', '')})
+    _encode(mod, HAIR_LIST, lst, l_schema)
+    written.append(HAIR_LIST)
+    # hair_make_data row
+    used = {r.get('id') for r in rows} | _used_by_mods(root, mod, HAIR_DATA, 'id')
+    base = FIRST_HAIR_ID + 20 * (series_ranges(series)[0] - FIRST_SERIES)
+    hid = next((i for i in range(base + 1, base + 20) if i not in used), None)
+    if hid is None:
+        raise ItemError('No free hairstyle id left for series %d - pick another series in Preferences > Mods.' % series)
+    order = max([r.get('value6', 0) for r in rows if str(r.get('name', '')).startswith('p0_hrs')] +
+                [x for x in _used_by_mods(root, mod, HAIR_DATA, 'value6') if isinstance(x, int) and x < 1000] + [0]) + 1
+    name_label = 'dressup_item_hair_lt_%s' % folder.split('_', 1)[1]
+    row = dict(src)
+    row.update({'id': hid, 'name': folder, 'label': name_label, 'value6': order})
+    rows.append(row)
+    _encode(mod, HAIR_DATA, hair, h_schema)
+    written.append(HAIR_DATA)
+    # name
+    langs = sorted(d for d in os.listdir(os.path.join(root, 'ik_message', 'dat'))
+                   if os.path.isfile(os.path.join(root, *(NAMES % d).split('/')) + '.dat'))
+    for lang in langs:
+        rel = NAMES % lang
+        dat, tbl = add_name(_read(root, mod, rel + '.dat'), _read(root, mod, rel + '.tbl'), name_label, name)
+        mod.add_bytes(rel + '.dat', dat)
+        mod.add_bytes(rel + '.tbl', tbl)
+        written += [rel + '.dat', rel + '.tbl']
+    # salons
+    if salons:
+        lu, lu_schema = _decode(root, mod, HAIR_LINEUP)
+        for r in lu[_rows_key(lu)]:
+            if r.get('id') in salons:
+                template = next((it for it in r.get('items', []) if it.get('itemId') == src.get('id')),
+                                (r.get('items') or [{}])[0])
+                it = json.loads(json.dumps(template))
+                it['itemId'] = hid
+                r.setdefault('items', []).append(it)
+        _encode(mod, HAIR_LINEUP, lu, lu_schema)
+        written.append(HAIR_LINEUP)
+    say('new hairstyle "%s": id %d, folder %s' % (name, hid, folder))
+    return {'folder': folder, 'id': hid, 'name_label': name_label, 'files': written, 'source': src_folder}
+
+
+def hair_salons(root, mod=None):
+    lu, _ = _decode(root, mod, HAIR_LINEUP)
+    return [(r.get('id', ''), len(r.get('items', []))) for r in lu[_rows_key(lu)]]
+
+
+def open_hair_dialog(app, row):
+    import tkinter as tk
+    from tkinter import messagebox, ttk
+    src_folder = row.get('name', '')
+    if not str(src_folder).startswith('p0_hrs'):
+        messagebox.showinfo('New hairstyle', 'Pick a hairstyle row (its name is a model folder like p0_hrs0002_00_medium) '
+                                             '- hair colours and make-up can\'t be copied this way.')
+        return
+    root = app.root_var.get()
+    mod = app.current_mod()
+    if not mod:
+        return
+    ui = getattr(app, 'data_ui', None)
+    if ui is not None and ui.dirty and ui.rel in (HAIR_DATA, HAIR_LINEUP):
+        if not messagebox.askyesno('New hairstyle', 'The Game data tab has unsaved changes in this table. Save them first?'):
+            return
+        ui.save()
+    w = tk.Toplevel(app)
+    w.title('New hairstyle')
+    w.transient(app)
+    w.resizable(False, False)
+    bg = ttk.Style(w).lookup('TFrame', 'background') or None
+    if bg:
+        w.configure(background=bg)
+    f = ttk.Frame(w, padding=12)
+    f.pack(fill='both', expand=True)
+    ttk.Label(f, text='New hairstyle', font=('Segoe UI', 11, 'bold')).grid(row=0, column=0, columnspan=2, sticky='w')
+    ttk.Label(f, wraplength=460, justify='left', text=(
+        'Makes a new hairstyle from "%s": a copy of its model and hair animations in a new folder, a new id, and its '
+        'name in every language - offered by the salons you tick. Nothing in the game is replaced.' % src_folder)).grid(
+        row=1, column=0, columnspan=2, sticky='w', pady=(2, 8))
+    name = tk.StringVar(value='New Hairstyle')
+    label = tk.StringVar(value='custom')
+    for r, (lab, var, wd) in enumerate((('Name in game:', name, 34), ('Folder label:', label, 16)), 2):
+        ttk.Label(f, text=lab).grid(row=r, column=0, sticky='w', pady=2)
+        ttk.Entry(f, textvariable=var, width=wd).grid(row=r, column=1, sticky='w', pady=2)
+    ttk.Label(f, text='Salons:').grid(row=4, column=0, sticky='nw', pady=2)
+    box = ttk.Frame(f)
+    box.grid(row=4, column=1, sticky='w')
+    picks = {}
+    try:
+        salons = [s for s in hair_salons(root, mod) if s[0].startswith('hairsalon')]
+    except Exception:  # noqa: BLE001
+        salons = []
+    for sid, n in salons:
+        picks[sid] = tk.BooleanVar(value=sid == 'hairsalon_normal_lineup')
+        ttk.Checkbutton(box, text='%s  (%d)' % (sid, n), variable=picks[sid]).pack(anchor='w')
+    ttk.Label(f, wraplength=460, justify='left', style='Dim.TLabel', text=SAVE_NOTE.replace('buying the item', 'choosing it')
+              ).grid(row=5, column=0, columnspan=2, sticky='w', pady=(10, 6))
+    bar = ttk.Frame(f)
+    bar.grid(row=6, column=0, columnspan=2, sticky='e')
+
+    def create():
+        if not name.get().strip():
+            messagebox.showerror('New hairstyle', 'Give the hairstyle a name.', parent=w)
+            return
+        nm, lb = name.get().strip(), label.get().strip() or 'custom'
+        sal = tuple(k for k, v in picks.items() if v.get())
+        series = app.settings.get('item_series', FIRST_SERIES)
+        w.destroy()
+
+        def job():
+            mod.snapshot()
+            r = create_hairstyle(root, mod, src_folder, nm, lb, sal, series=series)
+            mod.snapshot('new hairstyle: %s' % nm)
+            return r
+
+        def done(r):
+            app.mod_changed(mod, '', 'new hairstyle "%s"' % nm)
+            if ui is not None and ui.rel in (HAIR_DATA, HAIR_LINEUP) and ui.preset:
+                ui.open_preset(ui.preset['name'])
+            folder = mod.path_for('ik_chara/model_pc/' + r['folder'])
+            mdl = next((x for x in sorted(os.listdir(folder)) if x.endswith('.trmdl') and '_lod' not in x), None)
+            messagebox.showinfo('New hairstyle', '"%s" is in mod "%s":\n\nModel folder: ik_chara\\model_pc\\%s\n'
+                                'Id: %d\n%d files written (with its hair animations).\n\nChange its look by live-editing '
+                                'its textures (search for %s in Browse).' % (nm, mod.name, r['folder'], r['id'],
+                                                                              len(r['files']), r['folder']))
+            if mdl:
+                if app.embed_pref():
+                    app.nb.select(0)              # the 3D view lives in the Browse tab's preview pane
+                app.open_viewer(os.path.join(folder, mdl), embed=app.embed_pref())
+        app.run_bg('Making the new hairstyle', job, done)
+    ttk.Button(bar, text='Create in current mod', command=create).pack(side='right')
+    ttk.Button(bar, text='Cancel', command=w.destroy).pack(side='right', padx=6)
+    w.bind('<Escape>', lambda e: w.destroy())
+    return w

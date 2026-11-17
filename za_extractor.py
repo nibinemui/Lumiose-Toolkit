@@ -1000,6 +1000,7 @@ class App(tk.Tk):
         bf.pack(fill='x', pady=4)
         ttk.Button(bf, text='Check conflicts', command=self.check_conflicts).pack(side='left')
         ttk.Button(bf, text='Check new items', command=self.check_new_items).pack(side='left', padx=(4, 0))
+        ttk.Button(bf, text='Test checklist…', command=self.test_checklist).pack(side='left', padx=(4, 0))
         ttk.Button(bf, text='Build package(s)', command=self.build_packages).pack(side='left', padx=4)
         rf = ttk.Frame(R)
         rf.pack(fill='x', pady=(2, 4))
@@ -2271,6 +2272,24 @@ class App(tk.Tk):
             for line in lines:
                 self.log_build(line)
         self.run_bg('Checking new items', job, done)
+
+    def test_checklist(self):
+        """Mods tab: what to check in game, made from what the selected (or current) mod changes."""
+        m = self.selected_mod() or self.current_mod(ask=False)
+        if not m:
+            self.log_build('Select a mod first.')
+            return
+        import za_checklist
+        za_checklist.open_window(self, m)
+
+    def new_hairstyle(self, row):
+        """Game data > Hairstyles… > New hairstyle from this…"""
+        try:
+            import za_newitem
+            za_newitem.open_hair_dialog(self, row)
+        except Exception as e:  # noqa: BLE001
+            log_error(traceback.format_exc())
+            messagebox.showerror('New hairstyle', str(e))
 
     def new_clothing_item(self, src_type, price=None):
         """Game data > Clothing items > New item from this…: a new buyable item copied from this one."""

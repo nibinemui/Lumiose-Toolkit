@@ -1,5 +1,19 @@
 # Patch notes
 
+## 1.6.0 - 2026-11-16
+
+### New
+- **New hairstyles** (Game data → **Hairstyles, hair colours & make-up** → pick a hairstyle → **New hairstyle from this…**): a new hairstyle made from an existing one - its own copy of the model, its hair animations, a new id, its name in every language, and the salons that offer it. Nothing in the game is replaced. The new table lists every hairstyle, hair colour and make-up option and can be edited and merged like the other tables.
+- **Test checklist…** (Mods tab): a list of what to check in the game, made from what the mod changes - new clothing items and hairstyles (with the shop or salon), replaced songs and sounds by name, Pokémon whose data changed, changed moves, items, shops and other table rows, models, textures and text, plus the save / reload / online checks every test needs. Tick what works, then **Copy** or **Save as text…** to share it.
+- **Check new items** (Mods tab): checks the new clothing items and hairstyles of a mod before you share it - ids not used by the game or your other mods, model folder, `.ccdata`, category / hairstyle list, names in every language, and which shop or salon offers each one.
+- **Your own id series** (Preferences → Mods → **Your number**): when several people make new items, each picks a different number (60-99) and gets their own range of item ids, model folders and group numbers, so items made on different computers never clash.
+
+### Improved
+- **New clothing items work everywhere in the program**: Search finds them by name (with all their colour variants), **Try on** and **Show in 3D** render them in colour, **Edit colours…** opens, and the mod's own files (new models and textures) show up in search marked with the mod's name.
+
+### Note
+- New clothing items and hairstyles are tested in the program but not confirmed in-game yet - the test checklist lists what to try.
+
 ## 1.5.1 - 2026-11-16
 
 ### Fixed

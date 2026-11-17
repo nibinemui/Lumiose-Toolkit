@@ -1,0 +1,21 @@
+// Hairstyles, hair colours and make-up: world/exl/hair_make_data/hair_make_data/hair_make_data.bin
+// Worked out for Lumiose Toolkit from the game's file (round-trips exactly). Field meanings beyond the names
+// and labels are guesses.
+
+table HairMake {
+  id: int;            // item id (the salon lineups list these)
+  name: string;       // model folder for hairstyles (e.g. "p0_hrs0002_00_medium"), "default" for colours/make-up
+  kind: int;
+  flag: ubyte;
+  color: string;      // display colour, e.g. "#FFFFFF" or "5B6C4C"
+  label: string;      // name label in dressup_item_name, e.g. "dressup_item_hair_01"
+  value6: int;
+  value7: int;
+  value8: int;
+}
+
+table HairMakeData {
+  rows: [HairMake];
+}
+
+root_type HairMakeData;

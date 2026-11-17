@@ -59,7 +59,7 @@ NAMED_SCHEMAS = {'dress_up_data.bin': 'dress_up_data.fbs', 'poke_resource_table.
 ZA_SCHEMAS = {'waza_array.bin': 'za_waza.fbs', 'item_data.bin': 'za_item.fbs',
               'shop_item_lineup.bin': 'za_shop_item_lineup.fbs', 'shop_dress_up_lineup.bin': 'za_shop_dressup_lineup.fbs',
               'shop_hair_make_lineup.bin': 'za_shop_dressup_lineup.fbs',
-              'dress_up_group_data.bin': 'za_dress_up_group_data.fbs'}
+              'dress_up_group_data.bin': 'za_dress_up_group_data.fbs', 'hair_make_data.bin': 'za_hair_make_data.fbs'}
 # player customisation files, by extension (faces use another layout and are left out)
 ZA_EXT_SCHEMAS = {'ccdata': 'za_ccdata.fbs', 'ccdatam': 'za_ccdatam.fbs'}
 

@@ -51,6 +51,13 @@ PRESETS = [
     dict(name='Clothing shops', rel='world/exl/shop/shop_dress_up_lineup/shop_dress_up_lineup.bin',
          schema=os.path.join(ZA, 'za_shop_dressup_lineup.fbs'), rows='Table', label=lambda r, N: r.get('id', '?'),
          lookups={'itemId': 'clothing'}, note='Which clothes each boutique sells (prices are in "Clothing items").'),
+    dict(name='Hairstyles, hair colours & make-up', rel='world/exl/hair_make_data/hair_make_data/hair_make_data.bin',
+         schema=os.path.join(ZA, 'za_hair_make_data.fbs'), rows='rows',
+         label=lambda r, N: '%d %s' % (r.get('id', 0), r.get('name', '') if r.get('name', '') != 'default'
+                                       else r.get('label', '')),
+         note='Every hairstyle, hair colour and make-up option. Hairstyle rows name their model folder; '
+              '"New hairstyle from this…" makes a new one from the selected hairstyle.',
+         actions=[('New hairstyle from this…', lambda tab, r: tab.app.new_hairstyle(r))], raw_actions=True),
     dict(name='Hair & make-up', rel='world/exl/shop/shop_hair_make_lineup/shop_hair_make_lineup.bin',
          schema=os.path.join(ZA, 'za_shop_dressup_lineup.fbs'), rows='Table', label=lambda r, N: r.get('id', '?'),
          note='Hairstyles / make-up offered by the salons (ids are hair_make_data entries).'),
@@ -560,6 +567,9 @@ class DataTab:
             return
         import za_names
         r = self.rows[self.cur]
+        if self.preset and self.preset.get('raw_actions'):
+            fn(self, r)                       # the action gets the row itself
+            return
         v = za_names.parse_texture_path(r.get('texturePath', ''))
         if not v:
             self.app.status_var.set('This row has no model to show.')
