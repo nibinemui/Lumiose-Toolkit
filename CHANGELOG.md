@@ -1,5 +1,10 @@
 # Patch notes
 
+## 1.5.1 - 2026-11-16
+
+### Fixed
+- **New clothing items in different mods got the same item ids.** Each new item picked the first free number by looking only at the game and its own mod, so two mods could clash when installed together (merging then kept only one of the items). New items now skip the ids, model folder numbers and group numbers every mod in your mods folder already uses.
+
 ## 1.5.0 - 2026-11-16
 
 ### New

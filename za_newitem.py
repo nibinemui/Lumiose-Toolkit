@@ -102,11 +102,37 @@ def _ccdatam_for(root, mod, folder):
     raise ItemError('No category list (.ccdatam) mentions %s.' % folder)
 
 
+def _all_mods(mod):
+    """The current mod and every other mod in the mods folder: new items must not reuse ids, folder or group
+    numbers any of them already uses - mods installed together are merged, and duplicates would clash."""
+    out = [mod] if mod is not None else []
+    try:
+        out += [m for m in zm.list_mods() if mod is None or os.path.normcase(m.folder) != os.path.normcase(mod.folder)]
+    except OSError:
+        pass
+    return out
+
+
 def _all_folders(root, mod):
     out = set(os.listdir(os.path.join(root, 'ik_chara', 'model_pc')))
-    if mod is not None and os.path.isdir(mod.path_for('ik_chara/model_pc')):
-        out |= set(os.listdir(mod.path_for('ik_chara/model_pc')))
+    for m in _all_mods(mod):
+        if os.path.isdir(m.path_for('ik_chara/model_pc')):
+            out |= set(os.listdir(m.path_for('ik_chara/model_pc')))
     return {f.lower() for f in out}
+
+
+def _used_by_mods(root, mod, rel, field):
+    """Values of `field` in every row of table `rel` in every mod (current one included)."""
+    out = set()
+    for m in _all_mods(mod):
+        if not os.path.isfile(m.path_for(rel)):
+            continue
+        try:
+            obj, _ = _decode(root, m, rel)
+            out |= {r.get(field) for r in obj[_rows_key(obj)]}
+        except Exception:  # noqa: BLE001 - an unreadable table just isn't counted
+            pass
+    return out
 
 
 def new_folder_name(root, mod, src_folder, label):
@@ -203,7 +229,7 @@ def create_item(root, mod, src_type, name, price=None, shop=None, label='custom'
     written.append(m_rel)
 
     # 4. clothing rows with new ids
-    used = {r.get('id') for r in rows}
+    used = {r.get('id') for r in rows} | _used_by_mods(root, mod, DRESS_DATA, 'id')
     ids = new_ids([r['id'] for r in src_rows], used, len(src_rows))
     ui_max = max((r.get('uiIndex', 0) for r in rows), default=0)
     for k, (r, i) in enumerate(zip(src_rows, ids)):
@@ -221,7 +247,8 @@ def create_item(root, mod, src_type, name, price=None, shop=None, label='custom'
     groups, g_schema = _decode(root, mod, GROUP_DATA)
     gk = _rows_key(groups)
     name_label = 'dressup_item_group_lt_%s' % folder.split('_', 1)[1]
-    groups[gk].append({'type': new_type, 'group': max((g.get('group', 0) for g in groups[gk]), default=0) + 1,
+    taken = {g.get('group', 0) for g in groups[gk]} | _used_by_mods(root, mod, GROUP_DATA, 'group')
+    groups[gk].append({'type': new_type, 'group': max((x for x in taken if isinstance(x, int)), default=0) + 1,
                        'name_label': name_label})
     _encode(mod, GROUP_DATA, groups, g_schema)
     written.append(GROUP_DATA)

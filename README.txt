@@ -6,6 +6,11 @@ The first start opens "Import game files" to unpack your game dump. The window h
 Browse & extract, Mods, Map, Pokémon data and Game data. "Dark mode" (top right) switches the theme.
 README.md is the full manual (features, installing, troubleshooting).
 
+WHAT'S NEW IN 1.5.1
+-------------------
+  * Fixed: new clothing items made in different mods could get the same item ids and clash when the
+    mods were installed together. New items now skip every id your other mods already use.
+
 WHAT'S NEW IN 1.5.0
 -------------------
   * DDS import: "Import PNG/DDS into mod..." - a DDS in the texture's own format goes in exactly as it is
