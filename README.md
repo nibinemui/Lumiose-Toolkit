@@ -219,7 +219,8 @@ Click a file to preview it. The buttons above the preview change with the file t
 Select files or folders, tick the conversions at the bottom, then press **Extract selected** (Ctrl+E).
 
 ### Textures
-- **Import PNG into mod…**: replaces the texture. If the PNG has a different size, you choose whether to rebuild the texture at that size.
+- **Import PNG/DDS into mod…**: replaces the texture. If the image has a different size, you choose whether to rebuild the texture at that size.
+  - **DDS**: a DDS in the texture's own format and size (with enough mip levels) goes in **exactly as it is**, with no recompression - e.g. a texture exported with *+ DDS*, edited in a DDS-aware editor and saved in the same format. Any other DDS (another format such as BC1 for a BC7 texture, fewer mip levels, another size) is decoded and compressed like a PNG. Like the toolkit's own DDS export, a DDS holds the channels the texture stores (no channel swapping).
 - **Your mod's version**: when the current mod has its own copy of a texture, the preview shows that one (the line above the picture says so); tick **Show game original** to compare.
 - **Live edit in image editor**: exports the PNG and opens it for editing. Every time you save, it is re-imported into the mod and the preview updates. Use **Show its model in 3D** to watch the changes - in the preview pane, or in its own window with **Its model in viewer window** (Preferences… > 3D view sets which one *Show* uses). Stop with **Stop live edits**.
   Which editor opens is set in **Preferences…** (bottom right, or **Image editor…** above the texture):

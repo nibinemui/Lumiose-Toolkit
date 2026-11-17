@@ -468,9 +468,9 @@ def _encode_mips(src, t, fmt, mip_count):
     return _dds_mips(dds, w, h, bw, bh, bpp, mip_count)
 
 
-def _import_resized(img, bntx_bytes, t, fmt, note, log):
+def _import_resized(img, bntx_bytes, t, fmt, note, log, raw_channels=False):
     w, h = img.size
-    src = _unmap_channels(img, t)
+    src = np.asarray(img).copy() if raw_channels else _unmap_channels(img, t)
     out, mips = resize_bntx(bntx_bytes, w, h, lambda n: _encode_mips(src, t, fmt, n))
     nt = zf.Bntx(out).textures[0]
     check = np.asarray(nt.decode(0, 0, apply_comp_sel=False)).astype(np.int32)
@@ -483,7 +483,7 @@ def _import_resized(img, bntx_bytes, t, fmt, note, log):
     return out, note
 
 
-def import_png(png_path, bntx_bytes, texture_index=0, layer=0, log=None, keep_size=True):
+def import_png(png_path, bntx_bytes, texture_index=0, layer=0, log=None, keep_size=True, raw_channels=False):
     """Return new BNTX bytes with `png_path` encoded into texture `texture_index` / `layer`.
 
     If keep_size is False and the PNG size differs, the texture is rebuilt at the PNG's size
@@ -498,11 +498,11 @@ def import_png(png_path, bntx_bytes, texture_index=0, layer=0, log=None, keep_si
     note = []
     if img.size != (t.width, t.height):
         if not keep_size:
-            return _import_resized(img, bntx_bytes, t, fmt, note, log)
+            return _import_resized(img, bntx_bytes, t, fmt, note, log, raw_channels)
         note.append('resized from %dx%d to %dx%d' % (img.size + (t.width, t.height)))
         from za_trinity import resize_channels
         img = resize_channels(img, (t.width, t.height))
-    src = _unmap_channels(img, t)
+    src = np.asarray(img).copy() if raw_channels else _unmap_channels(img, t)
     mips = _encode_mips(src, t, fmt, t.mip_count)
     out = bytearray(bntx_bytes)
     for lv, lin in enumerate(mips):
@@ -519,6 +519,120 @@ def import_png(png_path, bntx_bytes, texture_index=0, layer=0, log=None, keep_si
     if log:
         log('; '.join(note))
     return bytes(out), note
+
+
+# ---------------------------------------------------------------------------
+# DDS import
+# ---------------------------------------------------------------------------
+
+DDS_FOURCC = {b'DXT1': 71, b'DXT3': 74, b'DXT5': 77, b'ATI1': 80, b'BC4U': 80, b'ATI2': 83, b'BC5U': 83}
+DXGI_NAMES = {71: 'BC1', 72: 'BC1 sRGB', 74: 'BC2', 75: 'BC2 sRGB', 77: 'BC3', 78: 'BC3 sRGB', 80: 'BC4', 81: 'BC4 signed',
+              83: 'BC5', 84: 'BC5 signed', 95: 'BC6H', 96: 'BC6H signed', 98: 'BC7', 99: 'BC7 sRGB', 28: 'RGBA8',
+              29: 'RGBA8 sRGB', 87: 'BGRA8', 91: 'BGRA8 sRGB', 61: 'R8', 49: 'RG8'}
+_SRGB_BASE = {72: 71, 75: 74, 78: 77, 99: 98, 29: 28, 91: 87}     # same block data, only read differently
+
+
+def read_dds(data):
+    """DDS header: {'width', 'height', 'mips', 'dxgi' (None if unknown), 'layers', 'offset'}."""
+    if data[:4] != b'DDS ' or len(data) < 128:
+        raise ModError('Not a DDS file')
+    h, w = struct.unpack_from('<II', data, 12)
+    mips = max(1, struct.unpack_from('<I', data, 28)[0])
+    pf_flags, fourcc, bits, rmask = struct.unpack_from('<I4sII', data, 80)
+    caps2 = struct.unpack_from('<I', data, 112)[0]
+    off, layers, dxgi = 128, 6 if caps2 & 0x200 else 1, None
+    if fourcc == b'DX10':
+        dxgi, _dim, misc, arr = struct.unpack_from('<IIII', data, 128)
+        off = 148
+        layers = max(1, arr) * (6 if misc & 0x4 else 1)
+    elif pf_flags & 0x4 and fourcc in DDS_FOURCC:
+        dxgi = DDS_FOURCC[fourcc]
+    elif pf_flags & 0x40 and bits == 32:
+        dxgi = 28 if rmask == 0x000000FF else 87
+    return {'width': w, 'height': h, 'mips': mips, 'dxgi': dxgi, 'layers': layers, 'offset': off}
+
+
+def _dds_layer_mips(data, info, layer, count, bw, bh, bpp):
+    """Linear data of the first `count` mips of one layer of a DDS."""
+    def level_size(lv):
+        mw, mh = max(1, info['width'] >> lv), max(1, info['height'] >> lv)
+        return -(-mw // bw) * -(-mh // bh) * bpp
+    per_layer = sum(level_size(lv) for lv in range(info['mips']))
+    off = info['offset'] + per_layer * layer
+    out = []
+    for lv in range(count):
+        n = level_size(lv)
+        if off + n > len(data):
+            raise ModError('The DDS file is shorter than its header says.')
+        out.append(data[off:off + n])
+        off += n
+    return out
+
+
+def import_dds(dds_path, bntx_bytes, texture_index=0, layer=0, log=None, keep_size=True):
+    """Like import_png, from a DDS. A DDS in the texture's own format and size (with enough mip levels)
+    is copied in exactly - no recompression. Any other DDS is decoded and compressed like a PNG.
+    A DDS holds the channels the texture stores (as the toolkit's own DDS export writes them)."""
+    with open(dds_path, 'rb') as f:
+        data = f.read()
+    info = read_dds(data)
+    b = zf.Bntx(bntx_bytes)
+    t = b.textures[texture_index]
+    target = zf.DXGI.get((t.ftype, t.variant))
+    if target is None or not t.supported:
+        raise ModError('Importing into %s textures is not supported.' % t.format_name)
+    same_fmt = info['dxgi'] is not None and _SRGB_BASE.get(info['dxgi'], info['dxgi']) == _SRGB_BASE.get(target, target)
+    _, bw, bh, bpp, _ = zf.FORMAT_TYPES[t.ftype]
+    src_layer = layer if info['layers'] == t.array_len else 0
+    note = []
+    if same_fmt and (info['width'], info['height']) == (t.width, t.height) and info['mips'] >= t.mip_count:
+        mips = _dds_layer_mips(data, info, src_layer, t.mip_count, bw, bh, bpp)
+        out = bytearray(bntx_bytes)
+        for lv, lin in enumerate(mips):
+            w, h, wu, hu, bpp_, bhgt = t._mip_geom(lv)
+            start = t.mip_offsets[lv] + layer * t.layer_stride
+            end = (t.mip_offsets[lv + 1] if lv + 1 < t.mip_count else t.mip_offsets[0] + t.layer_stride) + layer * t.layer_stride
+            out[start:end] = swizzle_block_linear(lin, wu, hu, bpp_, bhgt, end - start)
+        nt = zf.Bntx(bytes(out)).textures[texture_index]
+        if any(nt.linear_mip(layer, lv)[0][:len(mips[lv])] != mips[lv] for lv in range(t.mip_count)):
+            raise ModError('Check failed: the texture does not hold the DDS data after importing.')
+        note.append('DDS %s copied in exactly (%d mip level(s), no recompression)' % (
+            DXGI_NAMES.get(info['dxgi'], info['dxgi']), t.mip_count))
+        if log:
+            log('; '.join(note))
+        return bytes(out), note
+    if (same_fmt and not keep_size and (info['width'], info['height']) != (t.width, t.height)
+            and info['layers'] == 1):
+        try:
+            def from_dds(n):
+                if info['mips'] < n:
+                    raise ModError('not enough mips')
+                return _dds_layer_mips(data, info, 0, n, bw, bh, bpp)
+            out, n = resize_bntx(bntx_bytes, info['width'], info['height'], from_dds)
+            note.append('texture size changed from %dx%d to %dx%d; DDS copied in exactly (%d mips)'
+                        % (t.width, t.height, info['width'], info['height'], n))
+            if log:
+                log('; '.join(note))
+            return out, note
+        except ModError:
+            pass                                      # too few mips in the DDS: decode and compress instead
+    # different format, size or mip count: decode the DDS and compress it like a PNG
+    with tempfile.TemporaryDirectory() as td:
+        sp = os.path.join(td, 'in.dds')
+        shutil.copyfile(dds_path, sp)
+        _run([TEXCONV, '-nologo', '-y', '-ft', 'png', '-f', 'R8G8B8A8_UNORM', '-m', '1', '-o', td, sp])
+        png = os.path.join(td, 'in.png')
+        if not os.path.isfile(png):
+            raise ModError('Could not read this DDS (format %s).' % DXGI_NAMES.get(info['dxgi'], info['dxgi']))
+        why = ('a different format (%s, the texture is %s)' % (DXGI_NAMES.get(info['dxgi'], info['dxgi']),
+                                                              DXGI_NAMES.get(target, t.format_name))
+               if not same_fmt else 'fewer mip levels (%d of %d)' % (info['mips'], t.mip_count)
+               if info['mips'] < t.mip_count else 'a different size')
+        out, n2 = import_png(png, bntx_bytes, texture_index, layer, None, keep_size, raw_channels=True)
+    note = ['DDS has %s - decoded and compressed again' % why] + list(n2)
+    if log:
+        log('; '.join(note))
+    return out, note
 
 
 # ---------------------------------------------------------------------------

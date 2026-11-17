@@ -2041,7 +2041,7 @@ class App(tk.Tk):
                      ('Export text for editing…', lambda: self.export_text(path)),
                      ('Import edited text into mod…', lambda: self.import_text(path))]
         elif kind == 'texture' and path:
-            acts += [('Import PNG into mod…', lambda: self.import_texture(path)),
+            acts += [('Import PNG/DDS into mod…', lambda: self.import_texture(path)),
                      ('Live edit in image editor', lambda: self.live_edit_texture(path))]
             mdl = zt.find_model_for(path) if '\ik_' in path or '/ik_' in path else None
             if mdl:
@@ -2049,7 +2049,7 @@ class App(tk.Tk):
                          ('Its model in viewer window', lambda: self.open_viewer(mdl))]
         elif kind == 'texture' and res.get('iid', '').startswith('A|'):
             arc, inner = res['iid'][2:].split('|', 1)
-            acts += [('Import PNG into mod…', lambda: self.import_texture(arc, inner)),
+            acts += [('Import PNG/DDS into mod…', lambda: self.import_texture(arc, inner)),
                      ('Live edit in image editor', lambda: self.live_edit_texture(arc, inner))]
         if kind == 'texture' and self.live:
             acts += [('Stop live edits (%d)' % len(self.live), self.stop_live_edits)]
@@ -2555,29 +2555,38 @@ class App(tk.Tk):
 
     # textures
     def import_texture(self, path, arc_member=None):
-        """PNG -> texture in the current mod. path = .bntx file, or a .arc with arc_member = inner .bntx."""
+        """PNG or DDS -> texture in the current mod. path = .bntx file, or a .arc with arc_member = inner .bntx."""
         rel = self.rel_game_path(path)
         m = self.current_mod()
         if not m or not rel:
             return
-        pp = filedialog.askopenfilename(title='PNG to put into ' + (arc_member or os.path.basename(path)),
-                                        initialdir=self.out_var.get(), filetypes=[('PNG image', '*.png')])
+        pp = filedialog.askopenfilename(title='PNG or DDS to put into ' + (arc_member or os.path.basename(path)),
+                                        initialdir=self.out_var.get(),
+                                        filetypes=[('PNG or DDS', '*.png *.dds'), ('PNG image', '*.png'),
+                                                   ('DDS texture', '*.dds')])
         if not pp:
             return
         t = self.cur_texture()
         ti = int(self.tex_var.get().split(':', 1)[0]) if t else 0
         layer = self.layer_var.get()
         keep = True
+        is_dds = pp.lower().endswith('.dds')
         try:
-            psize = Image.open(pp).size
-        except OSError as e:
-            messagebox.showerror('Lumiose Toolkit', 'Could not open the PNG: %s' % e)
+            if is_dds:
+                with open(pp, 'rb') as f:
+                    hd = zm.read_dds(f.read(200))
+                psize = (hd['width'], hd['height'])
+            else:
+                psize = Image.open(pp).size
+        except (OSError, zm.ModError) as e:
+            messagebox.showerror('Lumiose Toolkit', 'Could not open the file: %s' % e)
             return
+        kind = 'DDS' if is_dds else 'PNG'
         if t and psize != (t.width, t.height):
             ans = messagebox.askyesnocancel(
-                'Different size', 'The PNG is %dx%d, the game texture is %dx%d.\n\n'
-                'Yes = keep the PNG\'s size (the texture is rebuilt at that size)\n'
-                'No = scale the PNG to the original size' % (psize + (t.width, t.height)))
+                'Different size', 'The %s is %dx%d, the game texture is %dx%d.\n\n'
+                'Yes = keep the %s\'s size (the texture is rebuilt at that size)\n'
+                'No = scale it to the original size' % ((kind,) + psize + (t.width, t.height, kind)))
             if ans is None:
                 return
             keep = not ans
@@ -2586,12 +2595,13 @@ class App(tk.Tk):
         def job():
             with open(src, 'rb') as f:
                 orig = f.read()
+            do_import = zm.import_dds if is_dds else zm.import_png
             if arc_member:
                 files = dict(zf.parse_sarc(orig))
-                new_tex, note = zm.import_png(pp, files[arc_member], ti, layer, keep_size=keep)
+                new_tex, note = do_import(pp, files[arc_member], ti, layer, keep_size=keep)
                 new = zm.rebuild_sarc(orig, {arc_member: new_tex})
             else:
-                new, note = zm.import_png(pp, orig, ti, layer, keep_size=keep)
+                new, note = do_import(pp, orig, ti, layer, keep_size=keep)
             m.add_bytes(rel, new)
             return rel, '; '.join(note)
         self.run_bg('Encoding texture (BC compression can take a few seconds)', job,

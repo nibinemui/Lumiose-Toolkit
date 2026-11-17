@@ -8,6 +8,8 @@ README.md is the full manual (features, installing, troubleshooting).
 
 WHAT'S NEW IN 1.5.0
 -------------------
+  * DDS import: "Import PNG/DDS into mod..." - a DDS in the texture's own format goes in exactly as it is
+    (no recompression); other DDS files are decoded and compressed like a PNG.
   * Mod merging: mods that change the same game data table or text are merged row by row when you build
     or install them together (instead of one overwriting the other).
   * Textures say what they are (About column, preview header) and search matches it: "pikachu body",
