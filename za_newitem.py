@@ -44,7 +44,9 @@ def series_ranges(series):
     """(id series, first folder number, first group number) for one person's series (60-99)."""
     series = max(FIRST_SERIES, min(99, int(series or FIRST_SERIES)))
     k = series - FIRST_SERIES
-    return series, FIRST_NUMBER + 100 * k, FIRST_GROUP + 100 * k
+    # folders stay 4 digits: 60-89 -> 7000-9900, 90-99 -> 6000-6900 (the game's own end below 2000)
+    folder = FIRST_NUMBER + 100 * k if series < 90 else 6000 + 100 * (series - 90)
+    return series, folder, FIRST_GROUP + 100 * k
 
 
 class ItemError(Exception):
@@ -158,11 +160,12 @@ def new_folder_name(root, mod, src_folder, label, series=FIRST_SERIES):
     label = re.sub(r'[^a-z0-9]+', '', label.lower())[:20] or 'custom'
     taken = _all_folders(root, mod)
     first = series_ranges(series)[1]
-    for n in list(range(first, first + 100)) + list(range(FIRST_NUMBER + 4000, 10000)):
+    for n in range(first, first + 100):
         name = '%s_%s%04d_00_%s' % (m.group(1), m.group(2), n, label)
         if not any(t.startswith('%s_%s%04d_' % (m.group(1), m.group(2), n)) for t in taken):
             return name
-    raise ItemError('No free model folder number left.')
+    raise ItemError('No free model folder number left in series %d - pick another number in Preferences > Mods.'
+                    % series_ranges(series)[0])
 
 
 def new_ids(src_ids, used, count, series=FIRST_SERIES):
@@ -644,6 +647,10 @@ def create_hairstyle(root, mod, src_folder, name, label='custom', salons=('hairs
     src = next((r for r in rows if r.get('name') == src_folder), None)
     if src is None:
         raise ItemError('No hairstyle with the model folder %s.' % src_folder)
+    if not os.path.isdir(os.path.join(root, 'ik_chara', 'model_pc', src_folder)) or not os.path.isfile(
+            os.path.join(root, 'ik_chara', 'sav_pc', src_folder, src_folder + '.ccdata')):
+        raise ItemError('%s is not one of the game hairstyles - make new hairstyles from a game hairstyle.'
+                        % src_folder)
     folder = new_folder_name(root, mod, src_folder, label, series)
     written = []
     # model + animations

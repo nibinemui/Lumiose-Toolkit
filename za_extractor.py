@@ -2104,7 +2104,8 @@ class App(tk.Tk):
                      ('Live edit in image editor', lambda: self.live_edit_texture(arc, inner))]
         if kind == 'texture' and self.live:
             acts += [('Stop live edits (%d)' % len(self.live), self.stop_live_edits)]
-        if path and self.rel_game_path(path):
+        if path and self.rel_game_path(path) and os.path.isfile(
+                os.path.join(self.root_var.get(), *self.rel_game_path(path).split('/'))):
             acts += [('Add original to mod', self.add_selected_to_mod)]
         for label, cmd in acts:
             ttk.Button(self.act_bar, text=label, command=cmd).pack(side='left', padx=(0, 4))

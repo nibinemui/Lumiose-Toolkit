@@ -295,8 +295,10 @@ def open_window(app, mod):
         cv.configure(yscrollcommand=sb.set)
         cv.pack(side='left', fill='both', expand=True)
         sb.pack(side='right', fill='y')
-        cv.bind_all('<MouseWheel>', lambda e: cv.yview_scroll(-1 * (e.delta // 120), 'units')
-                    if str(e.widget).startswith(str(w)) else None)
+        wheel = lambda e: cv.yview_scroll(-1 * (e.delta // 120), 'units')  # noqa: E731
+        body.bind('<Enter>', lambda e: cv.bind_all('<MouseWheel>', wheel))
+        body.bind('<Leave>', lambda e: cv.unbind_all('<MouseWheel>'))
+        w.bind('<Destroy>', lambda e: cv.unbind_all('<MouseWheel>') if e.widget is w else None)
         ticks = []
         for title, lines in sections:
             ttk.Label(inner, text=title, font=('Segoe UI', 10, 'bold')).pack(anchor='w', pady=(8, 2))
@@ -305,12 +307,8 @@ def open_window(app, mod):
                 ticks.append((v, ln))
                 ttk.Checkbutton(inner, text=ln, variable=v).pack(anchor='w', padx=(8, 0), pady=1)
         for c in inner.winfo_children():
-            if isinstance(c, ttk.Checkbutton):
-                c.configure(takefocus=0)
-        # long lines wrap via a style-less trick: ttk.Checkbutton has no wraplength, so cut them here
-        for c in inner.winfo_children():
-            if isinstance(c, ttk.Checkbutton):
-                c.configure(text=_wrap(c.cget('text'), 105))
+            if isinstance(c, ttk.Checkbutton):          # ttk.Checkbutton has no wraplength: wrap the text here
+                c.configure(takefocus=0, text=_wrap(c.cget('text'), 105))
 
         def text():
             out = ['In-game test checklist - %s' % mod.name, '']

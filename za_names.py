@@ -457,7 +457,7 @@ def clothing_colour_names(root, folder, romfs=None):
     np_ = _mod_file(root, romfs, NAME_REL)
     if romfs and np_.startswith(romfs):
         try:
-            names = dict(names, **_read_msg(np_))
+            names = {**names, **_read_msg(np_)}
         except (OSError, ValueError, struct.error):
             pass
     out = {}
@@ -580,7 +580,7 @@ def clothing_variants(root, romfs=None):
     np_ = _mod_file(root, romfs, NAME_REL)
     if romfs and np_.startswith(romfs):
         try:
-            names = dict(names, **_read_msg(np_))
+            names = {**names, **_read_msg(np_)}
         except (OSError, ValueError, struct.error):
             pass
     for r in rows:
