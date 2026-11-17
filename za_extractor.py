@@ -926,8 +926,13 @@ class App(tk.Tk):
         L = ttk.Frame(paned)
         paned.add(L, weight=1)
         ttk.Label(L, text='My mods', style='Head.TLabel').pack(anchor='w', pady=(0, 4))
-        self.mods_list = tk.Listbox(L, exportselection=False, activestyle='none', borderwidth=0, highlightthickness=0)
-        self.mods_list.pack(fill='both', expand=True)
+        lf = ttk.Frame(L)
+        lf.pack(fill='both', expand=True)
+        self.mods_list = tk.Listbox(lf, exportselection=False, activestyle='none', borderwidth=0, highlightthickness=0)
+        msb = ttk.Scrollbar(lf, orient='vertical', command=self.mods_list.yview)
+        self.mods_list.configure(yscrollcommand=msb.set)
+        msb.pack(side='right', fill='y')
+        self.mods_list.pack(side='left', fill='both', expand=True)
         self.mods_list.bind('<<ListboxSelect>>', lambda e: self.show_mod())
         lb = ttk.Frame(L)
         lb.pack(fill='x', pady=4)
@@ -950,8 +955,19 @@ class App(tk.Tk):
         self.mod_desc.grid(row=4, column=1, sticky='ew', pady=1)
         ttk.Button(M, text='Save details', command=self.save_mod_details).grid(row=5, column=1, sticky='w', pady=(2, 8))
         ttk.Label(M, text='Files in this mod (game paths):').grid(row=6, column=0, columnspan=2, sticky='w')
-        self.mod_files = ttk.Treeview(M, show='tree', selectmode='extended')
-        self.mod_files.grid(row=7, column=0, columnspan=2, sticky='nsew')
+        ff = ttk.Frame(M)
+        ff.grid(row=7, column=0, columnspan=2, sticky='nsew')
+        self.mod_files = ttk.Treeview(ff, show='tree', selectmode='extended')
+        fsb = ttk.Scrollbar(ff, orient='vertical', command=self.mod_files.yview)
+        fsh = ttk.Scrollbar(ff, orient='horizontal', command=self.mod_files.xview)
+        self.mod_files.configure(yscrollcommand=fsb.set, xscrollcommand=fsh.set)
+        self.mod_files.grid(row=0, column=0, sticky='nsew')
+        fsb.grid(row=0, column=1, sticky='ns')
+        fsh.grid(row=1, column=0, sticky='ew')
+        ff.columnconfigure(0, weight=1)
+        ff.rowconfigure(0, weight=1)
+        self.mod_files.column('#0', stretch=False, width=400)
+        self.mod_files.bind('<Configure>', lambda e: self.fit_mod_files())
         mb = ttk.Frame(M)
         mb.grid(row=8, column=0, columnspan=2, sticky='ew', pady=4)
         ttk.Button(mb, text='Remove selected file(s)', command=self.remove_mod_files).pack(side='left')
@@ -1074,6 +1090,17 @@ class App(tk.Tk):
         self.mod_desc.insert('1.0', m.info.get('description', ''))
         for rel in m.files():
             self.mod_files.insert('', 'end', rel, text=rel)
+        self.fit_mod_files()
+
+    def fit_mod_files(self):
+        """Mods tab file list: as wide as its longest path (scroll sideways to see it), at least the list's width."""
+        import tkinter.font as tkfont
+        try:
+            font = tkfont.nametofont(ttk.Style().lookup('Treeview', 'font') or 'TkDefaultFont')
+        except tk.TclError:
+            font = tkfont.nametofont('TkDefaultFont')
+        need = max([font.measure(self.mod_files.item(i, 'text')) for i in self.mod_files.get_children()] + [0]) + 40
+        self.mod_files.column('#0', width=max(need, self.mod_files.winfo_width() - 4))
 
     def new_mod(self):
         from tkinter import simpledialog
