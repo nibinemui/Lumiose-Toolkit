@@ -129,6 +129,16 @@ class PreferencesWindow(tk.Toplevel):
         cb.bind('<<ComboboxSelected>>', lambda e: self.changed())
         note(f, 'Every change to a mod file is kept as a version you can compare and restore (Mods tab > History). '
                 'Older versions beyond this number are deleted.', pad=0)
+        head(f, 'New clothing items')
+        row = ttk.Frame(f)
+        row.pack(anchor='w')
+        ttk.Label(row, text='Your number (id series):').pack(side='left')
+        self.series = tk.StringVar(value=str(s.get('item_series', 60)))
+        sp = ttk.Spinbox(row, from_=60, to=99, textvariable=self.series, width=5, command=self.changed)
+        sp.pack(side='left', padx=6)
+        sp.bind('<FocusOut>', lambda e: self.changed())
+        note(f, 'New items you make get ids, model folder numbers and group numbers from this number only. On a team, '
+                'give everyone their own number (60, 61, 62…): items made on different PCs then never clash.', pad=0)
 
         bar = ttk.Frame(outer)
         bar.pack(fill='x', pady=(10, 0))
@@ -171,6 +181,10 @@ class PreferencesWindow(tk.Toplevel):
         new_ui = next((v for v, lab in UI_SIZES if lab == self.ui.get()), 1.0)
         restart = abs(new_ui - s.get('ui_scale', 1.0)) > 0.01
         s['ui_scale'] = new_ui
+        try:
+            s['item_series'] = max(60, min(99, int(self.series.get())))
+        except ValueError:
+            pass
         try:
             s['history_max'] = int(self.hist.get())
             import za_modding

@@ -30,6 +30,17 @@ LINEUP = 'world/exl/shop/shop_dress_up_lineup/shop_dress_up_lineup.bin'
 NAMES = 'ik_message/dat/%s/common/dressup_item_name'
 FIRST_SERIES = 60          # new item ids use series 60+ (the game uses 00-31)
 FIRST_NUMBER = 7000        # new model folders: <prefix>_<cat>7000_00_<label> and up (the game uses 0000-1xxx)
+FIRST_GROUP = 1000         # new groups: 1000 and up (the game uses up to ~905)
+# Each person on a team picks their own series (Preferences > Mods, setting "item_series", 60-99):
+#   ids <category><series><item 01-99><variant>, folders 7000 + (series-60)*100 + n, groups 1000 + (series-60)*100 + n
+# so new items made on different PCs never get the same numbers.
+
+
+def series_ranges(series):
+    """(id series, first folder number, first group number) for one person's series (60-99)."""
+    series = max(FIRST_SERIES, min(99, int(series or FIRST_SERIES)))
+    k = series - FIRST_SERIES
+    return series, FIRST_NUMBER + 100 * k, FIRST_GROUP + 100 * k
 
 
 class ItemError(Exception):
@@ -135,29 +146,34 @@ def _used_by_mods(root, mod, rel, field):
     return out
 
 
-def new_folder_name(root, mod, src_folder, label):
-    """<prefix>_<cat>NNNN_00_<label> with the first free NNNN from FIRST_NUMBER."""
+def new_folder_name(root, mod, src_folder, label, series=FIRST_SERIES):
+    """<prefix>_<cat>NNNN_00_<label> with the first free NNNN of this person's range."""
     m = re.match(r'^(p\d)_([a-z]+)\d{4}_\d\d_', src_folder)
     if not m:
         raise ItemError('Unexpected model folder name: ' + src_folder)
     label = re.sub(r'[^a-z0-9]+', '', label.lower())[:20] or 'custom'
     taken = _all_folders(root, mod)
-    for n in range(FIRST_NUMBER, 10000):
+    first = series_ranges(series)[1]
+    for n in list(range(first, first + 100)) + list(range(FIRST_NUMBER + 4000, 10000)):
         name = '%s_%s%04d_00_%s' % (m.group(1), m.group(2), n, label)
         if not any(t.startswith('%s_%s%04d_' % (m.group(1), m.group(2), n)) for t in taken):
             return name
     raise ItemError('No free model folder number left.')
 
 
-def new_ids(src_ids, used, count):
-    """ids for `count` variants: the source's category digits + a free series/item + variant 01..count."""
+def new_ids(src_ids, used, count, series=FIRST_SERIES):
+    """ids for `count` variants: the source's category digits + this person's series + a free item number +
+    variant 01..count. Only this series is used, so different people's items never meet."""
     prefix = str(src_ids[0])[:-6]
-    for series in range(FIRST_SERIES, 100):
+    if count > 99:
+        raise ItemError('This item has more than 99 colour variants.')
+    for series in [series_ranges(series)[0]]:
         for item in range(1, 100):
             ids = [int('%s%02d%02d%02d' % (prefix, series, item, v + 1)) for v in range(count)]
             if not any(i in used for i in ids):
                 return ids
-    raise ItemError('No free item ids left in this category.')
+    raise ItemError('No free item ids left in series %d for this category - pick another series in '
+                    'Preferences > Mods.' % series)
 
 
 def add_name(dat, tbl, label, text):
@@ -174,7 +190,7 @@ def add_name(dat, tbl, label, text):
     return za_merge.msg_build(lines), za_merge.tbl_build(ents)
 
 
-def create_item(root, mod, src_type, name, price=None, shop=None, label='custom', log=None):
+def create_item(root, mod, src_type, name, price=None, shop=None, label='custom', log=None, series=FIRST_SERIES):
     """Make a new clothing item from the existing item `src_type` (a dress_up_data "type") in `mod`.
     Returns a report dict: folder, ids, type, name label, files written."""
     say = log or (lambda s: None)
@@ -187,7 +203,7 @@ def create_item(root, mod, src_type, name, price=None, shop=None, label='custom'
     src_folder, _ = split_texture_path(src_rows[0].get('texturePath', ''))
     if not src_folder or any(split_texture_path(r.get('texturePath', ''))[0] != src_folder for r in src_rows):
         raise ItemError('This item uses several model folders - it cannot be copied yet.')
-    folder = new_folder_name(root, mod, src_folder, label)
+    folder = new_folder_name(root, mod, src_folder, label, series)
     fm = re.match(r'^p\d_([a-z]+)(\d{4})_\d\d_(.+)$', folder)
     new_type = '%s_%s%s_1' % (fm.group(1), fm.group(3), fm.group(2))        # e.g. upb_custom7000_1
     if any(r.get('type') == new_type for r in rows):
@@ -230,7 +246,7 @@ def create_item(root, mod, src_type, name, price=None, shop=None, label='custom'
 
     # 4. clothing rows with new ids
     used = {r.get('id') for r in rows} | _used_by_mods(root, mod, DRESS_DATA, 'id')
-    ids = new_ids([r['id'] for r in src_rows], used, len(src_rows))
+    ids = new_ids([r['id'] for r in src_rows], used, len(src_rows), series)
     ui_max = max((r.get('uiIndex', 0) for r in rows), default=0)
     for k, (r, i) in enumerate(zip(src_rows, ids)):
         n = dict(r)
@@ -248,7 +264,9 @@ def create_item(root, mod, src_type, name, price=None, shop=None, label='custom'
     gk = _rows_key(groups)
     name_label = 'dressup_item_group_lt_%s' % folder.split('_', 1)[1]
     taken = {g.get('group', 0) for g in groups[gk]} | _used_by_mods(root, mod, GROUP_DATA, 'group')
-    groups[gk].append({'type': new_type, 'group': max((x for x in taken if isinstance(x, int)), default=0) + 1,
+    g0 = series_ranges(series)[2]
+    group_no = next(n for n in range(g0, g0 + 100000) if n not in taken)
+    groups[gk].append({'type': new_type, 'group': group_no,
                        'name_label': name_label})
     _encode(mod, GROUP_DATA, groups, g_schema)
     written.append(GROUP_DATA)
@@ -336,8 +354,9 @@ def open_dialog(app, src_type, src_price=None):
         ttk.Entry(f, textvariable=var, width=wd).grid(row=r, column=1, sticky='w', pady=2)
     ttk.Label(f, text='Shop:').grid(row=5, column=0, sticky='w', pady=2)
     ttk.Combobox(f, textvariable=shop, values=shop_names, state='readonly', width=40).grid(row=5, column=1, sticky='w')
-    ttk.Label(f, text='(dressup_02_select5_lineup is Bundle Up in Rouge District)', style='Dim.TLabel').grid(
-        row=6, column=1, sticky='w')
+    ttk.Label(f, text='(dressup_02_select5_lineup is Bundle Up in Rouge District)   ·   your id series: %d '
+                      '(Preferences > Mods)' % series_ranges(app.settings.get('item_series', FIRST_SERIES))[0],
+              style='Dim.TLabel').grid(row=6, column=1, sticky='w')
     ttk.Label(f, wraplength=460, justify='left', style='Dim.TLabel', text=SAVE_NOTE).grid(
         row=7, column=0, columnspan=2, sticky='w', pady=(10, 6))
     bar = ttk.Frame(f)
@@ -359,7 +378,7 @@ def open_dialog(app, src_type, src_price=None):
 
         def job():
             mod.snapshot()
-            r = create_item(root, mod, src_type, nm, pr, sh, lb)
+            r = create_item(root, mod, src_type, nm, pr, sh, lb, series=app.settings.get('item_series', FIRST_SERIES))
             mod.snapshot('new clothing item: %s' % nm)
             return r
 
@@ -409,3 +428,130 @@ def result_window(app, mod, r, name):
     ttk.Button(bar, text='Open folder', command=lambda: os.startfile(folder)).pack(side='left')
     ttk.Button(bar, text='Close', command=w.destroy).pack(side='right')
     return w
+
+
+# ---------------------------------------------------------------------------------------------------------
+# check a mod's new items before sharing it
+# ---------------------------------------------------------------------------------------------------------
+
+def check_mod(root, mod):
+    """Check every new clothing item in `mod`. Returns (report lines, number of problems)."""
+    lines, problems = [], 0
+
+    def bad(msg):
+        nonlocal problems
+        if '   ✗ ' + msg in lines[item_start[0]:]:
+            return                                   # the same problem for another colour variant
+        problems += 1
+        lines.append('   ✗ ' + msg)
+    item_start = [0]
+    if not os.path.isfile(mod.path_for(DRESS_DATA)):
+        return ['This mod has no clothing table, so it has no new clothing items to check.'], 0
+    game, _ = _decode(root, None, DRESS_DATA)
+    game_ids = {r.get('id') for r in game[_rows_key(game)]}
+    game_types = {r.get('type') for r in game[_rows_key(game)]}
+    data, _ = _decode(root, mod, DRESS_DATA)
+    rows = data[_rows_key(data)]
+    new = [r for r in rows if r.get('type') not in game_types]
+    if not new:
+        return ['No new clothing items in this mod.'], 0
+    ids = [r.get('id') for r in rows]
+    dup = sorted({i for i in ids if ids.count(i) > 1})
+    groups, _ = _decode(root, mod, GROUP_DATA)
+    gmap = {g.get('type'): g for g in groups[_rows_key(groups)]}
+    gnums = [g.get('group') for g in groups[_rows_key(groups)]]
+    lu, _ = _decode(root, mod, LINEUP)
+    sold = {}
+    for row in lu[_rows_key(lu)]:
+        for it in row.get('items', []):
+            sold.setdefault(it.get('itemId'), []).append(row.get('id'))
+    others = {}
+    for m in _all_mods(mod)[1:]:
+        if os.path.isfile(m.path_for(DRESS_DATA)):
+            try:
+                o, _ = _decode(root, m, DRESS_DATA)
+                for r in o[_rows_key(o)]:
+                    if r.get('id') not in game_ids:
+                        others.setdefault(r.get('id'), m.name)
+            except Exception:  # noqa: BLE001
+                pass
+    langs = sorted(d for d in os.listdir(os.path.join(root, 'ik_message', 'dat'))
+                   if os.path.isfile(os.path.join(root, *(NAMES % d).split('/')) + '.dat'))
+    texts = {}
+    for lang in langs:
+        rel = NAMES % lang
+        try:
+            import za_formats as zf
+            dat, tbl = _read(root, mod, rel + '.dat'), _read(root, mod, rel + '.tbl')
+            texts[lang] = dict(zip(zf.parse_tbl(tbl), zf.decode_msg(dat)))
+        except Exception:  # noqa: BLE001
+            texts[lang] = {}
+    by_type = {}
+    for r in new:
+        by_type.setdefault(r.get('type'), []).append(r)
+    for t, rs in sorted(by_type.items()):
+        g = gmap.get(t)
+        label = g.get('name_label') if g else None
+        name = texts.get('English', {}).get(label, '') if label else ''
+        lines.append('%s  (%s, %d colour variant(s), ids %s)' % (name or t, t, len(rs),
+                                                                ', '.join(str(r.get('id')) for r in rs[:3]) +
+                                                                (' …' if len(rs) > 3 else '')))
+        before = problems
+        item_start[0] = len(lines)
+        unsold = []
+        for r in rs:
+            i = r.get('id')
+            if i in game_ids:
+                bad('id %d is also a game item' % i)
+            if i in dup:
+                bad('id %d is used more than once in this mod' % i)
+            if i in others:
+                bad('id %d is also used by the mod "%s" - they would clash when installed together' % (i, others[i]))
+            folder, var = split_texture_path(r.get('texturePath', ''))
+            if not folder:
+                bad('id %d: texturePath "%s" is not <folder>_<variant>' % (i, r.get('texturePath')))
+                continue
+            mdir = mod.path_for('ik_chara/model_pc/' + folder)
+            if not os.path.isdir(mdir) and not os.path.isdir(os.path.join(root, 'ik_chara', 'model_pc', folder)):
+                bad('model folder ik_chara/model_pc/%s is missing' % folder)
+            cc_rel = 'ik_chara/sav_pc/%s/%s.ccdata' % (folder, folder)
+            if not os.path.isfile(mod.path_for(cc_rel)):
+                bad('%s is missing' % cc_rel)
+            else:
+                try:
+                    cc, _ = _decode(root, mod, cc_rel)
+                    if var not in [v.get('name') for v in cc.get('variants', [])]:
+                        bad('colour variant %s is not in %s' % (var, cc_rel))
+                    for part in cc.get('parts', []):
+                        mp = part.get('model', '')
+                        if mp and 'model_pc/%s/' % folder in mp:
+                            f = os.path.join(mdir, os.path.basename(mp))
+                            if not os.path.isfile(f):
+                                bad('the model %s (named in the .ccdata) is missing' % os.path.basename(mp))
+                except Exception as e:  # noqa: BLE001
+                    bad('%s cannot be read: %s' % (cc_rel, e))
+            try:
+                m_rel, m_obj, _ = _ccdatam_for(root, mod, folder)
+                if '%s_%s' % (folder, var) not in [e.get('name') for e in m_obj.get('entries', [])]:
+                    bad('%s_%s is not listed in %s' % (folder, var, m_rel))
+            except ItemError:
+                bad('no category list (.ccdatam) lists %s' % folder)
+            if i not in sold:
+                unsold.append(i)
+        if unsold:
+            lines.append('   · %d colour variant(s) not sold in any shop (fine if you add them another way)' % len(unsold))
+        if not g:
+            bad('no group row for %s - the game has no name for it' % t)
+        else:
+            if gnums.count(g.get('group')) > 1:
+                bad('group number %s is used more than once' % g.get('group'))
+            missing = [lang for lang in langs if not texts.get(lang, {}).get(label)]
+            if missing:
+                bad('no name in %d language(s): %s' % (len(missing), ', '.join(missing)))
+        if problems == before:
+            lines.append('   ✓ complete: model, .ccdata, category list, name in %d languages%s' % (
+                len(langs), ', sold in ' + ', '.join(sorted({x for r in rs for x in sold.get(r.get('id'), [])}))
+                if any(r.get('id') in sold for r in rs) else ''))
+    head = ('%d new item(s) checked: %s.' % (len(by_type), 'no problems' if not problems else
+                                               '%d problem(s)' % problems))
+    return [head, ''] + lines, problems

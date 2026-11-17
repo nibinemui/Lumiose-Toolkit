@@ -999,6 +999,7 @@ class App(tk.Tk):
         bf = ttk.Frame(R)
         bf.pack(fill='x', pady=4)
         ttk.Button(bf, text='Check conflicts', command=self.check_conflicts).pack(side='left')
+        ttk.Button(bf, text='Check new items', command=self.check_new_items).pack(side='left', padx=(4, 0))
         ttk.Button(bf, text='Build package(s)', command=self.build_packages).pack(side='left', padx=4)
         rf = ttk.Frame(R)
         rf.pack(fill='x', pady=(2, 4))
@@ -2251,6 +2252,25 @@ class App(tk.Tk):
         stem = '_'.join(folder.split('_')[:3])                  # p2_upb0000_00
         best = next((c for c in cands if c.lower().startswith(stem.lower() + '.')), cands[0] if cands else None)
         return os.path.join(d, best) if best else None
+
+    def check_new_items(self):
+        """Mods tab: check the selected mod's (or current mod's) new clothing items before sharing it."""
+        m = self.selected_mod() or self.current_mod(ask=False)
+        if not m:
+            self.log_build('Select a mod first.')
+            return
+        root = self.root_var.get()
+
+        def job():
+            import za_newitem
+            return za_newitem.check_mod(root, m)
+
+        def done(r):
+            lines, problems = r
+            self.log_build('Checking the new clothing items of "%s":' % m.name)
+            for line in lines:
+                self.log_build(line)
+        self.run_bg('Checking new items', job, done)
 
     def new_clothing_item(self, src_type, price=None):
         """Game data > Clothing items > New item from this…: a new buyable item copied from this one."""
