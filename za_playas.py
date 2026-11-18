@@ -22,7 +22,7 @@ BASE_MDL = BASE_DIR + '/p0_base.trmdl'
 PARTS_DIR = 'ik_chara/model_pc'
 CHAR_DIRS = ('ik_chara/model_uq', 'ik_chara/model_cc_ir')
 # names from the game's trainer names where the model is certain; the rest say what the model is
-NICE = {'hotel_manager': 'Hotel manager', 'president': 'President', 'secretary': 'Vinnie (secretary)',
+NICE = {'hotel_manager': 'Hotel owner', 'president': 'President', 'secretary': 'Vinnie (secretary)',
         'friend_f': 'Lida', 'friend_m': 'Naveen', 'rival_f': 'Taunie', 'rival_m': 'Urbain',
         'detective': 'Emma', 'researcher': 'Researcher', 'co_member_m': 'Member of group CO (male)',
         'co_member_f': 'Member of group CO (female)', 'f': 'Woman', 'co': 'Member of group CO',
@@ -38,26 +38,68 @@ def _bones(path):
     return {n.get('Name') for n in d.get('TransformNodes') or [] if n.get('Name')}
 
 
-MAX_JOINT_GAP = 0.085          # m: how far a character's joints may sit from the player's
-HEIGHT_RANGE = (0.93, 1.06)    # the character's height compared with the player's
+MAX_JOINT_GAP = 0.085          # m: how far a character's joints may sit from the player's (at the player's height)
+ACCESSORY_BONES = ('bag', 'bangle', 'left_attach', 'right_attach')     # attachment points, not the body
+
+
+def size_ratio(char_trskl, player_trskl):
+    """The character's height compared with the player's (1.0 = the same)."""
+    return head_height(char_trskl) / max(head_height(player_trskl), 1e-6)
 
 
 def built_like_player(char_trskl, player_trskl):
-    """True if the character's joints sit close to the player's and it is about as tall."""
+    """True if the character, brought to the player's height, has its joints close to the player's - then the
+    player's animations fit it. (Characters built differently get splayed fingers and floating accessories.)"""
     import numpy as np
     import za_trinity as zt
     ck, pk = zt.Skeleton(char_trskl), zt.Skeleton(player_trskl)
     cw, pw = ck.world_matrices(), pk.world_matrices()
-    gaps = [np.linalg.norm(cw[ck.index[b.name]][:3, 3] - pw[pk.index[b.name]][:3, 3])
-            for b in pk.bones if b.name in ck.index and b.joint >= 0]
-    h = head_height(char_trskl) / max(head_height(player_trskl), 1e-6)
-    return bool(gaps) and max(gaps) <= MAX_JOINT_GAP and HEIGHT_RANGE[0] <= h <= HEIGHT_RANGE[1]
+    r = size_ratio(char_trskl, player_trskl)
+    if not 0.5 <= r <= 2.5:
+        return False
+    gaps = [np.linalg.norm(cw[ck.index[b.name]][:3, 3] / r - pw[pk.index[b.name]][:3, 3])
+            for b in pk.bones if b.name in ck.index and b.joint >= 0 and b.name not in ACCESSORY_BONES]
+    return bool(gaps) and max(gaps) <= MAX_JOINT_GAP
+
+
+def trainer_names(root):
+    """{model folder: the character's name in the game's text}: model -> NPC template -> NPC -> trainer name."""
+    import collections
+    import za_formats as zf
+    try:
+        def rows(rel):
+            path = os.path.join(root, *rel.split('/'))
+            d = json.loads(zm.to_json(path, zm.schema_for(path)))
+            return d[next(k for k in d if isinstance(d[k], list))]
+        tpl = rows('world/ik_data/field/npc/npc_object_template_data/npc_object_template_data/'
+                   'npc_object_template_data.bin')
+        assets = rows('world/ik_data/field/npc/npc_asset_data/npc_asset_data/npc_asset_data.bin')
+        t = os.path.join(root, 'ik_message', 'dat', 'English', 'common', 'trname')
+        with open(t + '.tbl', 'rb') as f:
+            labels = zf.parse_tbl(f.read())
+        with open(t + '.dat', 'rb') as f:
+            texts = zf.decode_msg(f.read())
+    except Exception:  # noqa: BLE001
+        return {}
+    text = dict(zip(labels, texts))
+    by_tpl = collections.defaultdict(set)
+    for a in assets:
+        for n in a.get('npcInfoList') or []:
+            if n.get('name') in text and not text[n['name']].startswith(('[', '?')):
+                by_tpl[n.get('objectTemplateId')].add(text[n['name']])
+    out = {}
+    for r in tpl:
+        m = re.search(r'/(tr\d{4}_\d\d_[^/]+?)_?/', r.get('path', ''))
+        if m and by_tpl.get(r.get('id')):
+            out.setdefault(m.group(1).rstrip('_'), set()).update(by_tpl[r['id']])
+    return {k: ' / '.join(sorted(v)) for k, v in out.items()}
 
 
 def characters(root):
     """[(label, game folder)] of every human character model that can stand in for the player."""
     out = []
     player = _bones(os.path.join(root, *BASE_DIR.split('/'), 'p0_base.trskl'))
+    known = trainer_names(root)
     for d in CHAR_DIRS:
         base = os.path.join(root, *d.split('/'))
         if not os.path.isdir(base):
@@ -80,7 +122,7 @@ def characters(root):
             if not built_like_player(sk, os.path.join(root, *BASE_DIR.split('/'), 'p0_base.trskl')):
                 continue
             what = m.group(3) or ''
-            label = NICE.get(what)
+            label = known.get(f) or NICE.get(what)
             if label is None:
                 b = re.match(r'^([a-z]+)_(boss|leader)(?:_([mf]))?$', what)
                 label = ('%s of group %s%s' % (b.group(2).capitalize(), b.group(1).upper(),
@@ -88,6 +130,9 @@ def characters(root):
                          if b else what.replace('_', ' ').capitalize() if what else 'Character')
             if m.group(2) != '00':
                 label += ' (variant %d)' % int(m.group(2))
+            r = size_ratio(sk, os.path.join(root, *BASE_DIR.split('/'), 'p0_base.trskl'))
+            if abs(r - 1) > 0.02:
+                label += '  (resized)'
             out.append(('%s  -  tr%s' % (label, m.group(1)), '%s/%s' % (d, f)))
     return out
 
@@ -602,12 +647,11 @@ def make(root, mod, char_rel, hide_parts=True, log=None, reorder=False, bind_pla
         # a character taller or shorter than the player: its mesh is brought to the player's height so its joints
         # meet the player's, and the player's skeleton is scaled back up (or down) from its root bone, which no
         # animation moves - so it stands at its own height
-        ratio = 1.0
-        if own_height:
-            ph = head_height(os.path.join(root, *BASE_DIR.split('/'), 'p0_base.trskl'))
-            ch = head_height(os.path.join(src, skl_name))
-            if ph > 0 and ch > 0 and abs(ch / ph - 1) > 0.02:
-                ratio = ch / ph
+        ratio = 1.0                          # the character brought to the player's height (its mesh scaled)
+        ph = head_height(os.path.join(root, *BASE_DIR.split('/'), 'p0_base.trskl'))
+        ch = head_height(os.path.join(src, skl_name))
+        if ph > 0 and ch > 0 and abs(ch / ph - 1) > 0.02:
+            ratio = ch / ph
         for m_ in mdl.get('Meshes') or []:
             mp = os.path.join(src, m_['PathName'])
             with open(mp, 'rb') as f:
