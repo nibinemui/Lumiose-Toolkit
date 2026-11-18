@@ -17,6 +17,9 @@
 - **Play as a character** (Mods tab → **Play as a character…**): your player becomes one of the game's characters - Taunie, Urbain, Emma, Naveen, Lida, Vinnie, the bosses and others (26 in all, "Show in 3D" to see each). The character's body is bound to the player's own skeleton automatically (each of its bones to the player's bone of the same name, face and hair bones to the head), so the player's animations move it like the player. The player's own face, hair and clothes are hidden whatever the save wears, so only the character is drawn. "Remove from mod" puts the player back.
 - The Pokédex contents table and the wild behaviour catalog can now be read, edited and searched like other tables.
 
+### Improved
+- Mods tab: **Shift / Ctrl + click** selects several mods, and **Delete…** (or the Delete key, on the selected mods or the mod under the mouse) deletes them all after one confirmation.
+
 ### Fixed
 - **Tabs no longer save an old copy of a table into another mod.** The Game data, Pokémon data and Map tabs remember which file they read. Saving asks first when the tab's copy came from a different mod, or when the mod's file changed since (for example after Port a Pokémon). Tabs without unsaved changes read the table again when you switch the current mod.
 - **Closing the program** asks when something is still being saved, or when a tab has unsaved changes.

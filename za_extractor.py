@@ -957,7 +957,10 @@ class App(tk.Tk):
         ttk.Button(hf, text='Refresh', command=self.refresh_mods_clicked).pack(side='right')
         lf = ttk.Frame(L)
         lf.pack(fill='both', expand=True)
-        self.mods_list = tk.Listbox(lf, exportselection=False, activestyle='none', borderwidth=0, highlightthickness=0)
+        self.mods_list = tk.Listbox(lf, exportselection=False, activestyle='none', borderwidth=0, highlightthickness=0,
+                                    selectmode='extended')       # Shift / Ctrl + click: several mods
+        # Delete key: deletes the selected mod(s), or the one under the mouse when it hovers over the list
+        self.bind_all('<Delete>', self.delete_key, add='+')
         msb = ttk.Scrollbar(lf, orient='vertical', command=self.mods_list.yview)
         self.mods_list.configure(yscrollcommand=msb.set)
         msb.pack(side='right', fill='y')
@@ -1095,14 +1098,15 @@ class App(tk.Tk):
             self._tabs_mod = self.mod_var.get()
             self.after_idle(self.reload_clean_tabs)
         sel = self.mods_list.curselection()
-        cur = self.mods_list.get(sel[0]) if sel else self.mod_var.get()
+        keep = [self.mods_list.get(i) for i in sel] or [self.mod_var.get()]
         self.mods_list.delete(0, 'end')
         for n in names:
             self.mods_list.insert('end', n)
-        if cur in names:
+        for k, cur in enumerate(c for c in keep if c in names):
             i = names.index(cur)
             self.mods_list.selection_set(i)
-            self.mods_list.see(i)
+            if not k:
+                self.mods_list.see(i)
         self.show_mod()
         self.refresh_order()
 
@@ -1186,26 +1190,66 @@ class App(tk.Tk):
             self.mod_var.set(m.name)
             self.status_var.set('Current mod: ' + m.name)
 
+    def selected_mods(self):
+        names = [self.mods_list.get(i) for i in self.mods_list.curselection()]
+        mods = zm.list_mods()
+        return [m for n in names for m in mods if m.name == n][:len(names)]
+
+    def delete_key(self, event):
+        """Delete key on the Mods tab: the selected mod(s), or the mod under the mouse in My mods."""
+        try:
+            if self.nb.select() != str(self.mods_tab):
+                return None
+            focus = self.focus_get()
+        except (tk.TclError, KeyError, AttributeError):
+            return None
+        if focus is not None and focus.winfo_class() in ('Entry', 'TEntry', 'Text', 'Spinbox', 'TSpinbox',
+                                                          'TCombobox'):
+            return None                             # deleting text in a field
+        x, y = self.winfo_pointerxy()
+        over = self.winfo_containing(x, y) is self.mods_list
+        if focus is not self.mods_list and not over:
+            return None
+        if over:
+            i = self.mods_list.nearest(y - self.mods_list.winfo_rooty())
+            if i >= 0 and i not in self.mods_list.curselection():
+                self.mods_list.selection_clear(0, 'end')        # the hovered mod, not an old selection
+                self.mods_list.selection_set(i)
+                self.show_mod()
+        self.delete_mod()
+        return 'break'
+
     def delete_mod(self):
-        m = self.selected_mod()
-        if not m:
+        mods = self.selected_mods()
+        if not mods:
             return
-        n = len(m.files())
-        if not messagebox.askyesno('Delete mod', 'Permanently delete the mod "%s" and its %d file(s)?\n\n%s\n\n'
-                                   'This cannot be undone.' % (m.name, n, m.folder), icon='warning'):
+        if len(mods) == 1:
+            m = mods[0]
+            q = 'Permanently delete the mod "%s" and its %d file(s)?\n\n%s\n\nThis cannot be undone.' % (
+                m.name, len(m.files()), m.folder)
+        else:
+            lines = ['  %s  (%d files)' % (m.name, len(m.files())) for m in mods[:15]]
+            if len(mods) > 15:
+                lines.append('  … and %d more' % (len(mods) - 15))
+            q = 'Permanently delete these %d mods?\n\n%s\n\nThis cannot be undone.' % (len(mods), '\n'.join(lines))
+        if not messagebox.askyesno('Delete mod' if len(mods) == 1 else 'Delete mods', q, icon='warning'):
             return
-        for png, e in list(self.live.items()):          # live edits into it would bring the folder back
-            if os.path.normcase(e['mod'].folder) == os.path.normcase(m.folder):
-                del self.live[png]
-        was_current = self.mod_var.get() in (m.name, os.path.basename(m.folder))
-        shutil.rmtree(m.folder, ignore_errors=True)
-        self.order = [e for e in self.order if not (e[0] == 'mod' and e[1] == m.folder)]
-        if was_current:
-            self.mod_var.set('')                         # don't quietly make another mod the current one
+        left = []
+        for m in mods:
+            for png, e in list(self.live.items()):      # live edits into it would bring the folder back
+                if os.path.normcase(e['mod'].folder) == os.path.normcase(m.folder):
+                    del self.live[png]
+            if self.mod_var.get() in (m.name, os.path.basename(m.folder)):
+                self.mod_var.set('')                     # don't quietly make another mod the current one
+            shutil.rmtree(m.folder, ignore_errors=True)
+            self.order = [e for e in self.order if not (e[0] == 'mod' and e[1] == m.folder)]
+            if os.path.exists(m.folder):
+                left.append(m)
         self.refresh_mods()
-        if os.path.exists(m.folder):
-            messagebox.showwarning('Delete mod', 'Some files of "%s" could not be deleted (open in another program?). '
-                                   'What is left is in:\n\n%s' % (m.name, m.folder))
+        self.status_var.set('Deleted %d mod(s).' % (len(mods) - len(left)))
+        if left:
+            messagebox.showwarning('Delete mod', 'Some files could not be deleted (open in another program?). '
+                                   'What is left is in:\n\n%s' % '\n'.join(m.folder for m in left))
 
     def save_mod_details(self):
         m = self.selected_mod()
