@@ -138,7 +138,25 @@ def characters(root):
             if abs(r - 1) > 0.02:
                 label += '  (resized)'
             out.append(('%s  -  tr%s' % (label, m.group(1)), '%s/%s' % (d, f)))
-    return out
+    # trainers and townsfolk the game builds from parts (body types that fit the player)
+    npcs = []
+    for f, body in npc_list(root):
+        if body in NPC_BODIES_THAT_FIT:
+            try:
+                npcs.append((npc_label(root, f), os.path.relpath(f, root).replace(os.sep, '/')))
+            except Exception:  # noqa: BLE001
+                continue
+    return out + sorted(npcs)
+
+
+def npc_folder(root, char_rel, tmp):
+    """For an NPC (a .ccdata): its model assembled in a temporary folder (laid out like the game's romfs, so
+    shared game textures are found); for a named character: its game folder."""
+    if not char_rel.endswith('.ccdata'):
+        return char_rel
+    name = os.path.splitext(os.path.basename(char_rel))[0]
+    out = os.path.join(tmp, 'romfs', 'ik_chara', 'model_pc_base', 'model', name)
+    return assemble_npc(root, os.path.join(root, *char_rel.split('/')), out)
 
 
 def player_order_skeleton(player, char):
@@ -705,7 +723,17 @@ def make(root, mod, char_rel, hide_parts=True, log=None, reorder=False, bind_pla
          fit=True, nearest_weights=False):
     """Make `mod` turn the player into the character in game folder `char_rel` (from characters())."""
     say = log or (lambda s: None)
-    src = os.path.join(root, *char_rel.split('/'))
+    if char_rel.endswith('.ccdata'):                     # a part-built NPC: assembled first, then like the others
+        import shutil
+        import tempfile
+        tmp = tempfile.mkdtemp(prefix='playas_')
+        try:
+            return make(root, mod, npc_folder(root, char_rel, tmp), hide_parts, log, reorder, bind_player,
+                        own_height, fit, nearest_weights)
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+    # a game folder, or a folder assemble_npc() made (a part-built NPC)
+    src = os.path.normpath(char_rel) if os.path.isabs(char_rel) else os.path.join(root, *char_rel.split('/'))
     stem = re.match(r'^(tr\d{4}_\d\d)', os.path.basename(char_rel))
     if not stem or not os.path.isfile(os.path.join(src, stem.group(1) + '.trmdl')):
         raise PlayAsError('Not a character model folder: ' + char_rel)
@@ -855,6 +883,195 @@ def make(root, mod, char_rel, hide_parts=True, log=None, reorder=False, bind_pla
     return {'character': char_rel, 'files': n, 'hidden': hidden}
 
 
+NPC_CLASSES = {
+    'ol': 'Office Worker', 'businessman': 'Office Worker', 'occult': 'Hex Maniac', 'collector': 'Collector',
+    'driver': 'Driver', 'jogger': 'Jogger', 'waitress': 'Waitress', 'waiter': 'Waiter', 'backpacker': 'Backpacker',
+    'elite': 'Ace Trainer', 'artist': 'Artist', 'tourist': 'Sightseer', 'police': 'Police Officer',
+    'delivery': 'Courier', 'veteran': 'Veteran', 'hope': 'Rising Star', 'nu': 'Team Flare Nouveau',
+    'nu_member': 'Team Flare Nouveau', 'jua': 'Fist of Justice', 'battlegirl': 'Battle Girl',
+    'schoolkids': 'Student', 'girl': 'Girl', 'boy': 'Boy', 'pclady': 'Pokémon Center Lady', 'operator': 'Operator',
+    'adult_a': 'Townsperson', 'adult_b': 'Townsperson', 'middle_a': 'Townsperson', 'old_a': 'Older townsperson',
+    'child_a': 'Child', 'hunk': 'Townsperson (strong)', 'tall': 'Townsperson (tall)', 'fat': 'Townsperson (large)',
+    'sleeves': 'Townsperson'}
+NPC_DIR = 'ik_chara/sav_cc_vr'
+NPC_BODIES_THAT_FIT = ('bu', 'dm', 'fm', 'gm', 'rv')   # 'em' doesn't fit the player even resized
+
+
+def npc_list(root):
+    """[(ccdata path, body type)] of the trainers and townsfolk the game builds from parts."""
+    import glob
+    out = []
+    for f in sorted(glob.glob(os.path.join(root, *NPC_DIR.split('/'), '*', '*.ccdata'))):
+        try:
+            d = json.loads(zm.to_json(f, zm.schema_for(f)))
+            body = d['parts'][0]['model'].replace('\\', '/').split('/')[-2]
+        except Exception:  # noqa: BLE001
+            continue
+        out.append((f, body))
+    return out
+
+
+def npc_label(root, ccdata):
+    """'Hex Maniac (female)  -  tr0036 outfit 2' for a part-built NPC."""
+    d = json.loads(zm.to_json(ccdata, zm.schema_for(ccdata)))
+    drs = next((p['model'] for p in d['parts'] if p['name'] == 'drs'), '')
+    code = drs.replace('\\', '/').split('/')[-2].split('_', 3)[-1] if drs else ''
+    gender = {'m': 'male', 'f': 'female'}.get(code.rsplit('_', 1)[-1]) if '_' in code else None
+    key = code.rsplit('_', 1)[0] if gender else code
+    cls = NPC_CLASSES.get(key) or key.replace('_', ' ').capitalize() or 'Townsperson'
+    name = os.path.splitext(os.path.basename(ccdata))[0]                 # tr0036_00_fa02
+    m = re.match(r'^tr(\d{4})_\d\d_[a-z]+(\d\d)$', name)
+    where = 'tr%s outfit %d' % (m.group(1), int(m.group(2)) + 1) if m else name
+    return '%s%s  -  %s' % (cls, ' (%s)' % gender if gender else '', where)
+
+
+def assemble_npc(root, ccdata, out_dir):
+    """One model of a part-built NPC (base body + face, outfit, hair) in out_dir, laid out like the named
+    characters' folders: <stem>.trmdl / .trmsh (+_lod1, _lod2) / .trmbf / .trmtr / .trskl and its textures.
+    Bones are numbered as the game numbers them for the NPC: the body's joints, then each part's own joints
+    from its palette offset. Returns the folder."""
+    import copy
+    import shutil
+    import za_trinity as zt
+    d = json.loads(zm.to_json(ccdata, zm.schema_for(ccdata)))
+    here = os.path.dirname(ccdata)
+    name = os.path.splitext(os.path.basename(ccdata))[0]                 # e.g. tr0043_00_fa02
+    stem = name[:9]
+    os.makedirs(out_dir, exist_ok=True)
+    target_dir = os.path.join(root, *BASE_DIR.split('/'))              # where the game will read the files
+    base_mdl = os.path.normpath(os.path.join(here, d['parts'][0]['model']))
+    base_dir = os.path.dirname(base_mdl)
+    bm = json.loads(zm.to_json(base_mdl, zm.schema_for(base_mdl)))
+    skl_path = os.path.join(base_dir, (bm.get('Skeleton') or {}).get('PathName') or
+                            os.path.basename(base_mdl).replace('.trmdl', '.trskl'))
+    skl_sch = zm.schema_for(skl_path)
+    skel = json.loads(zm.to_json(skl_path, skl_sch))
+    nodes, joints = skel['TransformNodes'], skel.setdefault('JointInfos', [])
+    by_name = {n['Name']: i for i, n in enumerate(nodes)}
+    lods = [dict(Meshes=[]) for _ in range(3)]
+    buffers = [[] for _ in range(3)]
+    materials, bounds, mesh_names = [], [], set()
+    lod_info = None
+    # the NPC's look: its first variant picks each part's pattern set and a colour for each colour group
+    variant = (d.get('variants') or [{}])[0]
+    look = {vp.get('part'): vp for vp in variant.get('parts') or []}
+    for part in d['parts'][1:]:
+        mdl = os.path.normpath(os.path.join(here, part['model']))
+        folder = os.path.dirname(mdl)
+        pm = json.loads(zm.to_json(mdl, zm.schema_for(mdl)))
+        lod_info = lod_info or pm.get('LODs')
+        tag = part['name']
+        # skeleton: the part's own bones, after the body's, at the part's palette offset
+        psk_path = os.path.join(folder, (pm.get('Skeleton') or {}).get('PathName', ''))
+        if os.path.isfile(psk_path):
+            off = zt.Skeleton(psk_path).palette_offset
+            psk = json.loads(zm.to_json(psk_path, skl_sch))
+            pn = psk['TransformNodes']
+            for n in pn:
+                if n['Name'] in by_name:
+                    continue
+                parent = n.get('ParentNodeName') or (pn[n['ParentNodeIndex']]['Name']
+                                                     if n.get('ParentNodeIndex') is not None else '')
+                nn = copy.deepcopy(n)
+                nn['ParentNodeIndex'] = by_name.get(parent, by_name.get('head', 0))
+                nn['ParentNodeName'] = ''
+                j = n.get('JointInfoIndex')
+                if j is not None and j < len(psk.get('JointInfos') or []):
+                    g = off + j
+                    while len(joints) <= g:
+                        joints.append({'InfluenceSkinning': False, 'InverseBindPoseMatrix': {
+                            'AxisX': {'X': 1.0, 'Y': 0.0, 'Z': 0.0}, 'AxisY': {'X': 0.0, 'Y': 1.0, 'Z': 0.0},
+                            'AxisZ': {'X': 0.0, 'Y': 0.0, 'Z': 1.0}, 'AxisW': {'X': 0.0, 'Y': 0.0, 'Z': 0.0}}})
+                    joints[g] = copy.deepcopy(psk['JointInfos'][j])
+                    nn['JointInfoIndex'] = g
+                else:
+                    nn.pop('JointInfoIndex', None)
+                by_name[n['Name']] = len(nodes)
+                nodes.append(nn)
+        # materials: names made unique per part, texture paths made to work from the player's base folder
+        pmt_path = os.path.join(folder, (pm.get('Materials') or [''])[0])
+        vp = look.get(tag) or {}
+        sets, chosen = [], None
+        if part.get('material_set'):
+            mmt = os.path.normpath(os.path.join(here, part['material_set']))
+            if os.path.isfile(mmt):
+                try:
+                    sets = zt.read_trmmt(mmt)
+                except Exception:  # noqa: BLE001
+                    sets = []
+        want = vp.get('set') or part.get('texture_set') or ''
+        chosen = next((st for st in sets if st['name'] == want), None)
+        if chosen and chosen['trmtr'] and os.path.isfile(zt.resolve(chosen['trmtr'][0])):
+            pmt_path = zt.resolve(chosen['trmtr'][0])            # the pattern set's own materials
+        pmt = json.loads(zm.to_json(pmt_path, zm.schema_for(pmt_path)))
+        if chosen:                                                # the variant's colours: palette cells
+            for layer in vp.get('layers') or []:
+                group = chosen['groups'].get(layer.get('color') or '') or {}
+                k = int(layer.get('index', 0) or 0)
+                for mname, params in group.items():
+                    m = next((x for x in pmt.get('Materials') or [] if x.get('Name') == mname), None)
+                    if m is None:
+                        continue
+                    ints = m.setdefault('IntParams', [])
+                    for pname, values in params.items():
+                        if 0 <= k < len(values):
+                            e = next((x for x in ints if x.get('Name') == pname), None)
+                            if e is None:
+                                ints.append({'Name': pname, 'Value': values[k]})
+                            else:
+                                e['Value'] = values[k]
+        for m in pmt.get('Materials') or []:
+            m['Name'] = '%s_%s' % (tag, m['Name'])
+            for tx in m.get('Textures') or []:
+                f = tx.get('File') or ''
+                if not f:
+                    continue
+                full = os.path.normpath(os.path.join(folder, f))
+                if os.path.dirname(full) == os.path.normpath(folder):
+                    if os.path.isfile(full):
+                        shutil.copyfile(full, os.path.join(out_dir, os.path.basename(full)))
+                    tx['File'] = os.path.basename(full)
+                else:
+                    tx['File'] = os.path.relpath(full, target_dir).replace(os.sep, '/')
+            materials.append(m)
+        if pm.get('Bounds'):
+            bounds.append(pm['Bounds'])
+        # meshes: each LOD of every part into one mesh file per LOD
+        for k in range(3):
+            ref = (pm.get('Meshes') or [])[min(k, len(pm.get('Meshes') or []) - 1)]['PathName']
+            msh_path = os.path.join(folder, ref)
+            msh = json.loads(zm.to_json(msh_path, zm.schema_for(msh_path)))
+            buf_path = os.path.join(folder, msh.get('bufferFilePath') or ref.replace('.trmsh', '.trmbf'))
+            mbf = json.loads(zm.to_json(buf_path, zm.schema_for(buf_path)))
+            for mesh in msh.get('Meshes') or []:
+                if mesh.get('Name') in mesh_names:
+                    mesh['Name'] = '%s_%s' % (tag, mesh['Name'])
+                mesh_names.add(mesh.get('Name'))
+                for mp_ in mesh.get('meshParts') or []:
+                    mp_['MaterialName'] = '%s_%s' % (tag, mp_.get('MaterialName', ''))
+                lods[k]['Meshes'].append(mesh)
+            buffers[k] += mbf.get('TRMeshBuffers') or []
+    lod_names = [stem + ('.trmsh' if k == 0 else '_lod%d.trmsh' % k) for k in range(3)]
+    for k in range(3):
+        bname = lod_names[k].replace('.trmsh', '.trmbf')
+        lods[k]['bufferFilePath'] = bname
+        zm.from_json(json.dumps(lods[k]), zm.schema_for(os.path.join(target_dir, 'x.trmsh')),
+                     os.path.join(out_dir, lod_names[k]))
+        zm.from_json(json.dumps({'TRMeshBuffers': buffers[k]}), zm.schema_for(os.path.join(target_dir, 'x.trmbf')),
+                     os.path.join(out_dir, bname))
+    zm.from_json(json.dumps({'Materials': materials}), zm.schema_for(os.path.join(target_dir, 'x.trmtr')),
+                 os.path.join(out_dir, stem + '.trmtr'))
+    zm.from_json(json.dumps(skel), skl_sch, os.path.join(out_dir, stem + '.trskl'))
+    lo = {a: min(b['MinBound'].get(a, 0.0) for b in bounds) for a in 'XYZ'} if bounds else {}
+    hi = {a: max(b['MaxBound'].get(a, 0.0) for b in bounds) for a in 'XYZ'} if bounds else {}
+    mdl = {'Meshes': [{'PathName': n} for n in lod_names], 'Skeleton': {'PathName': stem + '.trskl'},
+           'Materials': [stem + '.trmtr'], 'LODs': lod_info or [{'Entries': [{}, {'Index': 1}, {'Index': 2}],
+                                                                  'Type': 'Custom'}],
+           'Bounds': {'MinBound': lo, 'MaxBound': hi}}
+    zm.from_json(json.dumps(mdl), zm.schema_for(base_mdl), os.path.join(out_dir, stem + '.trmdl'))
+    return out_dir
+
+
 def open_window(app):
     """Mods tab > Play as a character...: pick a character, see it in 3D, put it into the current mod."""
     import threading
@@ -900,6 +1117,22 @@ def open_window(app):
     def show():
         c = cur()
         if not c:
+            return
+        if c[1].endswith('.ccdata'):                     # an NPC: put its parts together first
+            import tempfile
+            tmp = tempfile.mkdtemp(prefix='playas_view_')
+            status.set('Putting %s together…' % c[0].split('  -  ')[0])
+
+            def work():
+                try:
+                    folder = npc_folder(root, c[1], tmp)
+                    stem = os.path.basename(folder)[:9]
+                    path = os.path.join(folder, stem + '.trmdl')
+                    app.q.put(lambda: (status.set(''), app.open_viewer(path, with_mod=False, extra=['--root', root])))
+                except Exception as e:  # noqa: BLE001
+                    msg = str(e)
+                    app.q.put(lambda: status.set('Could not show it: ' + msg))
+            threading.Thread(target=work, daemon=True).start()
             return
         stem = re.match(r'^(tr\d{4}_\d\d)', os.path.basename(c[1])).group(1)
         app.open_viewer(os.path.join(root, *c[1].split('/'), stem + '.trmdl'), with_mod=False)
