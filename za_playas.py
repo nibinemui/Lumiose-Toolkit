@@ -38,6 +38,9 @@ def _bones(path):
     return {n.get('Name') for n in d.get('TransformNodes') or [] if n.get('Name')}
 
 
+# names the game's text doesn't give (or only as a code)
+NAMES = {'tr0003_00_hotel_manager': 'AZ', 'tr0004_00_f': 'L / Lysandre', 'tr0005_00_president': 'Jett',
+         'tr0023_00_researcher': 'Mable'}
 MAX_JOINT_GAP = 0.085          # m: how far a character's joints may sit from the player's (at the player's height)
 ACCESSORY_BONES = ('bag', 'bangle', 'left_attach', 'right_attach')     # attachment points, not the body
 
@@ -122,7 +125,7 @@ def characters(root):
             if not built_like_player(sk, os.path.join(root, *BASE_DIR.split('/'), 'p0_base.trskl')):
                 continue
             what = m.group(3) or ''
-            label = known.get(f) or NICE.get(what)
+            label = NAMES.get(f) or known.get(f) or NICE.get(what)
             if label is None:
                 b = re.match(r'^([a-z]+)_(boss|leader)(?:_([mf]))?$', what)
                 label = ('%s of group %s%s' % (b.group(2).capitalize(), b.group(1).upper(),
