@@ -125,6 +125,23 @@ def _pos(p):
     return q.get('X', 0.0), q.get('Y', 0.0), q.get('Z', 0.0)
 
 
+def ground_height(mt, x, z, fallback):
+    """The height to put a new point at: the middle height of the points closest to (x, z) of any kind (within
+    20 m) - the nearest point of the same kind may be on a roof or a ledge."""
+    near = []
+    for L in mt.layers:
+        for _, _, p in L.points():
+            px, py, pz = _pos(p)
+            d = (px - x) ** 2 + (pz - z) ** 2
+            if d <= 400:
+                near.append((d, py))
+    if not near:
+        return fallback
+    near.sort()
+    ys = sorted(y for _, y in near[:7])
+    return ys[len(ys) // 2]
+
+
 def taken_names(mt):
     taken = {p.get('Name') for L in mt.layers for _, _, p in L.points()}
     for t in mt.tables.values():
@@ -171,10 +188,11 @@ def create(mt, kind, x, z, spec):
     off = mt._pos_offset(chunks[ci]['Data'], px, py, pz) if ci is not None else None
     if off is None:
         raise ValueError("Could not find where %s's position is stored in its scene file." % old)
+    y = ground_height(mt, x, z, py)
     # 1. position
     q = copy.deepcopy(p)
     q['Name'] = new
-    q['Position'] = {'X': float(x), 'Y': float(py), 'Z': float(z)}
+    q['Position'] = {'X': float(x), 'Y': float(y), 'Z': float(z)}
     L.data['values'][gi]['root'].insert(si + 1, q)
     mt.mark_dirty(L)
     # 2. spawner (+ 3. what it spawns)
@@ -217,7 +235,7 @@ def create(mt, kind, x, z, spec):
     nc = copy.deepcopy(chunks[ci])
     rename(nc)
     b = bytearray(nc['Data'])
-    struct.pack_into('<3f', b, off, x, py, z)
+    struct.pack_into('<3f', b, off, x, y, z)
     nc['Data'] = list(b)
     chunks.insert(ci + 1, nc)
     mt.__dict__.setdefault('scene_dirty', set()).add(rel)
@@ -359,8 +377,8 @@ def open_menu(mt, x, z):
                                                                                                    pady=(0, 6))
         ttk.Label(body, text='Create a spawn point at X %.1f, Z %.1f' % (x, z), style='Head.TLabel').pack(anchor='w')
         ttk.Label(body, style='Dim.TLabel', wraplength=480, justify='left', text=(
-            'What should be here? It copies the nearest point of that kind (its area, scene and height), so '
-            'check the height (Y) afterwards.')).pack(anchor='w', pady=(2, 10))
+            'What should be here? It copies the nearest point of that kind (its area and scene file) and takes the '
+            'height of the points around it - check the height (Y) afterwards.')).pack(anchor='w', pady=(2, 10))
         for kind, (label, _, key, _, desc) in KINDS.items():
             row = ttk.Frame(body)
             row.pack(fill='x', pady=3)
