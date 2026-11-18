@@ -232,8 +232,9 @@ def make(root, mod, char_rel, hide_parts=True, log=None):
         with open(os.path.join(src, bname), 'rb') as f:
             data = f.read()
         mod.add_bytes('%s/%s' % (BASE_DIR, bname), renumber_joints(mp, data, jmap))
-    for name in (skl_name, 'p0_base.trskl'):
-        zm.from_json(json.dumps(skel), skl_sch, mod.path_for('%s/%s' % (BASE_DIR, name)))
+    # only the character's own skeleton file: the player's p0_base.trskl stays as it is (the game's player
+    # systems are made for its bones - replacing it crashes the game)
+    zm.from_json(json.dumps(skel), skl_sch, mod.path_for('%s/%s' % (BASE_DIR, skl_name)))
     for m_ in mdl.get('Meshes') or []:
         mp = os.path.join(src, m_['PathName'])
         msch = zm.schema_for(mp)
