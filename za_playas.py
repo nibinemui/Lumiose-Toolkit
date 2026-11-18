@@ -132,7 +132,7 @@ def characters(root):
                 label = ('%s of group %s%s' % (b.group(2).capitalize(), b.group(1).upper(),
                                                 {'m': ' (male)', 'f': ' (female)'}.get(b.group(3), ''))
                          if b else what.replace('_', ' ').capitalize() if what else 'Character')
-            if m.group(2) != '00':
+            if m.group(2) != '00' and f not in NAMES:
                 label += ' (variant %d)' % int(m.group(2))
             r = size_ratio(sk, os.path.join(root, *BASE_DIR.split('/'), 'p0_base.trskl'))
             if abs(r - 1) > 0.02:
