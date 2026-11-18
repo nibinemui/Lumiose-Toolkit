@@ -429,8 +429,13 @@ def make(root, mod, char_rel, hide_parts=True, log=None, reorder=False, bind_pla
             msch = zm.schema_for(mp)
             md = json.loads(zm.to_json(mp, msch))
             for mesh in md.get('Meshes') or []:
+                # the list of joints a mesh uses: each joint once, like the game's own meshes (several of the
+                # character's bones can become the same player bone - their weights are added up)
+                merged = {}
                 for bw in mesh.get('boneWeight') or []:
-                    bw['RigIndex'] = jmap.get(bw.get('RigIndex', 0), 0)
+                    j = jmap.get(bw.get('RigIndex', 0), 0)
+                    merged[j] = merged.get(j, 0.0) + float(bw.get('RigWeight', 0.0))
+                mesh['boneWeight'] = [{'RigIndex': j, 'RigWeight': w} for j, w in merged.items()]
             zm.from_json(json.dumps(md), msch, mod.path_for('%s/%s' % (BASE_DIR, m_['PathName'])))
         mdl2 = dict(mdl, Skeleton={'PathName': 'p0_base.trskl'})
         zm.from_json(json.dumps(mdl2), sch, mod.path_for(BASE_MDL))

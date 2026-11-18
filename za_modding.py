@@ -1168,10 +1168,23 @@ def install_recomp(mods, recomp_dir, name, log=print, game_root=None):
     except BaseException:
         shutil.rmtree(tmp, ignore_errors=True)
         raise
+    old = None
     if os.path.isdir(dest):
-        shutil.rmtree(dest)
+        # moved aside first, not deleted in place: Windows refuses to move a folder while the game has its
+        # files open, so a running game leaves the old install whole instead of half-deleted
+        old = os.path.join(stage, safe + '.old')
+        if os.path.isdir(old):
+            shutil.rmtree(old, ignore_errors=True)
+        try:
+            os.replace(dest, old)
+        except OSError:
+            shutil.rmtree(tmp, ignore_errors=True)
+            raise ModError('mods\\%s is in use - close ZA Recomp / Lumiose Online (and its launcher) and install '
+                           'again.' % safe)
     os.makedirs(os.path.dirname(dest), exist_ok=True)
     os.replace(tmp, dest)
+    if old:
+        shutil.rmtree(old, ignore_errors=True)
     try:
         os.rmdir(stage)
     except OSError:
