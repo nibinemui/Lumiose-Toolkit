@@ -893,6 +893,16 @@ NPC_CLASSES = {
     'adult_a': 'Townsperson', 'adult_b': 'Townsperson', 'middle_a': 'Townsperson', 'old_a': 'Older townsperson',
     'child_a': 'Child', 'hunk': 'Townsperson (strong)', 'tall': 'Townsperson (tall)', 'fat': 'Townsperson (large)',
     'sleeves': 'Townsperson'}
+# full names for outfit codes (gender included)
+NPC_NAMES = {
+    'operator_m': 'Construction Worker (Male)', 'jua_f': 'Fists of Justice Trainee (Female)',
+    'girl_f': 'SBC Trainer (Female)', 'boy_m': 'SBC Trainer (Male)', 'nu_f': 'Team Flare Cafe Worker (Female)',
+    'pclady_f': 'Pokémon Center Lady', 'schoolkids_m': 'Schoolkid (Male)', 'schoolkids_f': 'Schoolkid (Female)',
+    'sleeves': 'Boutique Lady', 'battlegirl_f': 'Battle Girl', 'adult_a_m': 'Adult Male NPC',
+    'adult_b_m': 'Adult Male NPC', 'middle_a_m': 'Middle-aged Male NPC', 'old_a_m': 'Old Male NPC',
+    'adult_a_f': 'Adult Female NPC', 'adult_b_f': 'Adult Female NPC', 'middle_a_f': 'Middle-aged Female NPC',
+    'old_a_f': 'Old Female NPC', 'child_a_f': 'Child Female NPC', 'child_a_m': 'Child Male NPC',
+    'hunk_f': 'Hunk Female NPC', 'hunk_m': 'Hunk Male NPC', 'tall_m': 'Tall Male NPC', 'tall_f': 'Tall Female NPC'}
 NPC_DIR = 'ik_chara/sav_cc_vr'
 NPC_BODIES_THAT_FIT = ('bu', 'dm', 'fm', 'gm', 'rv')   # 'em' doesn't fit the player even resized
 
@@ -922,6 +932,8 @@ def npc_label(root, ccdata):
     name = os.path.splitext(os.path.basename(ccdata))[0]                 # tr0036_00_fa02
     m = re.match(r'^tr(\d{4})_\d\d_[a-z]+(\d\d)$', name)
     where = 'tr%s outfit %d' % (m.group(1), int(m.group(2)) + 1) if m else name
+    if code in NPC_NAMES:
+        return '%s  -  %s' % (NPC_NAMES[code], where)
     return '%s%s  -  %s' % (cls, ' (%s)' % gender if gender else '', where)
 
 
