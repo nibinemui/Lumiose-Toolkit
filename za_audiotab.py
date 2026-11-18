@@ -553,13 +553,11 @@ class AudioTab:
         def job():
             gain = opt['gain_db']
             if opt['match_loudness'] and ref is not None:     # as loud as the game's own battle music
-                import numpy as np
                 import za_audio
                 _, o = za_audio.read_wav(self.decoded(ref, root, original=True))
                 rate, s_ = sb.load_audio(p)
-                gain += sb.rms_db(o) - sb.rms_db(s_)
-                peak = int(np.abs(s_.astype(np.int32)).max()) or 1
-                gain = min(gain, 20 * np.log10(32767.0 / peak))
+                gain += sb.rms_db(o) - sb.rms_db(s_)            # (a limiter keeps the peaks from clipping)
+                gain = min(gain, 12.0)
             try:
                 m.snapshot()
             except Exception:  # noqa: BLE001

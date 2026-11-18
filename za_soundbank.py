@@ -591,6 +591,30 @@ def apply_gain(samples, db):
     return np.clip(np.rint(x), -32768, 32767).astype(np.int16)
 
 
+def apply_gain_limited(samples, rate, db, ceiling_db=-0.5):
+    """Louder by `db`, with a peak limiter so the loudest moments are turned down smoothly instead of clipping
+    (fast attack, ~150 ms release, looking a few ms ahead)."""
+    x = samples.astype(np.float64) * (10 ** (db / 20.0)) / 32768.0
+    ceil = 10 ** (ceiling_db / 20.0)
+    blk = max(32, int(rate * 0.002))                          # 2 ms blocks
+    n = (len(x) + blk - 1) // blk
+    pad = np.zeros((n * blk, x.shape[1]))
+    pad[:len(x)] = x
+    peak = np.abs(pad).reshape(n, blk, -1).max(axis=(1, 2))
+    need = np.minimum(1.0, ceil / np.maximum(peak, 1e-9))     # gain each block needs
+    ahead = 3                                                 # start turning down ~6 ms early
+    look = np.array([need[i:i + ahead + 1].min() for i in range(n)])
+    rel = np.exp(-blk / (rate * 0.15))
+    g = np.empty(n)
+    cur = 1.0
+    for i in range(n):                                        # instant down, slow back up
+        cur = look[i] if look[i] < cur else look[i] + (cur - look[i]) * rel
+        g[i] = cur
+    gs = np.interp(np.arange(n * blk), np.arange(n) * blk + blk / 2, g)[:len(x)]
+    y = x * gs[:, None]
+    return np.clip(np.rint(y * 32768.0), -32768, 32767).astype(np.int16)
+
+
 def make_wem(rate, samples, loop=None):
     """16-bit PCM .wem; loop = (start sample, end sample) adds a smpl chunk (Wwise/vgmstream loop points)."""
     wem = za_audio.make_pcm_wem(rate, samples)

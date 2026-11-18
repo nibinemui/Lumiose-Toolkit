@@ -194,27 +194,50 @@ def add_to_bank(b, number, wem, ms, loop_ms):
 
 # ---- tables and text ---------------------------------------------------------------------------------------
 
-# the music event every trainer battle starts (Battle Zones, trainers who challenge you, story trainers)
-TRAINER_EVENT = 'PLAY_BGM_VS_TRAINER'
+# The normal trainer battle theme ("Trainer", list entry 01) is one file played as two music segments inside
+# the game's battle music system: an intro (0-24 s) played once, then a loop (24-124 s). When a battle ends the
+# system switches state - the music fades / muffles and the victory jingle follows. Putting a song into those two
+# segments keeps all of that.
+TRAINER_MEDIA = 105049910
+TRAINER_INTRO = (90332077, 471635644)           # (music track, its segment)
+TRAINER_LOOP = (614133696, 248187743)
+MIN_INTRO = 1.0                                 # s: the intro segment can't be empty
 
 
-def _use_for_trainers(root, mod, number):
-    """Trainer battles play song `number` instead of the normal trainer battle theme: the commands that start
-    the theme are pointed at the song's event (the game's own song stays in the bank). Returns how many."""
-    d, sch = _load(root, mod, COMMANDS)
-    n = 0
-    for r in d['commands']:
-        if r.get('event') == TRAINER_EVENT or (r.get('name') in TRAINER_COMMANDS and
-                                               str(r.get('event', '')).startswith('PLAY_BGM_IK_VS_SELECT_')):
-            r['event'] = 'PLAY_BGM_IK_VS_SELECT_%02d' % number
-            n += 1
-    if not n:
-        raise BgmError('The game\'s trainer battle music commands were not found.')
-    _save(mod, COMMANDS, d, sch)
-    return n
-
-
-TRAINER_COMMANDS = ('VS_TRAINER_INTERACT', 'TL_TRAINER_START', 'TL_TRAINER_ZA_START')
+def replace_trainer_theme(root, mod, rate, samples, loop=None):
+    """The trainer battle theme's audio becomes `samples` (the bank's other music is untouched). loop = (start s,
+    end s): the part that repeats; before it is the intro. Returns a report line."""
+    secs = len(samples) / rate
+    ms = secs * 1000.0
+    start, end = (0.0, secs) if not loop else (max(0.0, float(loop[0])), min(secs, float(loop[1])))
+    start = min(max(start, MIN_INTRO), end - 1.0)                 # (a whole-song loop skips its first second)
+    s_ms, e_ms = start * 1000.0, end * 1000.0
+    rel = '%s/%s.bnk' % (sb.BANK_DIR, BANK)
+    with open(sb.bank_path(root, mod, BANK), 'rb') as f:
+        b = sb.Bank(f.read(), BANK)
+    wem = sb.make_wem(rate, samples)
+    for (track, seg), (play_at, begin, seg_len) in ((TRAINER_INTRO, (0.0, 0.0, s_ms)),
+                                                     (TRAINER_LOOP, (-s_ms, s_ms, e_ms - s_ms))):
+        if track not in b.by_id or seg not in b.by_id:
+            raise BgmError('The game\'s trainer battle theme was not found in BGM.bnk.')
+        for q, plugin, st, m, size in b.sources(track):
+            if m == TRAINER_MEDIA:
+                b.patch(track, q, '<IBII', sb.PCM, 0, TRAINER_MEDIA, len(wem))
+        for off, m, at, bt, et, dur in b.track_items(track):
+            if m == TRAINER_MEDIA:          # which part of the file this segment plays: begin..begin+seg_len
+                b.patch(track, off, '<dddd', play_at, begin, -(ms - begin - seg_len), ms)
+        r = b.segment(seg)
+        if r is None:
+            raise BgmError('Could not read the trainer battle theme\'s music segment.')
+        dur_off, _, marks = r
+        b.patch(seg, dur_off, '<d', seg_len)
+        for mk, pos, off in marks:          # entry cue at 0, exit cue at the end
+            b.patch(seg, off, '<d', 0.0 if mk == sb.ENTRY_CUE else seg_len if mk == sb.EXIT_CUE else min(pos, seg_len))
+    b.set_media(TRAINER_MEDIA, wem)
+    mod.add_bytes(rel, b.tobytes())
+    return 'trainer battles (Battle Zones, trainers) play it instead of the normal trainer battle theme: ' \
+           'intro 0 - %.1f s, then loops %.1f - %.1f s; the battle\'s ending and victory jingle are the game\'s' % (
+               start, start, end)
 
 
 def _add_commands(root, mod, number):
@@ -289,7 +312,8 @@ def add_battle_song(root, mod, audio_path, title, loop=None, gain_db=0.0, log=No
     if not len(samples):
         raise BgmError('The audio file is empty.')
     if gain_db:
-        samples = sb.apply_gain(samples, gain_db)
+        # louder: a limiter turns the loudest moments down instead of clipping them
+        samples = sb.apply_gain_limited(samples, rate, gain_db) if gain_db > 0 else sb.apply_gain(samples, gain_db)
     secs = len(samples) / rate
     ms = secs * 1000.0
     start, end = (0.0, secs) if not loop else (max(0.0, float(loop[0])), min(secs, float(loop[1])))
@@ -316,7 +340,7 @@ def add_battle_song(root, mod, audio_path, title, loop=None, gain_db=0.0, log=No
         say('BGM.bnk: new song %02d (%.1f s, %d Hz, %d channel(s))' % (number, secs, rate, samples.shape[1]))
         _add_commands(root, mod, number)
         if trainer:
-            _use_for_trainers(root, mod, number)
+            trainer_note = replace_trainer_theme(root, mod, rate, samples, loop)
         _add_picker(root, mod, number)
         langs = _add_name(root, mod, number, title)
     except Exception:
@@ -329,8 +353,7 @@ def add_battle_song(root, mod, audio_path, title, loop=None, gain_db=0.0, log=No
         raise
     return ['added "%s" to the Private Battles "Battle BGM" list as entry %02d (unlocked from the start)'
             % (title, number)] + \
-        (['plays in every trainer battle (Battle Zones, trainers) instead of the normal trainer battle theme']
-         if trainer else []) + [
+        ([trainer_note] if trainer else []) + [
             'song %.1f s, %d Hz, %d channel(s), 16-bit PCM in BGM.bnk; %s' % (
                 secs, rate, samples.shape[1], 'loops the whole song' if not loop else
                 'plays from the start, then loops %.2f s - %.2f s' % (start, end) if start > 0.001 else
