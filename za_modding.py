@@ -1146,10 +1146,16 @@ def install_recomp(mods, recomp_dir, name, log=print, game_root=None):
         if not os.path.isfile(marker):
             raise ModError('mods\\%s already exists and was not made by Lumiose Toolkit - not touching it. '
                            'Pick another package name.' % safe)
-    # written next to the old install first, so a failure halfway leaves the old one working
-    tmp = dest + '.installing'
+    # written beside Recomp's mods folder first (same drive, so the move is instant), so a failure halfway leaves
+    # the old install working - and never inside mods\, where Recomp would load the half-written copy as a mod
+    stage = os.path.join(recomp_dir, 'lumiose_toolkit_install')
+    os.makedirs(stage, exist_ok=True)
+    tmp = os.path.join(stage, safe)
     if os.path.isdir(tmp):
         shutil.rmtree(tmp)
+    stray = dest + '.installing'                     # left by 2.0.0 test builds inside mods\
+    if os.path.isdir(stray) and os.path.isfile(os.path.join(stray, 'za_mod_info.json')):
+        shutil.rmtree(stray, ignore_errors=True)
     try:
         for rel, (mname, reader) in winners.items():
             p = os.path.join(tmp, 'romfs', *rel.split('/'))
@@ -1164,7 +1170,12 @@ def install_recomp(mods, recomp_dir, name, log=print, game_root=None):
         raise
     if os.path.isdir(dest):
         shutil.rmtree(dest)
+    os.makedirs(os.path.dirname(dest), exist_ok=True)
     os.replace(tmp, dest)
+    try:
+        os.rmdir(stage)
+    except OSError:
+        pass
     log('installed %d file(s) into %s' % (len(winners), dest))
     return dest
 

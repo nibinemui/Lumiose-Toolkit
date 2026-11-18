@@ -72,6 +72,62 @@ def characters(root):
     return out
 
 
+def player_order_skeleton(player, char):
+    """The character's skeleton (trskl JSON) reordered for the player's animations: the player's bones first, in
+    the player's order and with the player's joint numbers, then the character's own extra bones (face, hair...).
+    Bones the character lacks (e.g. bag, bangle) are taken from the player. Returns (skeleton, old joint -> new
+    joint) for renumbering the meshes' RigIndex."""
+    import copy
+    pn = player['TransformNodes']
+    cn = {n['Name']: n for n in char['TransformNodes']}
+    cj = char.get('JointInfos') or []
+    pj = player.get('JointInfos') or []
+    order = [n['Name'] for n in pn] + [n['Name'] for n in char['TransformNodes'] if n['Name'] not in
+                                       {x['Name'] for x in pn}]
+    index = {name: i for i, name in enumerate(order)}
+    nodes, joints, jmap = [], [], {}
+    used = set(n.get('JointInfoIndex') for n in pn if n.get('JointInfoIndex') is not None)
+    next_joint = max(used) + 1 if used else 0
+    joints = [None] * next_joint
+    for i, name in enumerate(order):
+        src_p = next((n for n in pn if n['Name'] == name), None)
+        src = cn.get(name)
+        n = copy.deepcopy(src if src is not None else src_p)
+        parent = (src or src_p).get('ParentNodeName') or ''
+        if not parent and (src or src_p).get('ParentNodeIndex') is not None:
+            owner = char['TransformNodes'] if src is not None else pn
+            parent = owner[(src or src_p)['ParentNodeIndex']]['Name']
+        n.pop('JointInfoIndex', None)
+        if i == 0:
+            n.pop('ParentNodeIndex', None)
+        else:
+            n['ParentNodeIndex'] = index.get(parent, 0)
+        old_j = src.get('JointInfoIndex') if src is not None else None
+        if src_p is not None and src_p.get('JointInfoIndex') is not None:
+            j = src_p['JointInfoIndex']                       # the player's joint number
+        elif old_j is not None:
+            j = next_joint                                    # a joint only the character has
+            next_joint += 1
+            joints.append(None)
+        else:
+            j = None
+        if j is not None:
+            n['JointInfoIndex'] = j
+            if old_j is not None and old_j < len(cj):
+                joints[j] = copy.deepcopy(cj[old_j])
+                jmap[old_j] = j
+            else:                                             # the player's own bone (bag, bangle...)
+                joints[j] = copy.deepcopy(pj[src_p['JointInfoIndex']])
+        nodes.append(n)
+    for k, jt in enumerate(joints):
+        if jt is None:
+            joints[k] = copy.deepcopy(pj[k]) if k < len(pj) else {}
+    out = dict(char)
+    out['TransformNodes'] = nodes
+    out['JointInfos'] = joints
+    return out, jmap
+
+
 def collapsed_buffer(trmsh_path):
     """(buffer file name, bytes) of a mesh's .trmbf with every vertex's position and bone weights set to zero."""
     import za_trinity as zt
@@ -120,10 +176,28 @@ def make(root, mod, char_rel, hide_parts=True, log=None):
         if os.path.isfile(p) and not f.endswith('.trmdl'):
             mod.add_file('%s/%s' % (BASE_DIR, f), p)
             n += 1
-    # 2. the base model is now the character's model
+    # 2. the base model is now the character's model, its skeleton in the player's bone order (the player's
+    #    animations address bones by their place in the player's skeleton) and its meshes renumbered to match
     out = mod.path_for(BASE_MDL)
     os.makedirs(os.path.dirname(out), exist_ok=True)
     zm.from_json(json.dumps(mdl), sch, out)
+    skl_name = (mdl.get('Skeleton') or {}).get('PathName') or stem + '.trskl'
+    skl_sch = zm.schema_for(os.path.join(src, skl_name))
+    player = json.loads(zm.to_json(os.path.join(root, *BASE_DIR.split('/'), 'p0_base.trskl'), skl_sch))
+    char = json.loads(zm.to_json(os.path.join(src, skl_name), skl_sch))
+    skel, jmap = player_order_skeleton(player, char)
+    for name in (skl_name, 'p0_base.trskl'):
+        zm.from_json(json.dumps(skel), skl_sch, mod.path_for('%s/%s' % (BASE_DIR, name)))
+    for m_ in mdl.get('Meshes') or []:
+        mp = os.path.join(src, m_['PathName'])
+        msch = zm.schema_for(mp)
+        md = json.loads(zm.to_json(mp, msch))
+        for mesh in md.get('Meshes') or []:
+            for bw in mesh.get('boneWeight') or []:
+                bw['RigIndex'] = jmap.get(bw.get('RigIndex', 0), bw.get('RigIndex', 0))
+        zm.from_json(json.dumps(md), msch, mod.path_for('%s/%s' % (BASE_DIR, m_['PathName'])))
+    say('skeleton in the player\'s bone order (%d bones, %d joints)' % (len(skel['TransformNodes']),
+                                                                       len(skel['JointInfos'])))
     say('base model: %s (%d files)' % (os.path.basename(char_rel), n))
     # 3. the player's own parts drawn as nothing (every mesh collapsed to a point)
     hidden = 0
