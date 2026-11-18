@@ -61,8 +61,9 @@ FALLBACK = {
     'categoryin01': ['defaultidle01'], 'categoryout01': ['defaultidle01'], 'megaappeal01': ['roar01'],
 }
 # Scarlet/Violet shader -> the Z-A shader to rebuild it with
-SHADER_MAP = {'SSS': 'IkCharacter', 'Standard': 'IkCharacter', 'EyeClearCoat': 'IkCharacter', 'Toon': 'IkCharacter',
-              'Eye': 'Eye', 'Unlit': 'Unlit', 'FresnelEffect': 'FresnelEffect', 'NonDirectional': 'NonDirectional',
+EYE = 'IkCharacter (eye)'          # Z-A eyes are IkCharacter with the eye options on
+SHADER_MAP = {'SSS': 'IkCharacter', 'Standard': 'IkCharacter', 'EyeClearCoat': EYE, 'Toon': 'IkCharacter',
+              'Eye': EYE, 'Unlit': 'Unlit', 'FresnelEffect': 'FresnelEffect', 'NonDirectional': 'NonDirectional',
               'Iridescence': 'Iridescence', 'Transparent': 'IkCharacterTransparent',
               'TransparentSSS': 'IkCharacterTransparent', 'IkCharacter': 'IkCharacter',
               'IkCharacterTransparent': 'IkCharacterTransparent'}
@@ -333,6 +334,8 @@ def templates(root):
         for m in json.loads(zm.to_json(p, TRMTR))['Materials']:
             if m['Shader'][0]['Name'] == shader and ('body' in m['Name'] or shader != 'IkCharacter') and shader not in out:
                 out[shader] = (m, os.path.dirname(p))
+            if shader == 'IkCharacter' and m['Name'] == 'l_eye':
+                out[EYE] = (m, os.path.dirname(p))           # a real Z-A eye: highlight, parallax, iris
     import glob
     for p in sorted(glob.glob(os.path.join(root, 'ik_pokemon', 'data', 'pm*', 'pm*_00_00', 'pm*_00_00.trmtr'))):
         if len(out) >= 9:
@@ -346,6 +349,28 @@ def templates(root):
     return out
 
 
+_VARIANTS = {}
+
+
+def _variant(m):
+    sh = m['Shader'][0]
+    return sh['Name'], tuple(sorted((v['Name'], v['Value']) for v in sh.get('Values', [])))
+
+
+def shader_variants(root):
+    """Every shader + switch combination Z-A's own Pokémon use (the game has only these compiled)."""
+    if root not in _VARIANTS:
+        import glob
+        out = set()
+        for p in glob.glob(os.path.join(root, 'ik_pokemon', 'data', 'pm*', 'pm*_00_00', 'pm*_00_00*.trmtr')):
+            try:
+                out |= {_variant(m) for m in json.loads(zm.to_json(p, TRMTR))['Materials']}
+            except Exception:  # noqa: BLE001
+                continue
+        _VARIANTS[root] = out
+    return _VARIANTS[root]
+
+
 def _tex(m, *slots):
     for s in slots:
         for t in m.get('Textures', []):
@@ -354,21 +379,32 @@ def _tex(m, *slots):
     return None
 
 
-def convert_material(root, src, stem, add_file):
+def convert_material(root, src, stem, add_file, have=()):
     """A Z-A material rebuilt from a template, keeping the Scarlet/Violet material's name, textures and colours.
-    add_file(name, source path) copies a template's own texture into the new model folder."""
+    add_file(name, source path) copies a template's own texture into the new model folder; `have` = the texture
+    files in the new model folder (Scarlet/Violet keeps an eye highlight mask there that its material doesn't name).
+    The template's shader switches are never changed: Z-A only has its own combinations compiled, and a new one
+    draws nothing (the body blinks out)."""
     tpl = templates(root)
     sv_shader = src['Shader'][0]['Name']
     za_shader = SHADER_MAP.get(sv_shader, 'IkCharacter')
     if za_shader not in tpl:
         za_shader = 'IkCharacter'
+    eye = za_shader == EYE
     t, tdir = tpl[za_shader]
     m = copy.deepcopy(t)
     for tx in m['Textures']:
         slot = tx['Name']
         own = _tex(src, *TEX_ALIAS.get(slot, (slot,)))
+        if not own and eye and slot == 'HighlightMaskMap':
+            own = next((f for f in ('%s_%s_msk.bntx' % (stem, src['Name'].split('_')[-1]), stem + '_eye_msk.bntx')
+                        if f in have), None)
         if own:
             tx['File'] = own
+        elif eye and slot in ('ParallaxMap', 'OcclusionMap', 'ShadowingColorMap'):
+            tx['File'] = stem + '_white_msk.bntx'
+        elif eye and 'Mask' in slot and slot != 'LayerMaskMap':
+            tx['File'] = stem + '_black_msk.bntx'           # as Z-A eyes (and no sparkle rather than Pikachu's)
         elif 'Mask' in slot and slot != 'LayerMaskMap':
             tx['File'] = stem + ('_white_msk.bntx' if slot in ('ShadowingColorMap', 'RimLightMaskMap') else '_black_msk.bntx')
         elif slot == 'OcclusionMap':
@@ -387,15 +423,17 @@ def convert_material(root, src, stem, add_file):
     for k in range(1, 5):
         if 'BaseColorLayer%d' % k in vec:
             vec['BaseColorLayer%d' % k]['Value'] = own.get('BaseColorLayer%d' % k) or neutral
-        if 'ShadowingColorLayer%d' % k in vec and za_shader.startswith('IkCharacter'):
+        if 'ShadowingColorLayer%d' % k in vec and za_shader.startswith('IkCharacter') and not eye:
             vec['ShadowingColorLayer%d' % k]['Value'] = {'X': 0.35, 'Y': 0.25, 'Z': 0.3, 'W': 0.0}
+    if eye:                                                 # the pupil colour and the highlight's glow
+        for k in range(1, 6):
+            if 'EmissionColorLayer%d' % k in vec and own.get('EmissionColorLayer%d' % k):
+                vec['EmissionColorLayer%d' % k]['Value'] = own['EmissionColorLayer%d' % k]
     for k in ('BaseColor', 'UVScaleOffset', 'UVScaleOffset3'):
         if k in vec:
             vec[k]['Value'] = own.get(k) or ({'X': 1.0, 'Y': 1.0, 'Z': 0.0, 'W': 0.0} if 'UV' in k else neutral)
-    if not _tex(src, 'LayerMaskMap'):
-        for v in m['Shader'][0]['Values']:
-            if v['Name'] == 'NumMaterialLayer':
-                v['Value'] = '1'
+    # no layer mask: the black mask (above) leaves the layers off. NumMaterialLayer stays as the template's - every
+    # Z-A character material has 5 or 6, and a material with another count isn't drawn
     for s in m.get('Samplers', []):
         if s.get('RepeatU') == 'MIRROR':
             s['RepeatU'] = 'WRAP'
@@ -471,7 +509,8 @@ def port_model(root, sv, mod, species, host_folder, sv_folder=None, log=print):
         d = json.loads(zm.to_json(p, TRMTR))
         mats = []
         for s in d['Materials']:
-            m, a, b = convert_material(root, s, stem, lambda n, src: mod.add_file(rel_dir + '/' + n, src))
+            m, a, b = convert_material(root, s, stem, lambda n, src: mod.add_file(rel_dir + '/' + n, src),
+                                       have=set(os.listdir(src_dir)))
             mats.append(m)
             rep['materials'].append('%s: %s -> %s' % (s['Name'], a, b))
         d['Materials'] = mats
@@ -989,12 +1028,15 @@ def check(root, mod, species):
         missing = sorted(set(missing) - base_refs)
         out.append((not missing, 'every file the model and animation system name exists' +
                     ('' if not missing else ' - missing: ' + ', '.join(missing[:6]))))
-        za_shaders = set(templates(root))
+        za_shaders = {t[0]['Shader'][0]['Name'] for t in templates(root).values()}
+        known = shader_variants(root)
         bad = []
         for f in [x for x in have if x.endswith('.trmtr')]:
             for m in json.loads(zm.to_json(os.path.join(d, f), TRMTR))['Materials']:
                 if m['Shader'][0]['Name'] not in za_shaders:
                     bad.append('%s/%s (%s)' % (f, m['Name'], m['Shader'][0]['Name']))
+                elif known and _variant(m) not in known:
+                    bad.append('%s/%s (shader switches Z-A never uses: it would not be drawn)' % (f, m['Name']))
         out.append((not bad, 'materials use Z-A shaders' + ('' if not bad else ' - not: ' + ', '.join(bad[:4]))))
         icons = all(os.path.isfile(os.path.join(d, 'icon', '%s_00_%s.bntx' % (stem, k))) for k in '01')
         out.append((icons, 'icons (normal and shiny)'))

@@ -260,6 +260,10 @@ class MapTab:
         self.edit_mode = tk.BooleanVar(value=False)
         ttk.Checkbutton(side, text='Edit mode: drag the selected point to move it',
                         variable=self.edit_mode).pack(anchor='w')
+        self.show_icons = tk.BooleanVar(value=False)
+        ttk.Checkbutton(side, text='Show Pokémon icons on Pokémon spawn points (the most likely one)',
+                        variable=self.show_icons, command=self.redraw).pack(anchor='w')
+        self.icon_cache = {}
 
         ttk.Label(side, text='Selected point', style='Head.TLabel').pack(anchor='w', pady=(10, 2))
         g = ttk.Frame(side)
@@ -506,8 +510,9 @@ class MapTab:
             self.area_labels['%s  (%d points)' % (a, n)] = a
         self.area_box.configure(values=list(self.area_labels))
         self.layers, self.species, self.tables = layers, species, tables
-        for k in ('scene_of', 'scenes', 'scene_dirty', 'new_points'):     # new spawn points of the old tables
+        for k in ('scene_of', 'scenes', 'scene_dirty', 'new_points', 'extra_files'):   # new points of the old tables
             self.__dict__.pop(k, None)
+        self.icon_cache = {}                         # another mod may have its own (ported) Pokémon's icons
         self.index_spawn_tables()
         self.spawn_info = {n: self.encounter_lines(n) for n in self.spawner_by_obj}
         self.species_names = ['%s (#%d)' % (n, d) for d, n in sorted(species.items())]
@@ -558,16 +563,23 @@ class MapTab:
         d = ImageDraw.Draw(img)
         r = 3 if self.zoom < 0.4 else (4 if self.zoom < 1.5 else 6)
         self.visible = []
+        icons = self.show_icons.get()
+        isz = 22 if self.zoom < 1 else (32 if self.zoom < 3 else 44)
         for L in self.layers:
             if not L.var or not L.var.get():
                 continue
+            mon = icons and L.stem == 'pokemon_spawner_transform_array'
             for gi, si, s in L.points():
                 x, y, z = _pos(s)
                 if not self.in_area(s.get('Name', ''), x, z):
                     continue
                 sx, sy = self.to_screen(*w2m(self.cal, x, z))
                 if -10 < sx < cw + 10 and -10 < sy < ch + 10:
-                    d.ellipse((sx - r, sy - r, sx + r, sy + r), fill=L.colour, outline=(255, 255, 255))
+                    ic = self.spawn_icon(s.get('Name'), isz) if mon else None
+                    if ic is not None:
+                        img.paste(ic, (int(sx - isz / 2), int(sy - isz / 2)), ic)
+                    else:
+                        d.ellipse((sx - r, sy - r, sx + r, sy + r), fill=L.colour, outline=(255, 255, 255))
                     self.visible.append((sx, sy, L, gi, si))
         if self.sel:
             L, gi, si = self.sel
@@ -1496,7 +1508,8 @@ class MapTab:
                         scene_dirty.add(rel)
                     break
         changed = [L for L in self.layers if L.dirty] + [t for t in self.tables.values() if t.dirty]
-        if not changed and not scene_dirty:
+        extra = self.__dict__.get('extra_files', {})      # other game files a new point needs (wild behaviour)
+        if not changed and not scene_dirty and not extra:
             self.app.status_var.set('Nothing to save.')
             return
         m = self.app.current_mod()
@@ -1508,6 +1521,8 @@ class MapTab:
         # taken now, on this thread: points dragged while it saves stay unsaved
         texts = [(L, json.dumps(L.data)) for L in changed]
         scene_texts = [(rel, json.dumps(self.scenes[rel][0]), self.scenes[rel][1]) for rel in scene_dirty]
+        extra_files = dict(extra)
+        extra.clear()
 
         def job():
             for L, text in texts:
@@ -1516,6 +1531,8 @@ class MapTab:
                 out = m.path_for(rel)
                 os.makedirs(os.path.dirname(out), exist_ok=True)
                 zm.from_json(text, sch, out)
+            for rel, data in extra_files.items():
+                m.add_bytes(rel, data)
             return texts
 
         def done(r):
@@ -1529,6 +1546,36 @@ class MapTab:
             self.dirty_var.set('Saved %d table(s)%s into "%s"' % (len(r), ' and %d scene(s)' % n_sc if n_sc else '', m.name))
             self.app.refresh_mods()
         self.app.run_bg('Saving map changes', job, done)
+
+    def spawn_icon(self, name, size):
+        """The icon of the Pokémon most likely to appear at spawn point `name` (RGBA, size x size), or None."""
+        s = self.spawner_by_obj.get(name)
+        if not s:
+            return None
+        infos = sorted(s.get('encountDataInfoList') or [], key=lambda i: -(i.get('weight') or 0))
+        e = self.enc_by_id.get(infos[0].get('encountDataId')) if infos else None
+        if not e or not e.get('devNo'):
+            return None
+        key = (e['devNo'], e.get('formNo') or 0, size)
+        if key not in self.icon_cache:
+            self.icon_cache[key] = self._load_icon(key[0], key[1], size)
+        return self.icon_cache[key]
+
+    def _load_icon(self, dev, form, size):
+        root = os.path.normpath(self.app.root_var.get())
+        folders = ['pm%04d_%02d_00' % (dev, form), 'pm%04d_%02d_00' % (dev, form + 50) if form else None,
+                   'pm%04d_00_00' % dev]
+        for base in [b for b in (self.romfs, root) if b]:
+            for f in [x for x in folders if x]:
+                p = os.path.join(base, 'ik_pokemon', 'data', f[:6], f, 'icon', f + '_00_0.bntx')
+                if os.path.isfile(p):
+                    try:
+                        with open(p, 'rb') as fh:
+                            im = zf.Bntx(fh.read()).textures[0].decode(0, 0).convert('RGBA')
+                        return im.resize((size, size), Image.LANCZOS)
+                    except Exception:  # noqa: BLE001
+                        continue
+        return None
 
     def redraw_theme(self):
         self.redraw()

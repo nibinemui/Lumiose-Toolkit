@@ -1198,7 +1198,7 @@ class App(tk.Tk):
         return [m for n in names for m in mods if m.name == n][:len(names)]
 
     def delete_key(self, event):
-        """Delete key on the Mods tab: the selected mod(s), or the mod under the mouse in My mods."""
+        """Delete key on the Mods tab: the highlighted mod(s); with nothing highlighted, the mod under the mouse."""
         try:
             if self.nb.select() != str(self.mods_tab):
                 return None
@@ -1212,12 +1212,17 @@ class App(tk.Tk):
         over = self.winfo_containing(x, y) is self.mods_list
         if focus is not self.mods_list and not over:
             return None
-        if over:
-            i = self.mods_list.nearest(y - self.mods_list.winfo_rooty())
-            if i >= 0 and i not in self.mods_list.curselection():
-                self.mods_list.selection_clear(0, 'end')        # the hovered mod, not an old selection
-                self.mods_list.selection_set(i)
-                self.show_mod()
+        if over and not self.mods_list.curselection():
+            # nothing highlighted: the mod the mouse is on (only if it is really on a row, not below the last one)
+            ly = y - self.mods_list.winfo_rooty()
+            i = self.mods_list.nearest(ly)
+            box = self.mods_list.bbox(i) if i >= 0 else None
+            if not box or not box[1] <= ly < box[1] + box[3]:
+                return 'break'
+            self.mods_list.selection_set(i)
+            self.show_mod()
+        if not self.mods_list.curselection():
+            return 'break'
         self.delete_mod()
         return 'break'
 

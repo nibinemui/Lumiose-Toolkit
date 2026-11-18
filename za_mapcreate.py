@@ -142,6 +142,39 @@ def ground_height(mt, x, z, fallback):
     return ys[len(ys) // 2]
 
 
+def _zones(mt):
+    """{Pokémon spawn point name: its Wild Zone id} for the points of a zone."""
+    t = mt.tables.get('spawner')
+    out = {}
+    for r in rows(t) if t else []:
+        for o in r.get('appearanceSpawnerObjectInfoList') or []:
+            zid = (o.get('zoneInfo') or {}).get('zoneId')
+            if zid:
+                out[o.get('objectName')] = zid
+    return out
+
+
+def _zone_at(mt, zones, x, z):
+    """The Wild Zone (x, z) is in, or None: inside means within the zone's spread of spawn points around their
+    middle (a zone's points fill it)."""
+    L = layer_for(mt, 'pokemon')
+    by_zone = {}
+    for _, _, p in L.points() if L else []:
+        zid = zones.get(p.get('Name'))
+        if zid:
+            px, _, pz = _pos(p)
+            by_zone.setdefault(zid, []).append((px, pz))
+    best = None
+    for zid, ps in by_zone.items():
+        cx = sum(p[0] for p in ps) / len(ps)
+        cz = sum(p[1] for p in ps) / len(ps)
+        reach = max(((p[0] - cx) ** 2 + (p[1] - cz) ** 2) ** 0.5 for p in ps) + 5.0
+        d = ((x - cx) ** 2 + (z - cz) ** 2) ** 0.5
+        if d <= reach and (best is None or d < best[0]):
+            best = (d, zid)
+    return best[1] if best else None
+
+
 def taken_names(mt):
     taken = {p.get('Name') for L in mt.layers for _, _, p in L.points()}
     for t in mt.tables.values():
@@ -165,10 +198,17 @@ def create(mt, kind, x, z, spec):
     if table is None:
         raise ValueError('The %s table could not be read.' % KINDS[kind][0])
     template = None
-    for _, L, gi, si, p in candidates(mt, kind, x, z)[:40]:
+    zones = _zones(mt) if kind == 'pokemon' else {}
+    here = _zone_at(mt, zones, x, z) if kind == 'pokemon' else None
+    for _, L, gi, si, p in candidates(mt, kind, x, z)[:80]:
         old = p.get('Name', '')
         if not re.search(r'\d\d$', old):
             continue
+        if kind == 'npc' and 'npc_talk' not in old:
+            continue                                    # people are copied from townsfolk, not story scenes
+        if kind == 'pokemon':                           # a Wild Zone spawner only inside its zone, and only
+            if zones.get(old) != here:                  # spawners outside zones outside them
+                continue
         rel = mt.find_scene(old, KINDS[kind][3])
         if rel:
             template = (L, gi, si, p, rel)
@@ -261,8 +301,11 @@ def _apply_pokemon(mt, s, new, spec):
     enc['minLevel'], enc['maxLevel'] = spec['min'], max(spec['min'], spec['max'])
     enc['talentScale'] = spec['size']                 # -1 = random size, 0-255 = this size
     if spec.get('alpha'):
+        enc['talentScale'] = 255                      # alphas are always the biggest size
         enc['oyabunProbability'] = 100.0
         enc.setdefault('oyabunAdditionalLevel', 10)
+    if spec.get('form'):
+        _wild_behaviour(mt, spec['species'], spec['form'])
     groups = mt.tables['enc'].data['values']
     eg = next((g for g in groups if e0 in (g.get('root') or [])), groups[0])
     eg.setdefault('root', []).append(enc)
@@ -270,7 +313,13 @@ def _apply_pokemon(mt, s, new, spec):
     info = copy.deepcopy(info)
     info['encountDataId'] = enc['id']
     info['weight'] = info.get('weight') or 100
+    info['activationCondition'] = copy.deepcopy(FORCE)
+    info.pop('appearedWeatherCondition', None)
     s['encountDataInfoList'] = [info]
+    # the copied spawner may only work in some weather, time or story point: the new one always does
+    s['activationCondition'] = copy.deepcopy(FORCE)
+    if 'activationConditionForUi' in s:
+        s['activationConditionForUi'] = copy.deepcopy(FORCE)
 
 
 def _item_table(mt, key, tid, items):
@@ -280,6 +329,32 @@ def _item_table(mt, key, tid, items):
         'id': tid, 'itemLotteryDataList': [{'itemId': str(i), 'weight': w, 'maxCount': n,
                                             'activationCondition': copy.deepcopy(FORCE)} for i, n, w in items]})
     t.dirty = True
+
+
+WILD_DIR = 'param_chr/data/character/pokemon/wild_single'
+
+
+def has_wild_behaviour(root, species, form):
+    """False for forms that never appear in the wild (Mega forms...): their wild behaviour file is empty, so a
+    wild one would just stand still."""
+    p = os.path.join(root, *WILD_DIR.split('/'), '%04d_%02d_00.bin' % (species, form))
+    try:
+        with open(p, 'rb') as f:
+            return b'State_' in f.read()
+    except OSError:
+        return False
+
+
+def _wild_behaviour(mt, species, form):
+    """A form without wild behaviour gets its normal form's (saved into the mod with the new point)."""
+    root = os.path.normpath(mt.app.root_var.get())
+    if has_wild_behaviour(root, species, form) or not has_wild_behaviour(root, species, 0):
+        return
+    rel = '%s/%04d_%02d_00.bin' % (WILD_DIR, species, form)
+    if mt.romfs and os.path.isfile(os.path.join(mt.romfs, *rel.split('/'))):
+        return                                          # this mod already has one
+    with open(os.path.join(root, *WILD_DIR.split('/'), '%04d_00_00.bin' % species), 'rb') as f:
+        mt.__dict__.setdefault('extra_files', {})[rel] = f.read()
 
 
 def _apply_itemball(mt, s, new, spec):
@@ -306,12 +381,14 @@ def _apply_gimmick(mt, s, new, spec):
 
 def _apply_npc(mt, s, new, spec):
     s['assetId'] = spec['asset']
+    s.pop('encountId', None)                         # a person, not one of the story's Pokémon NPCs
     for cond in s.get('appearingConditionList') or []:
         cond['element'] = copy.deepcopy(FORCE)[0]['element']
         cond['dayNightFlag'] = {} if spec['when'] == 'always' else {'dayNightFlag': 1 if spec['when'] == 'day' else 2}
         for o in cond.get('spawnerObjectInfoList') or []:
-            if spec.get('talk') and spec['talk'] != 'keep':
-                o['tagInfoList'] = [{'tag': spec['talk']}] if spec['talk'] else []
+            tags = spec.get('talk')
+            if tags is not None and tags != 'keep':
+                o['tagInfoList'] = [{'tag': t} for t in tags]
 
 
 APPLY = {'pokemon': _apply_pokemon, 'itemball': _apply_itemball, 'random': _apply_random,
@@ -320,25 +397,180 @@ APPLY = {'pokemon': _apply_pokemon, 'itemball': _apply_itemball, 'random': _appl
 
 # ---- choices for the menu ------------------------------------------------------------------------------------
 
-def gimmick_types(mt):
+# move gimmicks by their group in the game's gimmick table (each area has its own copy of the same object)
+_CRYSTAL = {'S': 'small, on the ground', 'M': 'big, on the ground', 'WS': 'small, on a wall', 'WM': 'big, on a wall',
+            'WOS': 'small, on an outside corner', 'WOM': 'big, on an outside corner',
+            'WIS': 'small, on an inside corner', 'WIM': 'big, on an inside corner'}
+_HYPER_CRYSTAL = {'DA': 'small, on the ground', 'DB': 'big, on the ground', 'DC': 'small, on a wall',
+                  'DD': 'big, on a wall'}
+_WALLS = {'ROCK': 'Breakable rock', 'TSUTA': 'Thorny vines', 'HEDORO': 'Sludge pile'}
+
+
+def gimmick_label(group):
+    """'Mega Shard crystals (small, on the ground)' for a gimmick group id, or None for ones only a side quest uses."""
+    g = re.sub(r'^[A-Z]+\d*_', '', group or '')               # A01_ / ZD01_ / BOSS_
+    m = re.match(r'^ALL_WAZA_OBJ301_([A-Z]+)_SPAWN$', g)
+    if m and m.group(1) in _CRYSTAL:
+        return 'Mega Shard crystals (%s)' % _CRYSTAL[m.group(1)]
+    m = re.match(r'^MEGA_CRYSTAL_([A-Z]+)_SPAWN$', g)
+    if m and m.group(1) in _HYPER_CRYSTAL:
+        return 'Mega Shard crystals, Hyperspace (%s)' % _HYPER_CRYSTAL[m.group(1)]
+    m = re.match(r'^([A-Z]+)_WALL_([SD])_SPAWN$', g)
+    if m and m.group(1) in _WALLS:
+        return _WALLS[m.group(1)] + (', Hyperspace' if m.group(2) == 'D' else '')
+    m = re.match(r'^DIM_BOX_([SLG])_SPAWN$', g)
+    if m:
+        return 'Hyperspace box (%s)' % {'S': 'small', 'L': 'large', 'G': 'giant'}[m.group(1)] + \
+            (', boss reward' if group.startswith('BOSS_') else '')
+    return None
+
+
+def gimmick_choices(mt):
+    """[(name shown in the menu, the game's gimmick id)], each kind of object once."""
     t = mt.tables.get('wg_spawner')
-    seen = {}
+    used = {}
     for r in rows(t) if t else []:
         for g in r.get('spawnWazagimmickInfoList') or []:
-            pid = g.get('privateId')
-            if pid:
-                seen[pid] = seen.get(pid, 0) + 1
-    return sorted(seen)
+            if g.get('privateId'):
+                used[g['privateId']] = used.get(g['privateId'], 0) + 1
+    group = {}
+    try:
+        root = os.path.normpath(mt.app.root_var.get())
+        for r in _flat(_table_rows(root, 'world/ik_data/field/field_wazagimmick_private/field_wazagimmick_private/'
+                                         'field_wazagimmick_private_array.bin')):
+            for o in r.get('objectName') or []:
+                group.setdefault(o, r.get('groupId'))
+    except Exception:  # noqa: BLE001
+        pass
+    out = {}
+    for pid in sorted(used, key=lambda p: -used[p]):           # the most used copy of each object
+        label = gimmick_label(group.get(pid))
+        if label and label not in out:
+            out[label] = pid
+    return sorted(out.items())
+
+
+def _flat(rs):
+    out = []
+    for g in rs:
+        out += g.get('root', []) if isinstance(g, dict) and 'root' in g else [g]
+    return out
+
+
+def _table_rows(root, rel):
+    path = os.path.join(root, *rel.split('/'))
+    d = json.loads(zm.to_json(path, zm.schema_for(path)))
+    return d[next(k for k in d if isinstance(d[k], list))]
+
+
+_LOOKS = {}
+_NPC_TPL = re.compile(r'^tr(\d{4})_\d\d_(?:(?:fa|bo)(\d\d)_?)?(?:ra(\d\d)|(holo(?:_red)?))?_?(.*)$')
+_NAMED_TPL = re.compile(r'^(tr\d{4}_\d\d)_(holo_)?(.+)$')
+
+
+def npc_looks(root):
+    """[(name shown in the menu, the game's NPC asset id)] for every person an NPC spawn can look like: the story
+    characters and every townsperson / trainer look, each once. Looks the game only shows at some point in the
+    story, and variants that look the same (they differ only in what the scripts make them do), are left out."""
+    if root in _LOOKS:
+        return _LOOKS[root]
+    import za_playas as pa
+    try:
+        tpl = _table_rows(root, 'world/ik_data/field/npc/npc_object_template_data/npc_object_template_data/'
+                                'npc_object_template_data.bin')
+        assets = _table_rows(root, 'world/ik_data/field/npc/npc_asset_data/npc_asset_data/npc_asset_data.bin')
+    except Exception:  # noqa: BLE001
+        return []
+    force = json.dumps(FORCE)
+    by_id = {t.get('id', 0): t for t in tpl}
+    asset_of = {}                     # template file -> an asset that always shows just that look (a townsperson's
+    for a in assets:                  # own asset before a battle trainer's)
+        infos = a.get('npcInfoList') or []
+        if len(infos) == 1 and json.dumps(infos[0].get('activationCondition')) == force and a.get('assetId'):
+            path = by_id.get(infos[0].get('objectTemplateId'), {}).get('path')
+            if path:
+                asset_of.setdefault(path, []).append(a['assetId'])
+    asset_of = {k: min(v, key=lambda x: (not x.startswith('npc_'), x)) for k, v in asset_of.items()}
+    known = pa.trainer_names(root)
+    code_of = {}                                     # trainer class number -> outfit code (for the hologram ones)
+    for t in tpl:
+        m = _NPC_TPL.match(os.path.basename(t.get('path', ''))[:-6])
+        if m and m.group(5) and not m.group(4):
+            code_of.setdefault(m.group(1), re.sub(r'_(k\d\d|battle)$', '', m.group(5)))
+    groups, done = {}, set()
+    for t in tpl:
+        aid = asset_of.get(t.get('path'))
+        name = os.path.basename(t.get('path', ''))[:-6]
+        if not aid or t.get('type') not in ('cc_vr', 'cc_ir', 'uq') or re.search(r'_k\d\d$', name) or \
+                t.get('path') in done:
+            continue
+        done.add(t.get('path'))
+        m = _NPC_TPL.match(name)
+        if t.get('type') in ('cc_vr', 'cc_ir') and m:
+            raw = m.group(5) or code_of.get(m.group(1), '')
+            battle = raw.endswith('_battle')
+            code = raw[:-7] if battle else raw
+            label = NPC_NAMES.get(code) or pa.NPC_NAMES.get(code)
+            if not label:
+                g = {'m': 'male', 'f': 'female'}.get(code.rsplit('_', 1)[-1]) if '_' in code else None
+                key = code.rsplit('_', 1)[0] if g else code
+                crew = re.match(r'^([a-z]+)_member$', key)
+                label = ((NPC_GROUPS[crew.group(1)] + ' member') if crew and crew.group(1) in NPC_GROUPS else
+                         pa.NPC_CLASSES.get(key) or key.replace('_', ' ').capitalize() or 'Townsperson') + \
+                    (' (%s)' % g.capitalize() if g else '')
+            extra = ', battle outfit' if battle else ''
+            if m.group(4):
+                extra += ', red hologram' if m.group(4).endswith('red') else ', hologram'
+            order = (int(m.group(1)), int(m.group(2) or 0), int(m.group(3) or 99))
+        else:
+            n = _NAMED_TPL.match(name)
+            if not n:
+                continue
+            folder = n.group(1) + '_' + n.group(3)
+            label = pa.NAMES.get(folder) or known.get(folder) or pa.NICE.get(n.group(3).split('_', 0)[0]) \
+                or pa.NICE.get(n.group(3))
+            if not label:
+                b = re.match(r'^([a-z]+)_(boss|leader)(?:_([mf]))?$', n.group(3))
+                label = (('%s %s' % (NPC_GROUPS.get(b.group(1), 'Group'), b.group(2).capitalize())) if b
+                         else n.group(3).replace('_', ' ').capitalize())
+            extra = ', hologram' if n.group(2) else ''
+            order = (int(name[2:6]), 0, 0)
+        groups.setdefault((label, extra), []).append((order, aid))
+    out = []
+    for (label, extra), items in groups.items():
+        items.sort()
+        for i, (_, aid) in enumerate(items):
+            look = (' - look %d' % (i + 1)) if len(items) > 1 else ''
+            out.append(('%s%s%s' % (label, look, (' (%s)' % extra[2:]) if extra else ''), aid))
+    out.sort(key=lambda t: t[0].lower())
+    _LOOKS[root] = out
+    return out
+
+
+# the groups the story's crews belong to, by their outfit code (named after who leads them in the game's text)
+NPC_GROUPS = {'ga': "Canari's crew", 'ju': 'Fists of Justice', 'pa': "Jacinthe's crew", 'co': 'Rust Syndicate'}
+# outfit codes with a name of their own
+NPC_NAMES = {'co_member_m': 'Rust Syndicate Grunt (Male)', 'co_member_f': 'Rust Syndicate Grunt (Female)',
+             'nu_member_f': 'Team Flare Cafe Worker (Female)'}
+
+# what an NPC does: the game's behaviour tags, in the combinations its own NPCs use
+NPC_BEHAVIOURS = [
+    ('Like the NPC it was copied from', 'keep'),
+    ('Stands, turns to face you when you talk to them', ['StandTalkNpcLookAtOnInteractTurn']),
+    ('Stands, watches you as you pass, turns to face you when you talk',
+     ['StandTalkNpcLookAt', 'StandTalkNpcLookAtOnInteractTurn']),
+    ('Seated, watches you as you pass, turns to face you when you talk',
+     ['SitTalkNpcLookAt', 'StandTalkNpcLookAtOnInteractTurn']),
+    ('Stands, only talks when you face them from the front',
+     ['StandTalkNpcLookAtOnInteractTurn', 'CheckInteractNpcDir']),
+    ("Stands, doesn't react when you talk to them", ['StandTalkNpcLookAtOnInteractTurn', '会話_無反応']),
+    ('Stands, never looks at you', ['StandTalkNpcLookAtOnInteractTurn', 'DisableLookAt']),
+    ("Background person: never looks at you and can't be talked to or targeted", ['DisableLookAt', 'ProhibitFocus']),
+]
 
 
 def npc_assets(root):
-    p = glob.glob(os.path.join(root, 'world', 'ik_data', 'field', 'npc', 'npc_asset_data', '**', 'npc_asset_data.bin'),
-                  recursive=True)
-    if not p:
-        return []
-    d = json.loads(zm.to_json(p[0], zm.schema_for(p[0])))
-    k = next(k for k in d if isinstance(d[k], list))
-    return sorted({r.get('assetId') for r in d[k] if r.get('assetId')})
+    return [a for _, a in npc_looks(root)]
 
 
 def npc_talk_tags(mt):
@@ -437,7 +669,9 @@ def open_menu(mt, x, z):
             form = tk.IntVar(value=0)
             ttk.Label(g, text='Form:').grid(row=1, column=0, sticky='w')
             ttk.Spinbox(g, from_=0, to=30, textvariable=form, width=5).grid(row=1, column=1, sticky='w', pady=2)
-            ttk.Label(g, text='0 = the normal form', style='Dim.TLabel').grid(row=1, column=2, columnspan=2, sticky='w')
+            ttk.Label(g, text='0 = the normal form. A form never seen in the wild (a Mega...) gets\nthe normal '
+                              "form's wild behaviour.", style='Dim.TLabel', justify='left').grid(
+                row=1, column=2, columnspan=2, sticky='w')
             lo, hi = tk.IntVar(value=5), tk.IntVar(value=10)
             ttk.Label(g, text='Levels:').grid(row=2, column=0, sticky='w')
             ttk.Spinbox(g, from_=1, to=100, textvariable=lo, width=5).grid(row=2, column=1, sticky='w', pady=2)
@@ -448,22 +682,38 @@ def open_menu(mt, x, z):
             ttk.Label(g, text='Size:').grid(row=3, column=0, sticky='nw', pady=(6, 0))
             sf = ttk.Frame(g)
             sf.grid(row=3, column=1, columnspan=3, sticky='w', pady=(6, 0))
-            ttk.Checkbutton(sf, text='Random (like wild Pokémon)', variable=rnd).pack(anchor='w')
+            rnd_cb = ttk.Checkbutton(sf, text='Random (like wild Pokémon)', variable=rnd)
+            rnd_cb.pack(anchor='w')
             sl = ttk.Frame(sf)
             sl.pack(anchor='w')
             ttk.Label(sl, text='tiny').pack(side='left')
-            ttk.Scale(sl, from_=0, to=255, variable=size, length=200).pack(side='left', padx=4)
+            size_sl = ttk.Scale(sl, from_=0, to=255, variable=size, length=200)
+            size_sl.pack(side='left', padx=4)
             ttk.Label(sl, text='huge').pack(side='left')
             alpha = tk.BooleanVar(value=False)
             ttk.Checkbutton(g, text='Always an alpha', variable=alpha).grid(row=4, column=1, columnspan=3, sticky='w',
                                                                           pady=(8, 0))
+            alpha_note = ttk.Label(g, text='Alphas are always the biggest size (255).', style='Dim.TLabel')
+
+            def alpha_changed(*_):
+                # an alpha is always size 255, so the size choice is locked while it's ticked
+                on = alpha.get()
+                for w in (rnd_cb, size_sl):
+                    w.state(['disabled'] if on else ['!disabled'])
+                if on:
+                    alpha_note.grid(row=5, column=1, columnspan=3, sticky='w')
+                else:
+                    alpha_note.grid_remove()
+            alpha.trace_add('write', alpha_changed)
 
             def spec():
                 m = re.search(r'#(\d+)\)?\s*$', sp.get())
                 if not m:
                     raise ValueError('Pick a Pokémon from the list.')
+                big = alpha.get()
                 return {'species': int(m.group(1)), 'form': int(form.get()), 'min': int(lo.get()),
-                        'max': int(hi.get()), 'size': -1 if rnd.get() else int(size.get()), 'alpha': alpha.get()}
+                        'max': int(hi.get()), 'size': 255 if big else (-1 if rnd.get() else int(size.get())),
+                        'alpha': big}
             nav(kind, spec)
         elif kind == 'itemball':
             items = ['%s (#%d)' % (n, i) for i, n in sorted(mt.item_names.items()) if n and i]
@@ -519,47 +769,48 @@ def open_menu(mt, x, z):
                 return {'items': chosen, 'min': int(lo.get()), 'max': int(hi.get())}
             nav(kind, spec)
         elif kind == 'gimmick':
-            types = gimmick_types(mt)
-            ttk.Label(g, text='Gimmick:').grid(row=0, column=0, sticky='w')
-            gb = ttk.Combobox(g, values=types, width=34)
+            types = dict(gimmick_choices(mt))
+            names = list(types)
+            ttk.Label(g, text='Object:').grid(row=0, column=0, sticky='w')
+            gb = ttk.Combobox(g, values=names, width=52, state='readonly')
             gb.grid(row=0, column=1, sticky='w', pady=2)
-            filtered(gb, types)
             ttk.Label(g, style='Dim.TLabel', wraplength=460, justify='left', text=(
-                'The game\'s own gimmick names (box, rock, crate...). Look at an existing move gimmick on the map to '
-                'see which one is which.')).grid(row=1, column=0, columnspan=2, sticky='w', pady=4)
+                'A move breaks the crystals and boxes for items (the big ones give more: 6-10 instead of 1-3). '
+                'Rocks, vines and sludge give nothing; a move clears them away.')).grid(row=1, column=0, columnspan=2, sticky='w',
+                                                                           pady=4)
 
             def spec():
                 if gb.get() not in types:
-                    raise ValueError('Pick a gimmick from the list.')
-                return {'gimmick': gb.get()}
+                    raise ValueError('Pick an object from the list.')
+                return {'gimmick': types[gb.get()]}
             nav(kind, spec)
         elif kind == 'npc':
-            assets = npc_assets(os.path.normpath(app.root_var.get()))
-            ttk.Label(g, text='Look:').grid(row=0, column=0, sticky='w')
-            ab = ttk.Combobox(g, values=assets, width=34)
+            looks = dict(npc_looks(os.path.normpath(app.root_var.get())))
+            names = list(looks)
+            ttk.Label(g, text='Who:').grid(row=0, column=0, sticky='w')
+            ab = ttk.Combobox(g, values=names, width=52)
             ab.grid(row=0, column=1, sticky='w', pady=2)
-            filtered(ab, assets)
+            filtered(ab, names)
             when = tk.StringVar(value='always')
             ttk.Label(g, text='Appears:').grid(row=1, column=0, sticky='w')
             wf = ttk.Frame(g)
             wf.grid(row=1, column=1, sticky='w', pady=2)
             for v, t in (('always', 'always'), ('day', 'by day'), ('night', 'at night')):
                 ttk.Radiobutton(wf, text=t, value=v, variable=when).pack(side='left', padx=(0, 8))
-            tags = ['keep'] + npc_talk_tags(mt)
+            acts = dict(NPC_BEHAVIOURS)
             ttk.Label(g, text='Behaviour:').grid(row=2, column=0, sticky='w')
-            tb = ttk.Combobox(g, values=tags, width=34, state='readonly')
-            tb.set('keep')
+            tb = ttk.Combobox(g, values=list(acts), width=52, state='readonly')
+            tb.set(NPC_BEHAVIOURS[1][0])
             tb.grid(row=2, column=1, sticky='w', pady=2)
             ttk.Label(g, style='Dim.TLabel', wraplength=460, justify='left', text=(
-                '"keep" behaves like the nearest NPC (what it says and does comes from the game\'s scripts). Other '
-                'entries are the game\'s talk tags, e.g. TalkNpcEmpty = can be talked to. Custom lines and item '
-                'gifts need the game\'s event scripts and can\'t be set here yet.')).grid(
+                'What they say comes from the game\'s scripts, so a new NPC may have nothing to say. Custom lines and '
+                'item gifts need the game\'s event scripts and can\'t be set here yet.')).grid(
                 row=3, column=0, columnspan=2, sticky='w', pady=4)
 
             def spec():
-                if ab.get() not in assets:
-                    raise ValueError('Pick a look from the list.')
-                return {'asset': ab.get(), 'when': when.get(), 'talk': tb.get()}
+                if ab.get() not in looks:
+                    raise ValueError('Pick who it is from the list.')
+                return {'asset': looks[ab.get()], 'when': when.get(), 'talk': acts[tb.get()]}
             nav(kind, spec)
     step1()
     w.bind('<Escape>', lambda e: w.destroy())

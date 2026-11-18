@@ -1214,9 +1214,12 @@ def open_window(app):
     ttk.Label(f, textvariable=status, style='Dim.TLabel', wraplength=530, justify='left').pack(fill='x', pady=(6, 0))
     chars = []
 
+    # shown in the list until it is filled (reading every character takes a while)
+    lst.insert('end', '  Reading the characters… (this takes a few seconds)')
+
     def cur():
         s = lst.curselection()
-        return chars[s[0]] if s else None
+        return chars[s[0]] if s and s[0] < len(chars) else None
 
     def show():
         c = cur()
@@ -1301,11 +1304,13 @@ def open_window(app):
             r = characters(root)
         except Exception as e:  # noqa: BLE001
             msg = str(e)
-            app.q.put(lambda: status.set('Could not read the characters: ' + msg))
+            app.q.put(lambda: (lst.delete(0, 'end'), lst.insert('end', '  Could not read the characters.'),
+                               status.set('Could not read the characters: ' + msg)))
             return
 
         def fill():
             chars[:] = r
+            lst.delete(0, 'end')
             for label, _ in r:
                 lst.insert('end', label)
             status.set('%d characters.' % len(r))
