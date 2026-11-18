@@ -120,8 +120,11 @@ def replace_in_bnk(bnk, index, wem):
         i = h.find(key)
         while i != -1:
             # AkBankSourceData: [plugin u32][stream type u8][source id u32][in-memory size u32]
-            if i >= 5 and i + 8 <= len(h) and struct.unpack_from('<I', h, i + 4)[0] == orig_size:
+            # (a codec plugin's type nibble is 1 - that rules out 8 unrelated bytes that happen to match)
+            if i >= 5 and i + 8 <= len(h) and struct.unpack_from('<I', h, i + 4)[0] == orig_size and \
+                    struct.unpack_from('<I', h, i - 5)[0] & 0xF == 1 and h[i - 1] <= 2:
                 struct.pack_into('<I', h, i - 5, PCM_PLUGIN)
+                h[i - 1] = 0                  # all of it is in the bank now: not streamed / prefetched
                 struct.pack_into('<I', h, i + 4, len(wem))
                 patched += 1
             i = h.find(key, i + 4)
@@ -178,6 +181,18 @@ def replace_in_pck(src_path, index, wem, out_path, progress=None):
     order = sorted(range(len(ents)), key=lambda k: ents[k][4] * max(ents[k][2], 1))
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
     tmp = out_path + '.part'
+    try:
+        _write_pck(src_path, tmp, hdr, ents, order, index, wem, progress)
+    except BaseException:
+        try:
+            os.remove(tmp)
+        except OSError:
+            pass
+        raise
+    shutil.move(tmp, out_path)
+
+
+def _write_pck(src_path, tmp, hdr, ents, order, index, wem, progress):
     with open(src_path, 'rb') as src, open(tmp, 'wb') as out:
         out.write(hdr)
         for n, k in enumerate(order):
@@ -186,6 +201,8 @@ def replace_in_pck(src_path, index, wem, out_path, progress=None):
             while out.tell() % block:
                 out.write(b'\0')
             new_off = out.tell() // block
+            if new_off > 0xFFFFFFFF:
+                raise AudioError('The package would be too big for its index - use a shorter sound.')
             if k == index:
                 out.write(wem)
                 new_size = len(wem)
@@ -204,5 +221,4 @@ def replace_in_pck(src_path, index, wem, out_path, progress=None):
                 progress(n, len(order))
         out.seek(0)
         out.write(hdr)
-    shutil.move(tmp, out_path)
     return 'entry %d (id %d) replaced with %d bytes PCM' % (index + 1, ents[index][1], len(wem))

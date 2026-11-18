@@ -33,9 +33,20 @@ class TextEditor(tk.Toplevel):
         self.from_mod = False
         if m and self.rel and os.path.isfile(m.path_for(self.rel)):
             try:
-                mod_lines = zf.decode_msg(open(m.path_for(self.rel), 'rb').read())
-                if len(mod_lines) == len(self.texts):
-                    self.texts, self.from_mod = mod_lines, True
+                with open(m.path_for(self.rel), 'rb') as f:
+                    mod_data = f.read()
+                mod_lines = zf.decode_msg(mod_data)
+                if len(mod_lines) != len(self.texts):
+                    # the mod added lines (new item or hairstyle names): edit the mod's file, with its labels
+                    self.template, self.original = mod_data, list(mod_lines)
+                    mtp = m.path_for(self.rel[:-4] + '.tbl')
+                    if os.path.isfile(mtp):
+                        try:
+                            with open(mtp, 'rb') as f:
+                                self.labels = zf.parse_tbl(f.read())
+                        except (OSError, ValueError):
+                            pass
+                self.texts, self.from_mod = mod_lines, True
             except (OSError, ValueError):
                 pass
         self.cur = None
@@ -180,7 +191,12 @@ class TextEditor(tk.Toplevel):
     def save(self):
         self.apply(quiet=True)
         m = self.app.current_mod()
-        if not m or not self.rel:
+        if not m:
+            return
+        if not self.rel:
+            from tkinter import messagebox as mb
+            mb.showinfo('Edit text', 'This file is neither in the game folder nor in the current mod, so it has no '
+                        'place to be saved.', parent=self)
             return
         texts, template, rel = list(self.texts), self.template, self.rel
 

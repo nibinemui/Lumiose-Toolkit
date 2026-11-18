@@ -48,6 +48,11 @@ def edit(job, out_dir):
 def render(job, out_dir, timeout=180):
     """Run the hidden render window for `job`; returns {name: png path} for the shots it saved."""
     os.makedirs(out_dir, exist_ok=True)
+    for s in job.get('shots', []):        # an image left from an earlier render must not pass for this one's
+        try:
+            os.remove(os.path.join(out_dir, s['name'] + '.png'))
+        except OSError:
+            pass
     job = dict(job, out_dir=out_dir)
     fd, path = tempfile.mkstemp(suffix='.json', prefix='iconjob_')
     with os.fdopen(fd, 'w', encoding='utf-8') as f:
@@ -76,7 +81,16 @@ def export_models(model_path, mod_romfs, game_root, out_dir, rare_path=None, ani
     Returns (models dict, [animation names in clip order])."""
     import za_trinity as zt
     os.makedirs(out_dir, exist_ok=True)
+    # the mod's files win while exporting; the setting is process-wide, so the old one comes back afterwards
+    prev = dict(zt._OVERRIDE)
     zt.set_override(game_root, mod_romfs)
+    try:
+        return _export(zt, model_path, out_dir, rare_path, anims_dir)
+    finally:
+        zt._OVERRIDE.update(prev)
+
+
+def _export(zt, model_path, out_dir, rare_path, anims_dir):
     d = anims_dir or os.path.dirname(model_path)
     stem = os.path.splitext(os.path.basename(model_path))[0]
     anims, names = [], []

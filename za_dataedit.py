@@ -413,6 +413,18 @@ class DataTab:
             self.preset_var.set(PRESETS[0]['name'])
             self.open_preset(PRESETS[0]['name'])
 
+    def reload_if_clean(self):
+        """The current mod changed or a tool wrote into it: read the open table again unless it has unsaved
+        changes (those are checked when saving)."""
+        if self.data is None or self.dirty or not self.rel:
+            return
+        m = self.app.current_mod(ask=False)
+        src = m.path_for(self.rel) if m and os.path.isfile(m.path_for(self.rel)) else \
+            os.path.join(self.app.root_var.get(), *self.rel.split('/'))
+        if os.path.normcase(src) == os.path.normcase(self.src or '') and zm.file_stamp(src) == getattr(self, 'stamp', None):
+            return
+        self.load(self.preset, os.path.join(self.app.root_var.get(), *self.rel.split('/')), self.rel)
+
     # ---------------- loading ----------------
     def confirm_discard(self):
         return not self.dirty or messagebox.askyesno(
@@ -467,7 +479,11 @@ class DataTab:
         self.parent.after(150, pick)
 
     def open_preset(self, name):
-        p = next(p for p in PRESETS if p['name'] == name)
+        p = next((p for p in PRESETS if p['name'] == name), None)
+        if p is None:                         # a table opened as a generic view: open it again as it is
+            if not self.preset or self.preset.get('name') != name or not self.rel:
+                return
+            p = dict(self.preset, rel=self.rel)
         root = self.app.root_var.get()
         self.load(p, os.path.join(root, *p['rel'].split('/')), p['rel'])
 
@@ -518,16 +534,19 @@ class DataTab:
                 if self.names is None:
                     self.names = Names(root)
                 sch = load_schema(schema_path)
+                stamp = zm.file_stamp(src)
                 data = json.loads(zm.to_json(src, schema_path))
-                self.app.q.put(lambda: self.loaded(preset, data, sch, schema_path, src, rel))
+                self.app.q.put(lambda: self.loaded(preset, data, sch, schema_path, src, rel, stamp))
             except Exception as e:  # noqa: BLE001
                 msg = '%s\n%s' % (e, traceback.format_exc()[-600:])
                 self.app.q.put(lambda: self.info.set('Could not load %s: %s' % (rel, msg)))
         threading.Thread(target=work, daemon=True).start()
 
-    def loaded(self, preset, data, sch, schema_path, src, rel):
+    def loaded(self, preset, data, sch, schema_path, src, rel, stamp=None):
         self.preset, self.data, self.schema, self.schema_path, self.src, self.rel = \
             preset, data, sch, schema_path, src, rel
+        self.stamp = stamp
+        self.loaded_mod = self.app.mod_var.get()
         self.dirty = False
         self.dirty_var.set('')
         path = preset.get('rows') or sch.find_rows(data)
@@ -657,6 +676,8 @@ class DataTab:
         t.pack(fill='both', expand=True)
         t.insert('1.0', json.dumps(self.rows[self.cur], indent=2, ensure_ascii=False))
         self.app.style_text(t) if hasattr(self.app, 'style_text') else None
+        # the row this window edits - not whatever row is selected when Apply is pressed
+        rows, row, table = self.rows, self.rows[self.cur], self.rel
 
         def apply():
             try:
@@ -664,7 +685,13 @@ class DataTab:
             except ValueError as e:
                 messagebox.showerror('Lumiose Toolkit', 'Not valid JSON:\n%s' % e, parent=win)
                 return
-            self.rows[self.cur] = v
+            i = next((i for i, r in enumerate(rows) if r is row), None)
+            if self.rel != table or self.rows is not rows or i is None:
+                messagebox.showerror('Lumiose Toolkit', 'That row is no longer in the open table (another table was '
+                                     'opened, or the row was deleted), so nothing was changed.', parent=win)
+                return
+            rows[i] = v
+            self.cur = i
             self.changed()
             self.show_row()
             win.destroy()
@@ -861,6 +888,9 @@ class DataTab:
         m = self.app.current_mod()
         if not m:
             return
+        if not self.app.confirm_save_target('The table %s' % os.path.basename(self.rel), self.src,
+                                            getattr(self, 'stamp', None), m, self.rel):
+            return
         rel, schema, text = self.rel, self.schema_path, json.dumps(self.data, ensure_ascii=False)
 
         def job():
@@ -868,6 +898,10 @@ class DataTab:
             return rel
 
         def done(r):
+            self.src, self.stamp = m.path_for(rel), zm.file_stamp(m.path_for(rel))
+            self.loaded_mod = m.name
+            if self.rel != rel or json.dumps(self.data, ensure_ascii=False) != text:
+                return                        # edited while saving: still unsaved
             self.dirty = False
             self.dirty_var.set('saved into "%s"' % m.name)
             self.app.refresh_mods()

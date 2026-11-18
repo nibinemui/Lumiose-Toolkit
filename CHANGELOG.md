@@ -10,7 +10,29 @@
   - optional: its female model, a Pokédex entry (take over an existing one, or add a new one - experimental), and new spawn points in a wild zone with the levels you choose.
   - A check at the end lists anything missing.
 - **Icons in Z-A's style**: after porting, pick a pose from a sheet of renders of the Pokémon (roars, cheers, attacks…), then fine-tune it in the **icon editor** - drag to turn it, scroll to zoom, right-drag to move it in the frame, pick the animation and the exact moment on a timeline (or play it), Close / Medium / Full framing, face-front and three-quarter views, a normal / shiny toggle and live previews at the game's icon size. The icons are rendered in the look of Z-A's own icons, normal and shiny, and added to the mod.
+- **Add spawn point…** (Map tab, under *Encounters at this spawn*): select a Pokémon spawn point, pick a Pokémon (ported ones included) and its levels, and a new spawn point appears 3 m away with its own encounter. Tick **Edit mode** to drag it into place, then **Save changes to current mod**. Everything the game needs for a new point is written: its position, spawner, encounter and its entry in the area's scene file. Spawn point names are checked against your other mods, so two mods never make the same point.
+- **Search all text…** (Browse & extract tab, next to the language list): one search across every line of game text - dialogue, item and move names and descriptions, menus - in one language or **all languages** at once. Case and accents don't matter, every word must match (in the line or its label), and "quotes" find a phrase. The full line is shown below the results; double-click to edit it. Text your current mod changed is searched in the mod's version (marked [mod]). The first search reads the text in a few seconds per language; after that only changed files are read again.
 - The Pokédex contents table and the wild behaviour catalog can now be read, edited and searched like other tables.
+
+### Fixed
+- **Tabs no longer save an old copy of a table into another mod.** The Game data, Pokémon data and Map tabs remember which file they read. Saving asks first when the tab's copy came from a different mod, or when the mod's file changed since (for example after Port a Pokémon). Tabs without unsaved changes read the table again when you switch the current mod.
+- **Closing the program** asks when something is still being saved, or when a tab has unsaved changes.
+- **One error could stop the program's background work** (saving, loading, previews) until it was restarted, e.g. after closing a window while it was still loading.
+- **Mods from a zip** can no longer write files outside their own folder.
+- **Install to Recomp** builds the new copy next to the old one, so a failure halfway leaves the old install working. Cancelling the package name now cancels.
+- **Import game files** no longer says "ready" when parts of the archive could not be extracted (e.g. a full disk), and a cut-off file is no longer taken for a finished one - pressing Import again fills in what is missing.
+- **Updates** are no longer copied over a toolkit that is still running (that could mix two versions); if an update can't be installed, you are told.
+- **History:** restoring the oldest saved version could delete it first; the messages now say when a file is too big to keep versions of. A damaged history index no longer overwrites old versions.
+- **Merging mods:** a row one mod deleted and another changed is kept (and listed as a conflict) instead of disappearing.
+- **Text:** editing a text file that has new item or hairstyle names no longer drops those names; characters such as emoji are saved correctly.
+- **Game text search** follows a change of game folder, and the language list is filled after importing the game.
+- **Pokémon data:** evolution, TM and egg-move edits are kept when you pick another Pokémon or save, without pressing their Apply button.
+- **Game data:** "Edit row as JSON" changes the row it was opened for, even if another row is selected meanwhile.
+- **Live texture editing:** two edits into the same file no longer overwrite each other, an edited PNG that wasn't imported yet is no longer replaced without asking, and textures of different archives no longer share one PNG.
+- **Deleting a mod** no longer quietly makes another mod the current one, and says so when some files couldn't be deleted. Unsaved mod details are no longer cleared by a refresh.
+- **Sounds:** a replaced sound in a bank is no longer left marked as streamed, a replace that fails its check is undone, a failed package rebuild keeps the mod's package, and selecting and playing a sound at once no longer plays a half-decoded file. Decoded sounds from earlier sessions are cleaned up.
+- **Port a Pokémon:** a failed step leaves the mod as it was, porting the same Pokémon again keeps its Pokédex entry and spawn points, "Use as is" can't write an older icon, the male model comes before the female one, and the icon renderer's temporary files are cleaned up.
+- Smaller fixes: the Map and Pokémon data tabs retry loading after an error, creating an item while a generic table is open, Show in Explorer / Copy path on text results, extracting from text results, JSON export failures, 3D viewer checkboxes before the model has loaded, a broken mod.json (kept as mod.json.bak).
 
 ### Note
 - Porting is new: the recipe was proven in game with Cyndaquil (spawns, battles, can be caught, moves properly), but test every ported Pokémon with a copy of your save. A save that has a ported Pokémon needs the mod installed to load.

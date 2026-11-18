@@ -133,7 +133,7 @@ def make_handler(state):
                     return self.send(200, json.dumps(body).encode(), 'application/json')
                 if path.startswith('/three/'):
                     full = os.path.normpath(os.path.join(TOOLS, path.lstrip('/')))
-                    if not full.startswith(os.path.join(TOOLS, 'three')) or not os.path.isfile(full):
+                    if not full.startswith(os.path.join(TOOLS, 'three') + os.sep) or not os.path.isfile(full):
                         return self.send(404, b'not found', 'text/plain')
                     with open(full, 'rb') as f:
                         return self.send(200, f.read(), 'text/javascript')

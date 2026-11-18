@@ -26,6 +26,24 @@ def _log(app):
     return getattr(mod, 'log_error', lambda t: None)
 
 
+def _purge_old_temp(hours=6):
+    """Decoded sounds of earlier sessions (often tens of MB) left in the temp folder."""
+    import shutil
+    import time
+    base = tempfile.gettempdir()
+    try:
+        names = [n for n in os.listdir(base) if n.startswith('lumiose_audio_')]
+    except OSError:
+        return
+    for n in names:
+        p = os.path.join(base, n)
+        try:
+            if os.path.isdir(p) and time.time() - os.path.getmtime(p) > hours * 3600:
+                shutil.rmtree(p, ignore_errors=True)
+        except OSError:
+            pass
+
+
 class AudioTab:
     def __init__(self, app, parent):
         self.app = app
@@ -36,7 +54,9 @@ class AudioTab:
         self.cur = None
         self.changed = set()
         self.loading = False
+        _purge_old_temp()
         self.tmp = tempfile.mkdtemp(prefix='lumiose_audio_')
+        self.decode_locks, self.locks_lock = {}, threading.Lock()
         self.src_info = None
         self.build()
         app.nb.bind('<<NotebookTabChanged>>', self.on_tab, add='+')
@@ -324,8 +344,13 @@ class AudioTab:
         """WAV of a sound (runs on worker threads: root and mod are read on the main thread by the caller)."""
         mine = (not original) and mod is not None and e['id'] in self.changed
         p = os.path.join(self.tmp, '%d%s.wav' % (e['id'], '_mod' if mine else ''))
-        if mine or not os.path.isfile(p):
-            sb.decode(root, e, p, mod if mine else None)
+        with self.locks_lock:
+            lock = self.decode_locks.setdefault(p, threading.Lock())
+        with lock:                    # selecting (length probe) and playing may decode the same sound at once
+            if mine or not os.path.isfile(p):
+                part = p[:-4] + '.part.wav'
+                sb.decode(root, e, part, mod if mine else None)
+                os.replace(part, p)   # a half-written WAV is never played or kept
         return p
 
     def play(self, original=False):

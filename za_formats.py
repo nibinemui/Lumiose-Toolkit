@@ -349,6 +349,9 @@ def _render_chars(c):
             continue
         if ch == 0x0A:
             out.append('\\n')
+        elif 0xD800 <= ch < 0xDC00 and i + 1 < len(c) and 0xDC00 <= c[i + 1] < 0xE000:   # surrogate pair
+            out.append(chr(0x10000 + ((ch - 0xD800) << 10) + (c[i + 1] - 0xDC00)))
+            i += 1
         elif 0x20 <= ch < 0xD800 or 0xE000 <= ch <= 0xFFFD:
             out.append(chr(ch))
         else:

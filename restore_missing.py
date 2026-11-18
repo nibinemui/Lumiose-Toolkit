@@ -175,8 +175,9 @@ def restore(arc, export, dll, listing, dry=False, log=None, progress=None, cance
                 if os.path.exists(out):
                     continue
                 os.makedirs(os.path.dirname(out), exist_ok=True)
-                with open(out, 'wb') as fh:
+                with open(out + '.part', 'wb') as fh:      # a cut-off write never looks like a finished file
                     fh.write(data)
+                os.replace(out + '.part', out)
                 manifest.write(os.path.relpath(out, export) + '\n')
                 written += 1
                 total_bytes += len(data)

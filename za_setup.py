@@ -228,8 +228,9 @@ class ImportWindow(tk.Toplevel):
                 listing = os.path.join(APP_DIR, 'names', 'za_hashes_inside_fd.txt')
                 os.makedirs(dest, exist_ok=True)
                 log('Extracting the game archive (this takes a while; you can Stop and continue later)…')
-                restore_missing.restore(arc, dest, dll, listing, log=log, progress=progress,
-                                        cancel=lambda: self.stop)
+                res = restore_missing.restore(arc, dest, dll, listing, log=log, progress=progress,
+                                              cancel=lambda: self.stop)
+                errors = res[2] if isinstance(res, tuple) and len(res) > 2 else 0
                 if not self.stop:
                     for name in sorted(os.listdir(romfs)):
                         src = os.path.join(romfs, name)
@@ -237,7 +238,7 @@ class ImportWindow(tk.Toplevel):
                             continue
                         log('Copying %s…' % name)
                         _copy_missing(src, os.path.join(dest, name))
-                q.put(lambda: self.finished(dest, romfs, not self.stop))
+                q.put(lambda: self.finished(dest, romfs, not self.stop, errors))
             except Exception as e:  # noqa: BLE001
                 msg = str(e)
                 q.put(lambda: self.failed(msg))
@@ -247,12 +248,18 @@ class ImportWindow(tk.Toplevel):
         self.stop = True
         self.write('Stopping after the current pack…')
 
-    def finished(self, dest, romfs, complete):
+    def finished(self, dest, romfs, complete, errors=0):
         self.running = False
         self.go_btn.configure(state='normal')
         self.stop_btn.configure(state='disabled')
         if not complete:
             self.app.status_var.set('Import stopped - press Import again to continue.')
+            return
+        if errors:
+            self.write('%d part(s) of the game archive could not be extracted (see above).' % errors)
+            messagebox.showwarning('Import game files', '%d part(s) of the game archive could not be extracted - '
+                                   'is the disk full? Free some space and press Import again: it continues where it '
+                                   'stopped and only fills in what is missing.' % errors, parent=self)
             return
         self.write('Done. Lumiose Toolkit now uses %s' % dest)
         self.app.game_romfs_var.set(romfs)
@@ -298,4 +305,5 @@ def _copy_missing(src, dst):
         for f in fn:
             t = os.path.join(dst, rel, f)
             if not os.path.exists(t):
-                shutil.copy2(os.path.join(dp, f), t)
+                shutil.copy2(os.path.join(dp, f), t + '.part')    # a cut-off copy never looks finished
+                os.replace(t + '.part', t)

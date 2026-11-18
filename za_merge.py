@@ -88,8 +88,8 @@ def _merge_keyed(base, ours, theirs, key, path, conflicts):
     # rows only `theirs` has go right after the row they follow in `theirs`
     for i, r in enumerate(theirs):
         k = repr(r[key])
-        if k in om or k in bm:
-            continue
+        if k in om or (k in bm and _same(bm[k], r)):
+            continue        # a row `ours` deleted is only kept when `theirs` changed it (and reported then)
         prev = next((repr(theirs[j][key]) for j in range(i - 1, -1, -1) if repr(theirs[j][key]) in order), None)
         order.insert(order.index(prev) + 1 if prev else len(order), k)
     out = []

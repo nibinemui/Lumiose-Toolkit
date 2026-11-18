@@ -12,6 +12,12 @@ WHAT'S NEW IN 2.0.0
     Pokemon in a free species slot - model, animations, materials for Z-A, species data, moves, alpha
     move, cry (or your own sound), wild behaviour, optional Pokedex entry and wild-zone spawns.
   * Icons in Z-A's style for ported Pokemon: pick a pose, get the normal and shiny icons.
+  * Map tab: "Add spawn point..." - a new Pokemon spawn point next to the selected one, with the
+    Pokemon and levels you pick. Tick Edit mode to drag it into place, then save.
+  * Search all text... (Browse & extract): every line of game text in one language or all of them,
+    double-click to edit the line.
+  * Many fixes: tabs no longer save an old copy of a table into another mod, closing asks about
+    unsaved changes, safer installs, imports, updates and history, sound and text fixes.
   * Test ported Pokemon with a copy of your save.
 
 WHAT'S NEW IN 1.6.2

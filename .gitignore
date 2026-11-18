@@ -9,6 +9,8 @@ audio_index.json
 data_index.json.gz
 port_hosts.json
 data_index.json.gz.tmp
+text_index.json.gz
+text_index.json.gz.tmp
 restored_files.txt
 __pycache__/
 *.pyc

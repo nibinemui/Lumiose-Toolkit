@@ -112,7 +112,7 @@ def recomp_mods(recomp_dir, own_names=(), skip=()):
                 pass
         if name in own_names:                              # a package of one of your mods
             covers.add(name)
-        label = os.path.splitext(name)[0]
+        label = os.path.splitext(name)[0] if name.lower().endswith('.zip') else name
         out.append(Source(label + ' (in Recomp)', 'recomp', e.files(), e.read, covers,
                           enabled=label not in off, rank=order.index(label) if label in order else None))
     return out
@@ -251,7 +251,8 @@ class ConflictWindow(tk.Toplevel):
                 res = find_conflicts(srcs, include_off=off)
                 self.app.q.put(lambda: self.winfo_exists() and self.done(res, len(srcs)))
             except Exception as e:  # noqa: BLE001
-                self.app.q.put(lambda: self.winfo_exists() and self.summary.set('Check failed: %s' % e))
+                msg = str(e) or type(e).__name__
+                self.app.q.put(lambda: self.winfo_exists() and self.summary.set('Check failed: %s' % msg))
         threading.Thread(target=work, daemon=True).start()
 
     def done(self, res, n_src):

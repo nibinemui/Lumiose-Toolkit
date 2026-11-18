@@ -253,11 +253,22 @@ class HistoryWindow(tk.Toplevel):
         v = self.sel()
         if not v:
             return
-        if not messagebox.askyesno('History', 'Put this version back into the mod?\n(The current file is kept in '
-                                   'the history too.)', parent=self):
+        big = os.path.isfile(self.mod.path_for(self.rel)) and \
+            os.path.getsize(self.mod.path_for(self.rel)) > zm.HISTORY_MAX_SIZE
+        if not messagebox.askyesno('History', 'Put this version back into the mod?\n(%s)' % (
+                'The current file is too big to keep a version of - it is replaced for good.' if big else
+                'The current file is kept in the history too.'), parent=self):
             return
-        self.mod.snapshot()
-        self.mod.restore(self.rel, v['path'])
+        import shutil
+        import tempfile
+        fd, keep = tempfile.mkstemp(suffix=os.path.splitext(self.rel)[1])   # saving a version may drop the oldest
+        os.close(fd)
+        shutil.copy2(v['path'], keep)
+        try:
+            self.mod.snapshot()
+            self.mod.restore(self.rel, keep)
+        finally:
+            os.remove(keep)
         self.mod.snapshot('restored')
         self.app.refresh_mods()
         self.app.status_var.set('Restored %s in "%s"' % (self.rel, self.mod.name))
@@ -266,8 +277,10 @@ class HistoryWindow(tk.Toplevel):
     def remove(self):
         if not os.path.isfile(self.mod.path_for(self.rel)):
             return
-        if not messagebox.askyesno('History', 'Remove %s from the mod? The game original is used again; the '
-                                   'saved versions stay here.' % self.rel, parent=self):
+        big = os.path.getsize(self.mod.path_for(self.rel)) > zm.HISTORY_MAX_SIZE
+        if not messagebox.askyesno('History', 'Remove %s from the mod? The game original is used again; %s' % (
+                self.rel, 'this file is too big to keep versions of, so it is gone for good.' if big else
+                'the saved versions stay here.'), parent=self):
             return
         self.mod.snapshot()
         self.mod.remove(self.rel)

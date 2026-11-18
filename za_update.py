@@ -182,10 +182,19 @@ def install(src, app_dir=APP_DIR, pid=None, restart=True, work=None):
         '  if (-not $busy) { break }',
         '  Start-Sleep -Milliseconds 500',
         '}',
+        'function Tell($m) { Add-Type -AssemblyName System.Windows.Forms; '
+        '[System.Windows.Forms.MessageBox]::Show($m, "Lumiose Toolkit update") | Out-Null }',
+        # never copy over files a running toolkit or 3D viewer still has open: that mixes two versions
+        'if ($busy) { Log "Update NOT applied: the toolkit is still running"; '
+        'Tell "The update could not be installed because Lumiose Toolkit (or a 3D viewer window) was still '
+        'running. Close it and use Updates... again."; exit 1 }',
         'Log "Update: copying new files"',
         '& robocopy %s %s /E /R:5 /W:2 /NP /NFL /NDL /NJH /NJS | Out-Null' % (_ps(src), _ps(app_dir)),
         '$rc = $LASTEXITCODE',
-        'if ($rc -ge 8) { Log "Update FAILED: robocopy exit code $rc" } else { Log "Update: done" }',
+        'if ($rc -ge 8) { Log "Update FAILED: robocopy exit code $rc"; '
+        'Tell "The update could not copy all files (code $rc - is the program folder write-protected, e.g. in '
+        'Program Files?). Download the release zip from the Updates... page and unzip it over the program '
+        'folder." } else { Log "Update: done" }',
     ]
     if restart:
         lines.append('Start-Process -FilePath $exe -WorkingDirectory %s' % _ps(app_dir))

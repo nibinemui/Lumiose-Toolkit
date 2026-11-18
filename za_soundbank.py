@@ -705,6 +705,7 @@ def replace(root, mod, e, audio_path, gain_db=0.0, match_loudness=False, loop=No
             smpl = (int(round(s * rate)), int(round(en * rate)))
     wem = make_wem(rate, samples, smpl)
     done = []
+    before = {}                               # the mod's banks as they were, to undo a replace that fails its check
     for bank in banks_using(root, e):
         src = bank_path(root, mod, bank)
         with open(src, 'rb') as f:
@@ -713,12 +714,27 @@ def replace(root, mod, e, audio_path, gain_db=0.0, match_loudness=False, loop=No
         if not touched:
             continue
         rel = '%s/%s.bnk' % (BANK_DIR, bank)
+        mp = mod.path_for(rel)
+        if rel not in before:
+            if os.path.isfile(mp):
+                with open(mp, 'rb') as f:
+                    before[rel] = f.read()
+            else:
+                before[rel] = None
         mod.add_bytes(rel, b.tobytes())
         done.append(bank)
         report += notes
     if not done:
         raise SoundError('No sound bank uses this sound - nothing was changed.')
-    check = verify(root, mod, e, samples)
+    try:
+        check = verify(root, mod, e, samples)
+    except Exception:
+        for rel, data in before.items():
+            if data is None:
+                mod.remove(rel)
+            else:
+                mod.add_bytes(rel, data)
+        raise
     report.insert(0, 'replaced with %s: %.2f s, %d Hz, %d channel(s), 16-bit PCM in %s' % (
         os.path.basename(audio_path), ms / 1000, rate, samples.shape[1], ', '.join(b + '.bnk' for b in done)))
     if smpl:

@@ -181,6 +181,21 @@ class PokemonTab:
             self.loaded = True
             self.load()
 
+    def reload_if_clean(self):
+        """The current mod changed or a tool wrote into it: read the data again unless it has unsaved changes."""
+        if not self.loaded or self.dirty or getattr(self, 'data', None) is None:
+            return
+        m = self.app.current_mod(ask=False)
+        rel = 'avalon/data/personal_array.bin'
+        src = m.path_for(rel) if m and os.path.isfile(m.path_for(rel)) else self.paths()[0]
+        if os.path.normcase(src) == os.path.normcase(getattr(self, 'src', '') or '') and \
+                zm.file_stamp(src) == getattr(self, 'stamp', None):
+            return
+        if self.app.nb.select() == str(self.parent):
+            self.load()
+        else:
+            self.loaded = False               # read again when the tab is opened
+
     # ---------------- data ----------------
     def load(self):
         src, schema = self.paths()
@@ -189,6 +204,7 @@ class PokemonTab:
         if m and os.path.isfile(m.path_for(rel)):
             src = m.path_for(rel)
         root = self.app.root_var.get()
+        self.src, self.stamp = src, zm.file_stamp(src)
 
         def work():
             try:
@@ -215,7 +231,11 @@ class PokemonTab:
                 self.app.q.put(lambda: self.loaded_ok(data, names, src))
             except Exception as e:  # noqa: BLE001
                 msg = '%s\n%s' % (e, traceback.format_exc()[-500:])
-                self.app.q.put(lambda: self.title.set('Could not load personal_array.bin: ' + msg))
+
+                def failed():
+                    self.loaded = False           # opening the tab again retries
+                    self.title.set('Could not load personal_array.bin (open the tab again to retry): ' + msg)
+                self.app.q.put(failed)
         threading.Thread(target=work, daemon=True).start()
 
     def loaded_ok(self, data, names, src):
@@ -260,9 +280,20 @@ class PokemonTab:
                 continue
             self.lst.insert('', 'end', str(i), text=label)
 
+    def lists_edited(self):
+        try:
+            return any(t.edit_modified() for t in (self.evo_text, self.tm_text, self.egg_text))
+        except tk.TclError:
+            return False
+
     def select(self):
         sel = self.lst.selection()
         if not sel:
+            return
+        if self.cur is not None and self.lists_edited() and not self.apply_lists():
+            prev = next((str(i) for i, e in enumerate(self.entries) if e is self.cur), None)
+            if prev and self.lst.exists(prev):        # stay on the Pokémon whose text has the error
+                self.lst.selection_set(prev)
             return
         self.commit()
         self.cur = self.entries[int(sel[0])]
@@ -300,6 +331,8 @@ class PokemonTab:
         self.tm_text.insert('1.0', ', '.join(self.names.get('move', {}).get(m, str(m)) for m in e.get('technical_machines', []) or []))
         self.egg_text.delete('1.0', 'end')
         self.egg_text.insert('1.0', ', '.join(self.names.get('move', {}).get(m, str(m)) for m in e.get('egg_moves', []) or []))
+        for t in (self.evo_text, self.tm_text, self.egg_text):
+            t.edit_modified(False)
         self._loading = False
         self.update_total()
 
@@ -431,15 +464,23 @@ class PokemonTab:
             eggs = self._parse_moves(self.egg_text.get('1.0', 'end'))
         except ValueError as e:
             messagebox.showerror('Pokémon data', str(e))
-            return
+            return False
+        for t in (self.evo_text, self.tm_text, self.egg_text):
+            t.edit_modified(False)
+        if (self.cur.get('evo_table') or []) == evos and (self.cur.get('technical_machines') or []) == tms and \
+                (self.cur.get('egg_moves') or []) == eggs:
+            return True
         self.cur['evo_table'] = evos
         self.cur['technical_machines'] = tms
         self.cur['egg_moves'] = eggs
         self.mark()
         self.app.status_var.set('Applied evolutions, %d TM moves and %d egg moves' % (len(tms), len(eggs)))
+        return True
 
     def save(self):
         if self.data is None:
+            return
+        if self.cur is not None and self.lists_edited() and not self.apply_lists():
             return
         self.commit()
         m = self.app.current_mod()
@@ -447,12 +488,19 @@ class PokemonTab:
             return
         src, schema = self.paths()
         rel = 'avalon/data/personal_array.bin'
+        if not self.app.confirm_save_target('The Pokémon data', getattr(self, 'src', src), getattr(self, 'stamp', None),
+                                            m, rel):
+            return
+        text = json.dumps(self.data)          # taken now: edits made while it saves stay unsaved
 
         def job():
-            zm.from_json(json.dumps(self.data), schema, m.path_for(rel))
+            zm.from_json(text, schema, m.path_for(rel))
             return rel
 
         def done(r):
+            self.src, self.stamp = m.path_for(rel), zm.file_stamp(m.path_for(rel))
+            if json.dumps(self.data) != text:
+                return
             self.dirty = False
             self.dirty_var.set('saved into "%s"' % m.name)
             self.app.refresh_mods()

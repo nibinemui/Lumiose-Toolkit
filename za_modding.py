@@ -140,10 +140,23 @@ def from_json(json_text, schema, out_path):
 _TOKEN = re.compile(r'\\n|\\r|\\c|\[VAR ([0-9A-Fa-f]{4})(?:\(([0-9A-Fa-f,]*)\))?\]|\[([0-9A-Fa-f]{4})\]')
 
 
+def _units(text):
+    """UTF-16 code units: a character beyond U+FFFF (an emoji) becomes a surrogate pair."""
+    out = []
+    for c in text:
+        o = ord(c)
+        if o > 0xFFFF:
+            o -= 0x10000
+            out += [0xD800 + (o >> 10), 0xDC00 + (o & 0x3FF)]
+        else:
+            out.append(o)
+    return out
+
+
 def _encode_text(s):
     chars, pos = [], 0
     for m in _TOKEN.finditer(s):
-        chars.extend(ord(c) for c in s[pos:m.start()])
+        chars.extend(_units(s[pos:m.start()]))
         t = m.group(0)
         if t == '\\n':
             chars.append(0x0A)
@@ -157,7 +170,7 @@ def _encode_text(s):
         else:
             chars.append(int(m.group(3), 16))
         pos = m.end()
-    chars.extend(ord(c) for c in s[pos:])
+    chars.extend(_units(s[pos:]))
     chars.append(0)
     return chars
 
@@ -640,6 +653,15 @@ def import_dds(dds_path, bntx_bytes, texture_index=0, layer=0, log=None, keep_si
 # mods
 # ---------------------------------------------------------------------------
 
+def file_stamp(path):
+    """(mtime, size) of a file, or None if it doesn't exist - to notice a file that changed since it was read."""
+    try:
+        st = os.stat(path)
+        return st.st_mtime_ns, st.st_size
+    except OSError:
+        return None
+
+
 class Mod:
     """A mod project: mods/<name>/mod.json + mods/<name>/romfs/<game paths>."""
 
@@ -647,12 +669,16 @@ class Mod:
         self.folder = folder
         self.info = {'name': os.path.basename(folder), 'author': '', 'version': '1.0', 'description': ''}
         p = os.path.join(folder, 'mod.json')
+        self.info_broken = False
         if os.path.isfile(p):
             try:
-                with open(p, encoding='utf-8') as f:
-                    self.info.update(json.load(f))
+                with open(p, encoding='utf-8-sig') as f:
+                    d = json.load(f)
+                if not isinstance(d, dict):
+                    raise ValueError('not an object')
+                self.info.update(d)
             except (OSError, ValueError):
-                pass
+                self.info_broken = True      # kept as mod.json.bak before it is ever overwritten
 
     @property
     def name(self):
@@ -664,8 +690,13 @@ class Mod:
 
     def save(self):
         os.makedirs(self.romfs, exist_ok=True)
-        with open(os.path.join(self.folder, 'mod.json'), 'w', encoding='utf-8') as f:
+        p = os.path.join(self.folder, 'mod.json')
+        if getattr(self, 'info_broken', False) and os.path.isfile(p) and not os.path.isfile(p + '.bak'):
+            shutil.copy2(p, p + '.bak')
+        with open(p + '.tmp', 'w', encoding='utf-8') as f:
             json.dump(self.info, f, indent=2)
+        os.replace(p + '.tmp', p)
+        self.info_broken = False
 
     def files(self):
         """Relative game paths (forward slashes) of every file in this mod."""
@@ -703,6 +734,13 @@ class Mod:
         except (OSError, ValueError):
             return {}
 
+    def _hist_last_number(self):
+        """Highest version file number in the history folder (0 if none)."""
+        try:
+            return max([int(f[:6]) for f in os.listdir(self.history_dir) if f[:6].isdigit()] + [0])
+        except OSError:
+            return 0
+
     def _hist_save(self, idx):
         os.makedirs(self.history_dir, exist_ok=True)
         tmp = os.path.join(self.history_dir, 'index.json.tmp')
@@ -734,7 +772,9 @@ class Mod:
             if vers and vers[-1]['sha1'] == h:
                 vers[-1]['mtime'] = st.st_mtime_ns
                 continue
-            n = idx.get('_counter', 0) + 1 if isinstance(idx.get('_counter'), int) else 1
+            if not isinstance(idx.get('_counter'), int):
+                idx['_counter'] = self._hist_last_number()
+            n = idx['_counter'] + 1
             idx['_counter'] = n
             name = '%06d%s' % (n, os.path.splitext(rel)[1])
             os.makedirs(self.history_dir, exist_ok=True)
@@ -927,12 +967,15 @@ class ExternalMod:
 
     @staticmethod
     def _rel(p):
-        parts = p.split('/')
+        parts = p.replace('\\', '/').split('/')
         low = [x.lower() for x in parts]
         if 'romfs' in low:
             i = len(low) - 1 - low[::-1].index('romfs')
             rest = parts[i + 1:]
-            return '/'.join(rest) if rest else None
+            # a path that would leave the mod folder ('..', a drive or an absolute path) is not a game file
+            if not rest or any(x in ('', '.', '..') or ':' in x for x in rest):
+                return None
+            return '/'.join(rest)
         return None
 
     def files(self):
@@ -1094,22 +1137,34 @@ def install_recomp(mods, recomp_dir, name, log=print, game_root=None):
     winners, conflicts = merge_mods(mods, game_root, log)
     if not winners:
         raise ModError('The selected mod(s) contain no files.')
-    safe = re.sub(r'[<>:"/\\|?*]+', '_', name).strip()
+    safe = re.sub(r'[<>:"/\\|?*]+', '_', name).strip().strip('.')
+    if not safe:
+        raise ModError('Pick a package name with letters or numbers in it.')
     dest = os.path.join(recomp_dir, 'mods', safe)
     if os.path.isdir(dest):
         marker = os.path.join(dest, 'za_mod_info.json')
         if not os.path.isfile(marker):
             raise ModError('mods\\%s already exists and was not made by Lumiose Toolkit - not touching it. '
                            'Pick another package name.' % safe)
+    # written next to the old install first, so a failure halfway leaves the old one working
+    tmp = dest + '.installing'
+    if os.path.isdir(tmp):
+        shutil.rmtree(tmp)
+    try:
+        for rel, (mname, reader) in winners.items():
+            p = os.path.join(tmp, 'romfs', *rel.split('/'))
+            os.makedirs(os.path.dirname(p), exist_ok=True)
+            with open(p, 'wb') as f:
+                f.write(reader(rel))
+        with open(os.path.join(tmp, 'za_mod_info.json'), 'w', encoding='utf-8') as f:
+            json.dump({'name': name, 'mods': [_mod_source(m)[0] for m in mods], 'files': len(winners),
+                       'conflicts': conflicts}, f, indent=2)
+    except BaseException:
+        shutil.rmtree(tmp, ignore_errors=True)
+        raise
+    if os.path.isdir(dest):
         shutil.rmtree(dest)
-    for rel, (mname, reader) in winners.items():
-        p = os.path.join(dest, 'romfs', *rel.split('/'))
-        os.makedirs(os.path.dirname(p), exist_ok=True)
-        with open(p, 'wb') as f:
-            f.write(reader(rel))
-    with open(os.path.join(dest, 'za_mod_info.json'), 'w', encoding='utf-8') as f:
-        json.dump({'name': name, 'mods': [_mod_source(m)[0] for m in mods], 'files': len(winners),
-                   'conflicts': conflicts}, f, indent=2)
+    os.replace(tmp, dest)
     log('installed %d file(s) into %s' % (len(winners), dest))
     return dest
 

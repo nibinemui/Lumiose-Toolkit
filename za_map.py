@@ -123,6 +123,7 @@ class DataTable:
 
     def __init__(self, path, root, romfs=None):
         src, self.rel = _mod_file(path, root, romfs)
+        self.src, self.stamp = src, zm.file_stamp(src)
         self.path = path
         self.from_mod = src != path
         self.data = json.loads(zm.to_json(src, zm.schema_for(path)))
@@ -133,6 +134,7 @@ class DataTable:
 class Layer:
     def __init__(self, path, root, romfs=None):
         src, self.rel = _mod_file(path, root, romfs)
+        self.src, self.stamp = src, zm.file_stamp(src)
         self.path = path
         self.stem = os.path.splitext(os.path.basename(path))[0]
         label, colour = LAYER_STYLE.get(self.stem, (self.stem.replace('_spawner_transform_array', '').replace('_', ' ').title(),
@@ -296,6 +298,7 @@ class MapTab:
         ttk.Button(eb, text='Apply', command=self.enc_apply).pack(side='left')
         ttk.Button(eb, text='Add (copy)', command=self.enc_add).pack(side='left', padx=3)
         ttk.Button(eb, text='Remove', command=self.enc_remove).pack(side='left')
+        ttk.Button(eb, text='Add spawn point…', command=self.add_spawn_point).pack(side='right')
         itf = self.item_frame = ttk.LabelFrame(side, text='Contents (item balls / random items)')
         self.item_tree = ttk.Treeview(itf, columns=('n', 'w', 'shared'), height=3, selectmode='browse')
         for col, txt, w in (('#0', 'Item', 150), ('n', 'Count', 50), ('w', 'Weight', 50), ('shared', 'Used by', 60)):
@@ -332,6 +335,24 @@ class MapTab:
             self.loaded = True
             self.load()
 
+    def reload_if_clean(self):
+        """The current mod changed or a tool wrote into it: read the tables again unless something is unsaved."""
+        if not self.loaded or not self.layers:
+            return
+        if any(x.dirty for x in self.layers) or any(t.dirty for t in self.tables.values()) or \
+                self.__dict__.get('scene_dirty') or self.__dict__.get('new_points'):
+            return
+        m = self.app.current_mod(ask=False)
+        root = os.path.normpath(self.app.root_var.get())
+        objs = list(self.layers) + list(self.tables.values())
+        if all(os.path.normcase(_mod_file(o.path, root, m.romfs if m else None)[0]) == os.path.normcase(o.src)
+               and zm.file_stamp(o.src) == o.stamp for o in objs):
+            return
+        if self.app.nb.select() == str(self.parent):
+            self.load()
+        else:
+            self.loaded = False
+
     # ---------------- loading ----------------
     def load(self):
         root = os.path.normpath(self.app.root_var.get())
@@ -355,8 +376,13 @@ class MapTab:
                 species, tables = self.load_spawn_info(root, romfs)
                 self.app.q.put(lambda: self.loaded_ok(base, layers, species, tables))
             except Exception as e:  # noqa: BLE001
-                tb = traceback.format_exc()
-                self.app.q.put(lambda: self.canvas.itemconfigure(self.placeholder, text='Could not load the map:\n' + str(e) + '\n\n' + tb[-600:]))
+                text = 'Could not load the map:\n%s\n\nOpen another tab and come back to try again.\n\n%s' % (
+                    e, traceback.format_exc()[-600:])
+
+                def failed():
+                    self.loaded = False           # opening the tab again retries
+                    self.canvas.itemconfigure(self.placeholder, text=text)
+                self.app.q.put(failed)
         threading.Thread(target=work, daemon=True).start()
 
     def load_spawn_info(self, root, romfs=None):
@@ -473,6 +499,8 @@ class MapTab:
             self.area_labels['%s  (%d points)' % (a, n)] = a
         self.area_box.configure(values=list(self.area_labels))
         self.layers, self.species, self.tables = layers, species, tables
+        for k in ('scene_of', 'scenes', 'scene_dirty', 'new_points'):     # new spawn points of the old tables
+            self.__dict__.pop(k, None)
         self.index_spawn_tables()
         self.spawn_info = {n: self.encounter_lines(n) for n in self.spawner_by_obj}
         self.species_names = ['%s (#%d)' % (n, d) for d, n in sorted(species.items())]
@@ -995,6 +1023,7 @@ class MapTab:
             return
         del L.data['values'][gi]['root'][si]
         self.sel = None
+        self.forget_new_point(name)
         self.mark_dirty(L)
         self.show_sel()
         self.redraw()
@@ -1178,23 +1207,300 @@ class MapTab:
         self.zoom_to_sel()
         self.app.status_var.set('Match %d of %d' % (i + 1, len(order)))
 
+    # ---------------- new spawn points ----------------
+    def find_scene(self, name):
+        """Game path of the scene file that places spawn point `name` (searched once, then remembered)."""
+        cache = self.__dict__.setdefault('scene_of', {})
+        if name in cache:
+            return cache[name]
+        root = os.path.normpath(self.app.root_var.get())
+        key = name.encode()
+        first = sorted(glob.glob(os.path.join(root, 'world', 'ik_scene', '**', '*pokemon*spawner*.trscn'), recursive=True))
+        rest = sorted(glob.glob(os.path.join(root, 'world', 'ik_scene', '**', '*spawner*.trscn'), recursive=True))
+        for path in first + [x for x in rest if x not in first]:
+            rel = os.path.relpath(path, root).replace(os.sep, '/')
+            src = _mod_file(path, root, self.romfs)[0]
+            try:
+                with open(src, 'rb') as f:
+                    if key in f.read():
+                        cache[name] = rel
+                        return rel
+            except OSError:
+                continue
+        cache[name] = None
+        return None
+
+    def scene(self, rel):
+        """[data, schema path, game path] of a scene file (the mod's copy if it has one), loaded once."""
+        sc = self.__dict__.setdefault('scenes', {})
+        if rel not in sc:
+            root = os.path.normpath(self.app.root_var.get())
+            path = os.path.join(root, *rel.split('/'))
+            src = _mod_file(path, root, self.romfs)[0]
+            sch = zm.schema_for(path)
+            sc[rel] = [json.loads(zm.to_json(src, sch)), sch, path]
+        return sc[rel]
+
+    @staticmethod
+    def _pos_offset(data, x, y, z):
+        """Byte offset of the point's position (three floats) inside a scene chunk's data, or None."""
+        import struct
+        b = bytes(data)
+        for k in range(0, len(b) - 11, 4):
+            a, bb, c = struct.unpack_from('<3f', b, k)
+            if abs(a - x) < 0.01 and abs(bb - y) < 0.01 and abs(c - z) < 0.01:
+                return k
+        return None
+
+    def add_spawn_point(self):
+        """A new Pokémon spawn point next to the selected one: its own position, spawner, encounter and scene entry."""
+        import random
+        import struct
+        if not self.sel:
+            return
+        L, gi, si = self.sel
+        p = L.data['values'][gi]['root'][si]
+        old = p.get('Name', '')
+        s = self.spawner_by_obj.get(old)
+        if not s or not s.get('encountDataInfoList'):
+            messagebox.showinfo('Map', 'Select a Pokémon spawn point first (one that lists encounters).')
+            return
+        e0 = self.enc_by_id.get(s['encountDataInfoList'][0].get('encountDataId'))
+        if not e0:
+            messagebox.showinfo('Map', "The encounter of %s is missing from the encounter table, so it can't be "
+                                'copied. Pick another spawn point.' % old)
+            return
+        if len(old) < 4 or not old[-3:].isdigit():
+            messagebox.showinfo('Map', "%s has an unexpected name, so it can't be copied." % old)
+            return
+        pick = self._ask_spawn(e0)
+        if not pick:
+            return
+        dev, lo, hi = pick
+        rel = self.find_scene(old)
+        if not rel:
+            messagebox.showerror('Map', 'Spawn point %s isn\'t placed by a scene file the toolkit can find, so it can\'t be '
+                                 'copied. Try a spawn point in a Wild Zone.' % old)
+            return
+        sc = self.scene(rel)
+        chunks = sc[0]['Chunks']
+        ci = next((i for i, c in enumerate(chunks) if old.encode() in bytes(c.get('Data', []))), None)
+        x, y, z = _pos(p)
+        off = self._pos_offset(chunks[ci]['Data'], x, y, z) if ci is not None else None
+        if off is None:
+            messagebox.showerror('Map', 'Could not find where %s\'s position is stored in its scene file, so it '
+                                 'can\'t be copied safely.' % old)
+            return
+        # a new name of the same length that no point, spawner or other mod uses
+        taken = {q.get('Name') for LL in self.layers for _, _, q in LL.points()} | set(self.spawner_by_obj)
+        for other in zm.list_mods():
+            path = other.path_for(self.tables['spawner'].rel)
+            if os.path.isfile(path):
+                try:
+                    d = json.loads(zm.to_json(path, zm.schema_for(self.tables['spawner'].path)))
+                    taken |= {o.get('objectName') for g in d['values'] for r in g.get('root', [])
+                              for o in r.get('appearanceSpawnerObjectInfoList', [])}
+                except Exception:  # noqa: BLE001
+                    pass
+        new = next((old[:-3] + '%03d' % k for k in range(901, 1000) if old[:-3] + '%03d' % k not in taken), None)
+        if new is None:
+            messagebox.showerror('Map', 'No free spawn point names left for %s.' % old[:-4])
+            return
+        nx, nz = x + 3.0, z + 3.0
+        # 1. position
+        q = copy.deepcopy(p)
+        q['Name'] = new
+        _set_pos(q, nx, y, nz)
+        L.data['values'][gi]['root'].insert(si + 1, q)
+        self.mark_dirty(L)
+        # 2. encounter (only this spawn point uses it)
+        enc = copy.deepcopy(e0)
+        enc['id'] = 'ect_' + new
+        enc['devNo'], enc['minLevel'], enc['maxLevel'] = dev, lo, max(lo, hi)
+        enc.pop('formNo', None)
+        egroups = self.tables['enc'].data['values']
+        eg = next((g for g in egroups if e0 in g.get('root', [])), egroups[0])
+        eg.setdefault('root', []).append(enc)
+        self.enc_by_id[enc['id']] = enc
+        # 3. spawner
+        sn = copy.deepcopy(s)
+        sn['id'] = 'id_' + new
+        for o in sn.get('appearanceSpawnerObjectInfoList', []):
+            o['objectName'] = new
+        info = copy.deepcopy(s['encountDataInfoList'][0])
+        info['encountDataId'] = enc['id']
+        sn['encountDataInfoList'] = [info]
+        for g in self.tables['spawner'].data['values']:
+            rr = g.get('root', [])
+            if s in rr:
+                rr.insert(rr.index(s) + 1, sn)
+                break
+        self.tables['enc'].dirty = self.tables['spawner'].dirty = True
+        # 4. scene: the point's chunk tree, renamed, with fresh ids for the chunks that belong only to it
+        ids = []
+
+        def all_ids(cs):
+            for c in cs:
+                ids.append(c.get('Id'))
+                all_ids(c.get('Children') or [])
+        all_ids(chunks)
+        unique = {i for i in ids if ids.count(i) == 1}
+        used = set(ids)
+        rng = random.Random(hash(new) & 0xFFFFFFFF)
+
+        def rename(c):
+            b = bytes(c.get('Data', []))
+            if old.encode() in b:
+                c['Data'] = list(b.replace(old.encode(), new.encode()))
+            if c.get('Id') in unique:
+                nid = rng.getrandbits(64)
+                while nid in used:
+                    nid = rng.getrandbits(64)
+                used.add(nid)
+                c['Id'] = nid
+            for ch in c.get('Children') or []:
+                rename(ch)
+        nc = copy.deepcopy(chunks[ci])
+        rename(nc)
+        b = bytearray(nc['Data'])
+        struct.pack_into('<3f', b, off, nx, y, nz)
+        nc['Data'] = list(b)
+        chunks.insert(ci + 1, nc)
+        self.__dict__.setdefault('scene_dirty', set()).add(rel)
+        self.__dict__.setdefault('new_points', {})[new] = (rel, off)
+        # refresh
+        self.index_spawn_tables()
+        self.spawn_info = {n: self.encounter_lines(n) for n in self.spawner_by_obj}
+        self.sel = (L, gi, si + 1)
+        self.show_sel()
+        self.redraw()
+        n = sum(1 for x_ in self.layers if x_.dirty) + sum(1 for t in self.tables.values() if t.dirty)
+        self.dirty_var.set('%d table(s) and %d scene(s) changed - not saved yet' % (n, len(self.scene_dirty)))
+        self.app.status_var.set('Added spawn point %s (%s, levels %d-%d) 3 m from %s - tick Edit mode to drag it into place, then '
+                                'Save to mod.' % (new, self.species_label(dev), lo, max(lo, hi), old))
+
+    def forget_new_point(self, name):
+        """A spawn point added this session was deleted again: drop its scene entry, spawner and encounter too."""
+        info = self.__dict__.get('new_points', {}).pop(name, None)
+        if not info:
+            return
+        rel = info[0]
+        chunks = self.scenes[rel][0]['Chunks']
+        chunks[:] = [c for c in chunks if name.encode() not in bytes(c.get('Data', []))]
+        self.__dict__.setdefault('scene_dirty', set()).add(rel)
+        for g in self.tables['spawner'].data['values']:
+            g['root'] = [s for s in g.get('root', [])
+                         if not any(o.get('objectName') == name for o in s.get('appearanceSpawnerObjectInfoList', []))]
+        for g in self.tables['enc'].data['values']:
+            g['root'] = [e for e in g.get('root', []) if e.get('id') != 'ect_' + name]
+        self.tables['enc'].dirty = self.tables['spawner'].dirty = True
+        self.index_spawn_tables()
+        self.spawn_info = {n: self.encounter_lines(n) for n in self.spawner_by_obj}
+
+    def _ask_spawn(self, e0):
+        """Small dialog: which Pokémon and levels the new spawn point spawns. Returns (species, min, max) or None."""
+        w = tk.Toplevel(self.app)
+        w.title('Add spawn point')
+        w.transient(self.app)
+        w.resizable(False, False)
+        bg = ttk.Style(w).lookup('TFrame', 'background') or None
+        if bg:
+            w.configure(background=bg)
+        f = ttk.Frame(w, padding=12)
+        f.pack(fill='both')
+        ttk.Label(f, wraplength=380, justify='left', text=(
+            'A new spawn point 3 m from the selected one, with its own encounter. To place it, tick Edit mode and drag '
+            'it on the map, then Save to mod. Ported Pokémon in your mod can be picked here too.')).grid(row=0, column=0, columnspan=4,
+                                                                                   sticky='w', pady=(0, 8))
+        ttk.Label(f, text='Pokémon:').grid(row=1, column=0, sticky='w')
+        sp = ttk.Combobox(f, width=30, values=self.species_names)
+        sp.grid(row=1, column=1, columnspan=3, sticky='w')
+        sp.set(self.species_label(e0.get('devNo', 0)))
+
+        def filt(e):
+            q = sp.get().lower()
+            sp.configure(values=[n for n in self.species_names if q in n.lower()][:400] if q else self.species_names)
+        sp.bind('<KeyRelease>', filt)
+        lo, hi = tk.IntVar(value=e0.get('minLevel', 5)), tk.IntVar(value=e0.get('maxLevel', 10))
+        ttk.Label(f, text='Levels:').grid(row=2, column=0, sticky='w', pady=6)
+        ttk.Spinbox(f, from_=1, to=100, textvariable=lo, width=5).grid(row=2, column=1, sticky='w')
+        ttk.Label(f, text='to').grid(row=2, column=2)
+        ttk.Spinbox(f, from_=1, to=100, textvariable=hi, width=5).grid(row=2, column=3, sticky='w')
+        out = {}
+
+        def ok():
+            keep = self.enc_species.get()
+            self.enc_species.set(sp.get())
+            dev = self._species_from_box()
+            self.enc_species.set(keep)
+            if dev is None:
+                messagebox.showerror('Add spawn point', 'Pick a Pokémon from the list.', parent=w)
+                return
+            try:
+                out['v'] = (dev, int(lo.get()), int(hi.get()))
+            except (ValueError, tk.TclError):
+                messagebox.showerror('Add spawn point', 'Levels must be whole numbers.', parent=w)
+                return
+            w.destroy()
+        bar = ttk.Frame(f)
+        bar.grid(row=3, column=0, columnspan=4, sticky='e', pady=(8, 0))
+        ttk.Button(bar, text='Add', command=ok).pack(side='right')
+        ttk.Button(bar, text='Cancel', command=w.destroy).pack(side='right', padx=6)
+        w.bind('<Return>', lambda e: ok())
+        w.bind('<Escape>', lambda e: w.destroy())
+        w.grab_set()
+        self.app.wait_window(w)
+        return out.get('v')
+
     def save_to_mod(self):
+        import struct
+        scene_dirty = self.__dict__.get('scene_dirty', set())
+        # new points follow their position on the map into the scene file
+        for name, (rel, off) in self.__dict__.get('new_points', {}).items():
+            pt = next((q for LL in self.layers for _, _, q in LL.points() if q.get('Name') == name), None)
+            if pt is None or rel not in self.__dict__.get('scenes', {}):
+                continue
+            x, y, z = _pos(pt)
+            for c in self.scenes[rel][0]['Chunks']:
+                if name.encode() in bytes(c.get('Data', [])):
+                    b = bytearray(c['Data'])
+                    if struct.unpack_from('<3f', b, off) != struct.unpack('<3f', struct.pack('<3f', x, y, z)):
+                        struct.pack_into('<3f', b, off, x, y, z)
+                        c['Data'] = list(b)
+                        scene_dirty.add(rel)
+                    break
         changed = [L for L in self.layers if L.dirty] + [t for t in self.tables.values() if t.dirty]
-        if not changed:
+        if not changed and not scene_dirty:
             self.app.status_var.set('Nothing to save.')
             return
         m = self.app.current_mod()
         if not m:
             return
+        for L in changed:
+            if not self.app.confirm_save_target('The map table %s' % os.path.basename(L.rel), L.src, L.stamp, m, L.rel):
+                return
+        # taken now, on this thread: points dragged while it saves stay unsaved
+        texts = [(L, json.dumps(L.data)) for L in changed]
+        scene_texts = [(rel, json.dumps(self.scenes[rel][0]), self.scenes[rel][1]) for rel in scene_dirty]
 
         def job():
-            for L in changed:
-                zm.from_json(json.dumps(L.data), zm.schema_for(L.path), m.path_for(L.rel))
-            return changed
+            for L, text in texts:
+                zm.from_json(text, zm.schema_for(L.path), m.path_for(L.rel))
+            for rel, text, sch in scene_texts:
+                out = m.path_for(rel)
+                os.makedirs(os.path.dirname(out), exist_ok=True)
+                zm.from_json(text, sch, out)
+            return texts
+
         def done(r):
-            for L in r:
-                L.dirty = False
-            self.dirty_var.set('Saved %d table(s) into "%s"' % (len(r), m.name))
+            for L, text in r:
+                L.src, L.stamp = m.path_for(L.rel), zm.file_stamp(m.path_for(L.rel))
+                if json.dumps(L.data) == text:
+                    L.dirty = False
+            r = [L for L, _ in r]
+            n_sc = len(scene_dirty)
+            scene_dirty.clear()
+            self.dirty_var.set('Saved %d table(s)%s into "%s"' % (len(r), ' and %d scene(s)' % n_sc if n_sc else '', m.name))
             self.app.refresh_mods()
         self.app.run_bg('Saving map changes', job, done)
 

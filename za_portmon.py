@@ -545,7 +545,11 @@ def add_catalog(root, sv, mod, species, gender=0):
     table = za['table']
     table[:] = [r for r in table if not (r.get('species_info', {}).get('species') == species and
                                           r['species_info'].get('gender', 0) == gender and not r['species_info'].get('form'))]
-    i = next((i for i, r in enumerate(table) if r.get('species_info', {}).get('species', 0) > species), len(table))
+    # after the Pokémon's earlier species, and the male / genderless model before the female one (lookups take the
+    # first entry of a species)
+    i = next((i for i, r in enumerate(table) if r.get('species_info', {}).get('species', 0) > species or
+              (r.get('species_info', {}).get('species', 0) == species and r['species_info'].get('gender', 0) > gender)),
+             len(table))
     table.insert(i, e)
     save(mod, CATALOG, za, sch)
     return e
@@ -593,7 +597,9 @@ def add_params(root, mod, species, host_species, guest_height=0):
         d, sch = load(root, mod, rel)
         groups = d['values']
         groups[:] = [g for g in groups if g['root'][0].get(key) != species]
-        src = next(g for g in groups if g['root'][0].get(key) == host_species)
+        src = next((g for g in groups if g['root'][0].get(key) == host_species), None)
+        if src is None:
+            raise PortError('The host Pokémon #%d has no row in %s.' % (host_species, rel.rsplit('/', 1)[-1]))
         g = json.loads(json.dumps(src))
         g['root'] = [g['root'][0]]
         g['root'][0][key] = species
@@ -611,8 +617,8 @@ def add_params(root, mod, species, host_species, guest_height=0):
 def add_alpha_move(root, mod, species, host_species):
     """The alpha move: the strongest Z-A-usable damaging move in its level-up moves (else the host's)."""
     usable, moves = usable_moves(root)
-    learn = next(r.get('learnset') or [] for r in personal_rows(root, mod) if r['species']['species_index'] == species
-                 and r['species']['species_form'] == 0)
+    learn = next((r.get('learnset') or [] for r in personal_rows(root, mod) if r['species']['species_index'] == species
+                  and r['species']['species_form'] == 0), [])
     best = None
     for m in learn:
         mv = moves.get(m.get('move'))
@@ -622,7 +628,9 @@ def add_alpha_move(root, mod, species, host_species):
     d, sch = load(root, mod, OYABUN)
     rows = d['root']
     rows[:] = [r for r in rows if r.get('devNo') != species]
-    src = next(r for r in rows if r.get('devNo') == host_species)
+    src = next((r for r in rows if r.get('devNo') == host_species), None)
+    if src is None:
+        raise PortError('The host Pokémon #%d has no alpha move row.' % host_species)
     r = json.loads(json.dumps(src))
     r['devNo'] = species
     if best:
@@ -741,12 +749,15 @@ def set_pokedex(root, mod, species, mode, other=None):
     entries = d['entries']
     pd, psch = load(root, mod, PERSONAL)
     rows = pd['entries']
+    if any(e.get('species') == species for e in entries):     # ported before: keep the entry it already has
+        return next(((r.get('dex') or {}).get('index') for r in rows if r['species']['species_index'] == species
+                     and r['species']['species_form'] == 0), None)
     if mode == 'replace':
         e = next((e for e in entries if e.get('species') == other), None)
         if e is None:
             raise PortError('#%d is not in the Pokédex.' % other)
         e['species'] = species
-        num = next((r.get('dex') or {}).get('index') for r in rows if r['species']['species_index'] == other)
+        num = next(((r.get('dex') or {}).get('index') for r in rows if r['species']['species_index'] == other), 0)
         for r in rows:
             if r['species']['species_index'] == other:
                 r['dex'] = {'index': 0, 'group': 0}
@@ -818,35 +829,53 @@ def add_spawns(root, mod, species, zone, count=3, levels=(5, 10)):
         raise PortError('No spawn points in zone %s.' % zone)
     tmpl_points = zone_sp[:count]
     taken = {o.get('objectName') for _, _, r in srows for o in r.get('appearanceSpawnerObjectInfoList', [])}
+    for other in zm.list_mods():                       # names other mods use too, so mods can be installed together
+        if os.path.normcase(other.romfs) == os.path.normcase(mod.romfs) or not os.path.isfile(other.path_for(SPAWNER)):
+            continue
+        try:
+            od, _ = load(root, other, SPAWNER)
+            taken |= {o.get('objectName') for g in od['values'] for r in g.get('root', [])
+                      for o in r.get('appearanceSpawnerObjectInfoList', [])}
+        except Exception:  # noqa: BLE001
+            pass
+    enc_id = 'ect_%s_port_z%04d' % (zone, species)
+    already = [o.get('objectName') for _, _, r in srows if any(e.get('encountDataId') == enc_id
+                                                                for e in r.get('encountDataInfoList', []))
+               for o in r.get('appearanceSpawnerObjectInfoList', [])]
+    if already:                                      # ported before: keep its points, don't add more
+        return already
     # new names: the template's name with its last 3 digits replaced by an unused 9xx (same length)
     new = []
     k = 900
     for _, _, r in tmpl_points:
         old = r['appearanceSpawnerObjectInfoList'][0]['objectName']
+        if len(old) < 4 or not old[-3:].isdigit():
+            raise PortError("Spawn point %s has an unexpected name, so it can't be copied." % old)
         while True:
             k += 1
+            if k > 999:
+                raise PortError('No free spawn point names left in zone %s.' % zone)
             cand = old[:-3] + '%03d' % k
             if cand not in taken:
                 break
         taken.add(cand)
         new.append((old, cand, r))
+    # everything is prepared in memory first and only saved when every part worked, so a failure leaves the
+    # mod as it was
     # encounter
     ed, esch = load(root, mod, ENCOUNT)
     tmpl_enc_id = new[0][2]['encountDataInfoList'][0]['encountDataId']
-    enc_id = 'ect_%s_port_z%04d' % (zone, species)
     erows = [(gi, i, r) for gi, g in enumerate(ed['values']) for i, r in enumerate(g.get('root', []))]
-    for gi, i, r in erows:
-        if r.get('id') == tmpl_enc_id:
-            e = copy.deepcopy(r)
-            e['id'] = enc_id
-            e['devNo'] = species
-            e.pop('formNo', None)
-            e['minLevel'], e['maxLevel'] = int(levels[0]), int(levels[1])
-            g = ed['values'][gi]['root']
-            g[:] = [x for x in g if x.get('id') != enc_id]
-            g.insert(i + 1, e)
-            break
-    save(mod, ENCOUNT, ed, esch)
+    hit = next(((gi, i, r) for gi, i, r in erows if r.get('id') == tmpl_enc_id), None)
+    if hit is None:
+        raise PortError('The encounter %s of spawn point %s is missing.' % (tmpl_enc_id, new[0][0]))
+    gi, i, r = hit
+    e = copy.deepcopy(r)
+    e['id'] = enc_id
+    e['devNo'] = species
+    e.pop('formNo', None)
+    e['minLevel'], e['maxLevel'] = int(levels[0]), int(levels[1])
+    ed['values'][gi]['root'].insert(i + 1, e)
     # spawner rows
     for old, cand, r in new:
         gi, i = next((gi, i) for gi, i, x in srows if x is r)
@@ -858,21 +887,23 @@ def add_spawns(root, mod, species, zone, count=3, levels=(5, 10)):
         info['encountDataId'] = enc_id
         s['encountDataInfoList'] = [info]
         sd['values'][gi]['root'].insert(i + 1, s)
-    save(mod, SPAWNER, sd, ssch)
     # positions
     xd, xsch = load(root, mod, XFORM)
+    pos = {}
     for old, cand, r in new:
         for g in xd['values']:
             rr = g.get('root', [])
             j = next((j for j, p in enumerate(rr) if p.get('Name') == old), None)
             if j is not None:
                 p = copy.deepcopy(rr[j])
+                pos[old] = (p['Position'].get('X', 0.0), p['Position'].get('Y', 0.0), p['Position'].get('Z', 0.0))
                 p['Name'] = cand
                 p['Position']['X'] = p['Position'].get('X', 0.0) + 4.0
                 p['Position']['Z'] = p['Position'].get('Z', 0.0) + 4.0
                 rr.insert(j + 1, p)
                 break
-    save(mod, XFORM, xd, xsch)
+        else:
+            raise PortError('Spawn point %s has no position row.' % old)
     # scene: copy each template point's chunk tree, renamed, with fresh ids for its own chunks, moved 4 m
     sc, scsch = load(root, mod, scene_rel)
     chunks = sc['Chunks']
@@ -900,16 +931,34 @@ def add_spawns(root, mod, species, zone, count=3, levels=(5, 10)):
         for x in c.get('Children') or []:
             rename(x, old, cand)
     for old, cand, r in new:
-        i = next(i for i, c in enumerate(chunks) if old.encode() in bytes(c.get('Data', [])))
+        i = next((i for i, c in enumerate(chunks) if old.encode() in bytes(c.get('Data', []))), None)
+        if i is None:
+            raise PortError("Spawn point %s isn't in the scene file %s." % (old, scene_rel))
         c = copy.deepcopy(chunks[i])
         rename(c, old, cand)
         b = bytearray(c['Data'])
-        x, y, z = struct.unpack_from('<3f', b, 132)
-        struct.pack_into('<3f', b, 132, x + 4.0, y, z + 4.0)
+        off = pos_offset(b, *pos[old])
+        if off is None:
+            raise PortError("Could not find where %s's position is stored in its scene file." % old)
+        x, y, z = struct.unpack_from('<3f', b, off)
+        struct.pack_into('<3f', b, off, x + 4.0, y, z + 4.0)
         c['Data'] = list(b)
         chunks.insert(i + 1, c)
+    save(mod, ENCOUNT, ed, esch)
+    save(mod, SPAWNER, sd, ssch)
+    save(mod, XFORM, xd, xsch)
     save(mod, scene_rel, sc, scsch)
     return [c for _, c, _ in new]
+
+
+def pos_offset(data, x, y, z):
+    """Byte offset of a position (three floats) inside a scene chunk's data, or None."""
+    b = bytes(data)
+    for k in range(0, len(b) - 11, 4):
+        a, bb, c = struct.unpack_from('<3f', b, k)
+        if abs(a - x) < 0.01 and abs(bb - y) < 0.01 and abs(c - z) < 0.01:
+            return k
+    return None
 
 
 # ---- check ---------------------------------------------------------------------------------------------
@@ -921,8 +970,8 @@ def check(root, mod, species):
     r = rows.get((species, 0))
     out.append((bool(r and r.get('is_present')), 'species row present and flagged "in this game"'))
     cat, _ = load(root, mod, CATALOG)
-    e = next((x for x in cat['table'] if x.get('species_info', {}).get('species') == species
-              and not x['species_info'].get('form')), None)
+    e = next((x for x in sorted(cat['table'], key=lambda x: x.get('species_info', {}).get('gender', 0))
+              if x.get('species_info', {}).get('species') == species and not x['species_info'].get('form')), None)
     out.append((e is not None, 'resource table entry'))
     if e:
         stem = e['model_path'].split('/')[1]
@@ -1237,9 +1286,16 @@ class PortWindow:
                 raise PortError('Pick the Pokémon whose Pokédex entry to take over.')
         z = self.zone_var.get()
         if z and z != 'none':
-            opts['spawn_zone'] = next(zid for zid, n in self.zones if z.startswith(n + ' - ') or z.endswith(zid))
-            opts['spawn_count'] = max(1, min(10, self.count.get()))
-            opts['spawn_levels'] = (min(self.lv0.get(), self.lv1.get()), max(self.lv0.get(), self.lv1.get()))
+            zid = next((zid for zid, n in self.zones if z.startswith(n + ' - ') or z.endswith(zid)), None)
+            if zid is None:
+                raise PortError('Pick a wild zone from the list.')
+            opts['spawn_zone'] = zid
+            try:
+                count, a, b = self.count.get(), self.lv0.get(), self.lv1.get()
+            except Exception:  # noqa: BLE001  (TclError: not a whole number)
+                raise PortError('Spawn count and levels must be whole numbers.')
+            opts['spawn_count'] = max(1, min(10, count))
+            opts['spawn_levels'] = (max(1, min(a, b)), min(100, max(a, b)))
         return opts
 
     def port(self):
@@ -1251,6 +1307,9 @@ class PortWindow:
             opts = self.options()
         except PortError as e:
             messagebox.showerror('Port a Pokémon', str(e), parent=self.win)
+            return
+        if not getattr(self, 'host_list', None) or self.host_box.current() < 0:
+            messagebox.showerror('Port a Pokémon', 'Pick the Pokémon whose animation system to use.', parent=self.win)
             return
         host = self.host_list[self.host_box.current()]
         c, sv = self.sel, self.sv
@@ -1296,6 +1355,25 @@ class PortWindow:
             IconPicker(self.app, mod, c['species'], c['name'])
 
 
+def _purge_old_icon_temp(hours=6):
+    """Remove icon temp folders left by earlier sessions (glb models and renders, several MB each)."""
+    import shutil
+    import tempfile
+    import time
+    base = tempfile.gettempdir()
+    try:
+        names = [n for n in os.listdir(base) if n.startswith('icons_')]
+    except OSError:
+        return
+    for n in names:
+        p = os.path.join(base, n)
+        try:
+            if os.path.isdir(p) and time.time() - os.path.getmtime(p) > hours * 3600:
+                shutil.rmtree(p, ignore_errors=True)
+        except OSError:
+            pass
+
+
 class IconPicker:
     """Pick a pose for a ported Pokémon's icons, rendered in Z-A's style; writes the normal and shiny icons."""
 
@@ -1337,8 +1415,33 @@ class IconPicker:
         self.choice = None
         self.thumbs = []
         import tempfile
+        _purge_old_icon_temp()
         self.tmp = tempfile.mkdtemp(prefix='icons_')
+        self.busy, self.closed = 0, False
+        w.protocol('WM_DELETE_WINDOW', self.close)
+        w.bind('<Escape>', lambda e: self.close())
         self.render_sheet()
+
+    def bg(self, label, fn, done):
+        """run_bg, keeping the temp folder until the last job using it has finished."""
+        import shutil
+        self.busy += 1
+
+        def work():
+            try:
+                return fn()
+            finally:
+                self.busy -= 1
+                if self.closed and not self.busy:
+                    shutil.rmtree(self.tmp, ignore_errors=True)
+        self.app.run_bg(label, work, done)
+
+    def close(self):
+        import shutil
+        self.closed = True
+        self.win.destroy()
+        if not self.busy:
+            shutil.rmtree(self.tmp, ignore_errors=True)
 
     def render_sheet(self):
         import za_iconrender as ir
@@ -1355,7 +1458,7 @@ class IconPicker:
             self.exclude = excl
             return ir.render({'models': models, 'exclude': excl, 'shots': shots}, self.tmp), shots
 
-        self.app.run_bg('Rendering icon poses', job, self.show_sheet)
+        self.bg('Rendering icon poses', job, self.show_sheet)
 
     def effect_materials(self):
         """Materials left out of the framing (flames and other unlit effects)."""
@@ -1412,10 +1515,13 @@ class IconPicker:
                 self.status.set('Icon editor closed without changes.')
                 return
             self.show_result(r)
-        self.app.run_bg('Icon editor', job_fn, done)
+        self.bg('Icon editor', job_fn, done)
 
     def show_result(self, r):
         from PIL import Image, ImageTk
+        self.app.mod_changed(self.mod, '', 'icons for #%d' % self.species)   # first: the window may be closed
+        if self.closed:
+            return
         ims = [Image.open(p).convert('RGBA').resize((96, 96), Image.LANCZOS) for p in r]
         sheet = Image.new('RGBA', (200, 96), (0, 0, 0, 0))
         for i, im in enumerate(ims):
@@ -1423,7 +1529,6 @@ class IconPicker:
         self.prev_img = ImageTk.PhotoImage(sheet)
         self.preview.configure(image=self.prev_img)
         self.status.set('Icons written (normal and shiny) to the mod.')
-        self.app.mod_changed(self.mod, '', 'icons for #%d' % self.species)
 
     def make(self):
         import za_iconrender as ir
@@ -1440,13 +1545,15 @@ class IconPicker:
             write_icons(self.root, self.mod, self.rel, self.stem, n, sh)
             return n, sh
 
-        self.app.run_bg('Rendering the icons', job, self.show_result)
+        self.bg('Rendering the icons', job, self.show_result)
 
 
 def open_window(app):
     w = getattr(app, 'port_win', None)
     try:
-        if w is not None and w.win.winfo_exists():
+        if w is not None and w.win.winfo_exists() and w.root != app.root_var.get():
+            w.win.destroy()                 # the game folder changed: start over
+        elif w is not None and w.win.winfo_exists():
             w.win.lift()
             return w
     except Exception:  # noqa: BLE001

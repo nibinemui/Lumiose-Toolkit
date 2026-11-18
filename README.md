@@ -38,7 +38,7 @@ on it), a modded Switch (Atmosphere) or an emulator.
 
 ### Browse & extract
 - **Search by in-game name**: Pokémon (`pikachu`, `25`), clothing (`v-neck t-shirt`), or any file/folder name. Small typos are fine.
-- **Search the game's text**: every line of dialogue, item and move names in any language; click a result to jump to that line.
+- **Search the game's text**: every line of dialogue, item and move names in any language; click a result to jump to that line. **Search all text…** searches every language at once and shows the whole line.
 - **Find textures by what they show**: every texture has a plain-English description in the **About** column - the
   Pokémon, clothing item, character, building, map object or icon it belongs to, the part, and what it does (colour,
   bumps, colour regions…). Search matches it too: `pikachu body`, `billboard`, `poster`, `marble`, `poke ball icon`.
@@ -95,6 +95,7 @@ on it), a modded Switch (Atmosphere) or an emulator.
   - Shows the Lumiose City map with every placement layer: Pokémon spawns, item balls, random items, NPCs, walking NPCs, royale cards and move gimmicks.
   - Move, rotate, duplicate and delete points.
   - Edit the **encounters** at a spawn: species, levels and weight.
+  - **Add spawn point…**: a new Pokémon spawn point with the Pokémon and levels you pick, placed by dragging.
   - Edit the **contents of item balls** and random items, with "Make unique" so other spots aren't affected.
   - Pick any **interior, dungeon or zone** from the Area list. Optionally lay a dungeon floor map underneath and align it; the alignment is saved per area.
 - **Audio tab**: every song, jingle, sound effect, Pokémon cry, voice and ambience sound (over 14,000), searchable by
@@ -241,6 +242,9 @@ Already unpacked the game with another tool? Click **I already have the files �
 
 ### Browse & extract
 Type in the search box at the top left to search. Use **in: Files & names** for names, or **in: Game text** plus a language to search the text.
+**Search all text…** (next to the language list) opens a window that searches every line of game text in one language
+or all of them at once, without caring about case or accents ("quotes" find a phrase). It shows the whole line and
+the label, includes the current mod's changed text, and opens the line in the text editor on double-click.
 Textures are also found by **what they show**: the **About** column describes each one (the Pokémon, clothing item, character, building, map object or icon it belongs to, the part, and what the texture does), and search matches that too - try `pikachu body`, `billboard`, `poster`, `neon`, `marble` or `poke ball icon`. Japanese words in map names get their English meaning (`kanban (signboard)`), and accents don't matter.
 Click a file to preview it. The buttons above the preview change with the file type. Right-click files for Extract, *Add original file(s) to current mod*, *Show in Explorer* and *Copy path*.
 Select files or folders, tick the conversions at the bottom, then press **Extract selected** (Ctrl+E).
@@ -357,6 +361,10 @@ The first time you open it, the tab builds its list of every sound and song (abo
 - **Navigate**: mouse wheel zooms, dragging pans, clicking selects a point. *Find* searches point names and switches to the right area automatically.
 - **Edit a point**: change X/Y/Z/rotation and press **Apply**, or tick **Edit mode** and drag the selected point. **Duplicate** and **Delete** are below.
 - **Pokémon spawns**: edit species, levels and weight under *Encounters at this spawn*. *Add (copy)* makes an encounter used only by this spawn.
+- **New spawn points**: select a Pokémon spawn point and press **Add spawn point…**. Pick the Pokémon (Pokémon ported
+  into your mod are listed too) and the levels. The new point appears 3 m away with its own encounter; tick **Edit
+  mode** to drag it into place. Saving writes its position, spawner, encounter and its entry in the area's scene file
+  (the scene file is what makes the game place it). Spawn points of interiors without a scene file can't be copied.
 - **Item balls and random items**: edit item, count and weight under *Contents*. Use **Make unique** first if the item table is shared with other points.
 - **Interiors, dungeons and zones**: pick one from **Area**. Its points are shown on a 10 m grid. To use a floor map as the background:
   1. Choose it under **Background** (the lab and sewer floors are included).
@@ -480,6 +488,7 @@ Lumiose Toolkit/
   za_newitem.py           new clothing items and hairstyles (copies one: model, .ccdata, ids, names, shop/salon)
   za_checklist.py         in-game test checklist made from what a mod changes
   za_datasearch.py        Search all tables (index of every data table's rows, search window)
+  za_textsearch.py        Search all text (index of every message file in every language, search window)
   za_portmon.py           Port a Pokémon from Scarlet/Violet (model, materials, animation system, data, window)
   za_iconrender.py        renders Pokémon icons in Z-A's style in a hidden browser window (tools/icon_render)
   za_texnames.py          plain-English texture descriptions for Browse (About column, search)

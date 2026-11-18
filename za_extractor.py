@@ -101,6 +101,14 @@ def human_size(n):
         n /= 1024.0
 
 
+def relpath_or_full(p, root):
+    """os.path.relpath, but the full path when p is on another drive than root (relpath raises then)."""
+    try:
+        return os.path.relpath(p, root)
+    except ValueError:
+        return p
+
+
 def log_error(text):
     try:
         with open(LOG_PATH, 'a', encoding='utf-8') as f:
@@ -297,6 +305,9 @@ class App(tk.Tk):
         self.minsize(900, 520)
         self.q = queue.Queue()
         self.live = {}              # live-edited PNG -> info (see live_edit_texture)
+        self.jobs, self.jobs_lock = {}, threading.Lock()     # running background jobs (run_bg): label -> count
+        self.write_lock = threading.Lock()   # texture imports read, change and write a mod file: one at a time
+        self.shown_mod = None
         self.variant_by_id = {}     # dress-up item id -> clothing colour variant (search results)
         self._live_after = None
         self.settings = self.load_settings()
@@ -435,6 +446,19 @@ class App(tk.Tk):
         return ['the extraction'] if self.extracting else []
 
     def on_close(self):
+        with self.jobs_lock:
+            running = sorted(self.jobs)
+        busy = running + self.extract_busy() + [os.path.basename(p) + ' (live edit)' for p, e in self.live.items()
+                                                if e.get('busy')]
+        if busy and not messagebox.askyesno(
+                'Lumiose Toolkit', 'Still working on:\n\n  %s\n\nClosing now can leave a half-written file in '
+                'your mod. Close anyway?' % '\n  '.join(busy), icon='warning'):
+            return
+        unsaved = self.unsaved_tabs()
+        if unsaved and not messagebox.askyesno(
+                'Lumiose Toolkit', 'Unsaved changes in:\n\n  %s\n\nClose without saving them?' % '\n  '.join(unsaved),
+                icon='warning'):
+            return
         self.stop_embedded()
         self.save_settings()
         self.cancel_flag.set()
@@ -666,6 +690,7 @@ class App(tk.Tk):
                                        values=self.text_languages())
         self.lang_combo.pack(side='left')
         self.lang_combo.bind('<<ComboboxSelected>>', lambda e: (setattr(self, 'text_index', None), self.run_search()))
+        ttk.Button(srch, text='Search all text…', command=self.search_all_text).pack(side='left', padx=(6, 0))
         ttk.Label(srch, text='   Show:').pack(side='left')
         cb = ttk.Combobox(srch, textvariable=self.filter_var, values=list(TYPE_FILTERS), state='readonly', width=20)
         cb.pack(side='left', padx=3)
@@ -1062,8 +1087,11 @@ class App(tk.Tk):
         mods = zm.list_mods()
         names = [m.name for m in mods]
         self.mod_combo.configure(values=names)
-        if self.mod_var.get() not in names:
+        if self.mod_var.get() and self.mod_var.get() not in names:
             self.mod_var.set(names[0] if names else '')
+        if self.mod_var.get() != getattr(self, '_tabs_mod', None):    # another current mod: tabs read its copies
+            self._tabs_mod = self.mod_var.get()
+            self.after_idle(self.reload_clean_tabs)
         sel = self.mods_list.curselection()
         cur = self.mods_list.get(sel[0]) if sel else self.mod_var.get()
         self.mods_list.delete(0, 'end')
@@ -1105,13 +1133,17 @@ class App(tk.Tk):
 
     def show_mod(self):
         m = self.selected_mod()
-        for k, v in self.mod_fields.items():
-            v.set(m.info.get(k, '') if m else '')
-        self.mod_desc.delete('1.0', 'end')
+        same = m is not None and m.folder == self.shown_mod      # a refresh: keep details being typed
+        self.shown_mod = m.folder if m else None
+        if not same:
+            for k, v in self.mod_fields.items():
+                v.set(m.info.get(k, '') if m else '')
+            self.mod_desc.delete('1.0', 'end')
         self.mod_files.delete(*self.mod_files.get_children())
         if not m:
             return
-        self.mod_desc.insert('1.0', m.info.get('description', ''))
+        if not same:
+            self.mod_desc.insert('1.0', m.info.get('description', ''))
         for rel in m.files():
             self.mod_files.insert('', 'end', rel, text=rel)
         self.fit_mod_files()
@@ -1160,9 +1192,18 @@ class App(tk.Tk):
         if not messagebox.askyesno('Delete mod', 'Permanently delete the mod "%s" and its %d file(s)?\n\n%s\n\n'
                                    'This cannot be undone.' % (m.name, n, m.folder), icon='warning'):
             return
+        for png, e in list(self.live.items()):          # live edits into it would bring the folder back
+            if os.path.normcase(e['mod'].folder) == os.path.normcase(m.folder):
+                del self.live[png]
+        was_current = self.mod_var.get() in (m.name, os.path.basename(m.folder))
         shutil.rmtree(m.folder, ignore_errors=True)
         self.order = [e for e in self.order if not (e[0] == 'mod' and e[1] == m.folder)]
+        if was_current:
+            self.mod_var.set('')                         # don't quietly make another mod the current one
         self.refresh_mods()
+        if os.path.exists(m.folder):
+            messagebox.showwarning('Delete mod', 'Some files of "%s" could not be deleted (open in another program?). '
+                                   'What is left is in:\n\n%s' % (m.name, m.folder))
 
     def save_mod_details(self):
         m = self.selected_mod()
@@ -1281,6 +1322,12 @@ class App(tk.Tk):
     def _order_mods(self):
         live = {m.folder: m for m in zm.list_mods()}
         out = []
+        gone = [ref for kind, ref in self.order if kind == 'mod' and ref not in live]
+        if gone:
+            self.order = [e for e in self.order if not (e[0] == 'mod' and e[1] in gone)]
+            self.refresh_order()
+            self.log_build('Removed from the load order (no longer in the mods folder): %s'
+                           % ', '.join(os.path.basename(g) for g in gone))
         for kind, ref in self.order:
             out.append(live[ref] if kind == 'mod' else zm.ExternalMod(ref))
         if not out:
@@ -1298,8 +1345,9 @@ class App(tk.Tk):
         if len(mods) == 1:
             return mods[0].name
         from tkinter import simpledialog
-        return simpledialog.askstring('Package name', 'Name for the combined mod:', parent=self,
-                                      initialvalue='My mod pack') or 'My mod pack'
+        name = simpledialog.askstring('Package name', 'Name for the combined mod:', parent=self,
+                                      initialvalue='My mod pack')
+        return name.strip() if name and name.strip() else None
 
     def install_recomp(self):
         mods = self._order_mods()
@@ -1308,6 +1356,8 @@ class App(tk.Tk):
             return
         self.save_settings()
         name = self._package_name(mods)
+        if not name:
+            return
         rd = self.recomp_var.get()
         try:                                  # other mods already in Recomp that change the same files?
             import za_conflicts
@@ -1368,7 +1418,10 @@ class App(tk.Tk):
         if name is None:
             from tkinter import simpledialog
             name = simpledialog.askstring('Package name', 'Name for the combined package:', parent=self,
-                                          initialvalue='My mod pack') or 'My mod pack'
+                                          initialvalue='My mod pack')
+            if not name or not name.strip():
+                return
+            name = name.strip()
         self.log_build('Building "%s" from %d mod(s) for: %s' % (name, len(mods), ', '.join(zm.TARGETS[t] for t in targets)))
 
         game_root = self.root_var.get()
@@ -1417,6 +1470,11 @@ class App(tk.Tk):
         zt.set_game_root(root)                 # mod-only models (new clothing) find shared game files
         if reindex:
             self.arc_cache.clear()
+            self.text_index = None             # game text of this folder
+            try:
+                self.lang_combo.configure(values=self.text_languages())
+            except (AttributeError, tk.TclError):
+                pass
         if not os.path.isdir(root):
             self.status_var.set('Game folder not found: ' + root)
             return
@@ -1480,12 +1538,17 @@ class App(tk.Tk):
                 self.populate_arc(iid, real[2:], prefix)
 
     def load_arc(self, path):
-        if path not in self.arc_cache:
-            if len(self.arc_cache) > 8:
-                self.arc_cache.pop(next(iter(self.arc_cache)))
+        files = self.arc_cache.get(path)
+        if files is None:
             with open(path, 'rb') as f:
-                self.arc_cache[path] = dict(zf.parse_sarc(f.read()))
-        return self.arc_cache[path]
+                files = dict(zf.parse_sarc(f.read()))
+            try:
+                while len(self.arc_cache) > 8:
+                    self.arc_cache.pop(next(iter(self.arc_cache)), None)
+            except (StopIteration, RuntimeError):
+                pass
+            self.arc_cache[path] = files
+        return files
 
     def populate_arc(self, iid, path, prefix=''):
         try:
@@ -1601,7 +1664,7 @@ class App(tk.Tk):
         ex = getattr(self, '_mod_extras', (None, None))[1]
         if ex and os.path.normcase(os.path.abspath(p)).startswith(os.path.normcase(ex['romfs']) + os.sep):
             return '[%s]  %s' % (ex['name'], os.path.relpath(p, ex['romfs']))
-        return os.path.relpath(p, root)
+        return relpath_or_full(p, root)
 
     def name_nodes(self, entry, exts):
         """Top-level folders/files that belong to a named Pokémon / clothing item."""
@@ -1703,7 +1766,13 @@ class App(tk.Tk):
                         continue
 
             def done():
-                self.text_index, self.text_index_busy = idx, False
+                self.text_index_busy = False
+                if (lang_dir != os.path.join(self.root_var.get(), 'ik_message', 'dat', self.text_lang.get())):
+                    self.text_index = None          # the folder or language changed meanwhile: read again
+                    if self.search_mode.get() == 'Game text':
+                        self.run_search()
+                    return
+                self.text_index = idx
                 self.status_var.set('%d lines of %s text indexed' % (len(idx), self.text_lang.get()))
                 self.run_search()
             self.q.put(done)
@@ -1825,8 +1894,10 @@ class App(tk.Tk):
         if iid.startswith('N|'):
             nodes = self.name_hits[iid][1]
             return nodes[0][1] if nodes else None
-        if iid.startswith(('H|', 'U|')):
+        if iid.startswith(('H|', 'U|', 'CV|', 'VI|')):
             return None
+        if iid.startswith('T|'):                       # game-text hit: 'T|<path>|<line>'
+            return iid[2:].rsplit('|', 1)[0]
         return iid[2:]
 
     def show_in_explorer(self):
@@ -1886,7 +1957,7 @@ class App(tk.Tk):
             self.info_var.set('%s   [%s · %s]' % (entry.name, entry.kind, entry.detail))
             lines = ['%s  -  %s (%s)' % (entry.name, entry.kind, entry.detail), '',
                      '%d file(s) belong to this, in:' % count, '']
-            lines += ['  %s %s' % ('[folder]' if k == 'D' else '[file]  ', os.path.relpath(p, root))
+            lines += ['  %s %s' % ('[folder]' if k == 'D' else '[file]  ', relpath_or_full(p, root))
                       for k, p in nodes]
             lines += ['', 'Expand it on the left to browse and preview the files,',
                       'or press "Extract selected" to extract all of them.']
@@ -2495,6 +2566,8 @@ class App(tk.Tk):
     def run_bg(self, label, fn, done=None):
         """Run fn() on a worker thread; show status; call done(result) on the main thread."""
         self.status_var.set(label + '…')
+        with self.jobs_lock:
+            self.jobs[label] = self.jobs.get(label, 0) + 1
 
         def work():
             try:
@@ -2505,6 +2578,11 @@ class App(tk.Tk):
                 msg = str(e)
                 self.q.put(lambda: (self.status_var.set(label + ' - failed'),
                                     messagebox.showerror('Lumiose Toolkit', '%s failed:\n\n%s' % (label, msg))))
+            finally:
+                with self.jobs_lock:
+                    self.jobs[label] -= 1
+                    if not self.jobs[label]:
+                        del self.jobs[label]
         threading.Thread(target=work, daemon=True).start()
 
     def export_model(self, model_path, n_anims, anim_paths=None):
@@ -2628,8 +2706,15 @@ class App(tk.Tk):
                 if os.path.normcase(src) == os.path.normcase(dest):      # rebuilding the mod's own copy
                     tmp_src = dest + '.old'
                     shutil.move(dest, tmp_src)
-                note = za_audio.replace_in_pck(tmp_src, idx, wem, dest,
-                                               progress=lambda a, b: self.q.put(lambda: self.extract_progress(a, b, 'package')))
+                try:
+                    note = za_audio.replace_in_pck(tmp_src, idx, wem, dest, progress=lambda a, b: self.q.put(
+                        lambda: self.extract_progress(a, b, 'package')))
+                except BaseException:
+                    if tmp_src.endswith('.old'):          # put the mod's package back as it was
+                        if os.path.exists(dest):
+                            os.remove(dest)
+                        shutil.move(tmp_src, dest)
+                    raise
                 if tmp_src.endswith('.old'):
                     os.remove(tmp_src)
             else:
@@ -2644,8 +2729,11 @@ class App(tk.Tk):
         p = filedialog.asksaveasfilename(defaultextension='.json', initialfile=os.path.basename(path) + '.json',
                                          initialdir=self.out_var.get(), filetypes=[('JSON', '*.json')])
         if p:
-            self.run_bg('Exporting JSON', lambda: open(p, 'w', encoding='utf-8').write(zm.to_json(path)),
-                        lambda r: self.status_var.set('Saved ' + p))
+            def job():
+                text = zm.to_json(path)
+                with open(p, 'w', encoding='utf-8') as f:
+                    f.write(text)
+            self.run_bg('Exporting JSON', job, lambda r: self.status_var.set('Saved ' + p))
 
     def import_json(self, path):
         rel = self.rel_game_path(path)
@@ -2679,6 +2767,14 @@ class App(tk.Tk):
         with open(p, 'w', encoding='utf-8-sig', newline='\n') as f:
             f.write(zf.msg_to_text(d, tbl))
         self.status_var.set('Saved %s - edit the text after the TAB on each line, keep the lines in order.' % p)
+
+    def search_all_text(self):
+        import za_textsearch
+        try:
+            za_textsearch.open_window(self)
+        except Exception as e:  # noqa: BLE001
+            log_error(traceback.format_exc())
+            messagebox.showerror('Lumiose Toolkit', 'Could not open Search all text: %s' % e)
 
     def edit_text(self, path, line=None):
         if not self.rel_game_path(path):
@@ -2751,7 +2847,12 @@ class App(tk.Tk):
         src = m.path_for(rel) if os.path.isfile(m.path_for(rel)) else path   # build on earlier edits
 
         def job():
-            with open(src, 'rb') as f:
+            with self.write_lock:           # a live edit may be writing the same mod file
+                return locked()
+
+        def locked():
+            src_now = m.path_for(rel) if os.path.isfile(m.path_for(rel)) else src
+            with open(src_now, 'rb') as f:
                 orig = f.read()
             do_import = zm.import_dds if is_dds else zm.import_png
             if arc_member:
@@ -2786,21 +2887,36 @@ class App(tk.Tk):
             layer = self.layer_var.get()
         src = m.path_for(rel) if os.path.isfile(m.path_for(rel)) else path
         stem = os.path.splitext(arc_member or os.path.basename(path))[0]
+        if arc_member:                       # textures of two archives can have the same member name
+            stem = os.path.splitext(os.path.basename(path))[0] + '_' + stem
         folder = os.path.join(self.out_var.get(), '_live_edit')
         png = os.path.join(folder, '%s%s%s.png' % (stem, '_%d' % ti if ti else '', '_layer%d' % layer if layer else ''))
+        keep_png = False
+        try:
+            if png not in self.live and os.path.isfile(png) and os.path.getmtime(png) > os.path.getmtime(src):
+                ans = messagebox.askyesnocancel(
+                    'Live edit', 'There is an edited %s from an earlier live edit that is newer than the texture in '
+                    'your mod.\n\nYes = keep editing it (it goes into the mod now)\nNo = start again from the '
+                    'texture in the mod (the PNG is replaced)' % os.path.basename(png))
+                if ans is None:
+                    return
+                keep_png = ans
+        except OSError:
+            pass
         try:
             with open(src, 'rb') as f:
                 data = f.read()
             if arc_member:
                 data = dict(zf.parse_sarc(data))[arc_member]
-            img = zf.Bntx(data).textures[ti].decode(layer, 0)
-            os.makedirs(folder, exist_ok=True)
-            img.save(png)
+            if not keep_png:
+                img = zf.Bntx(data).textures[ti].decode(layer, 0)
+                os.makedirs(folder, exist_ok=True)
+                img.save(png)
         except Exception as e:  # noqa: BLE001
             log_error(traceback.format_exc())
             messagebox.showerror('Lumiose Toolkit', 'Could not export the texture: %s' % e)
             return
-        self.live[png] = dict(mtime=os.path.getmtime(png), path=path, rel=rel, arc=arc_member, ti=ti, layer=layer,
+        self.live[png] = dict(mtime=0 if keep_png else os.path.getmtime(png), path=path, rel=rel, arc=arc_member, ti=ti, layer=layer,
                               mod=m, busy=False, count=0)
         editor = self.open_in_editor(png)
         self.status_var.set('Live edit: %s opened in %s - every save goes into mod "%s" (keep this window open).'
@@ -2875,6 +2991,10 @@ class App(tk.Tk):
             m.add_bytes(rel, new)
             return '; '.join(note)
 
+        def locked_job():
+            with self.write_lock:
+                return job()
+
         def done(note):
             e['busy'] = False
             e['count'] += 1
@@ -2887,7 +3007,7 @@ class App(tk.Tk):
 
         def work():
             try:
-                note = job()
+                note = locked_job()
                 self.q.put(lambda: done(note))
             except Exception as ex:  # noqa: BLE001
                 log_error(traceback.format_exc())
@@ -2924,6 +3044,55 @@ class App(tk.Tk):
     def mod_changed(self, m, rel, note=''):
         self.status_var.set('Mod "%s": %s %s' % (m.name, rel or '', ('- ' + note) if note else ''))
         self.refresh_mods()
+        self.reload_clean_tabs()
+
+    def unsaved_tabs(self):
+        out = []
+        d = getattr(self, 'data_ui', None)
+        if d is not None and getattr(d, 'dirty', False):
+            out.append('Game data (%s)' % os.path.basename(getattr(d, 'rel', '') or ''))
+        p = getattr(self, 'poke_ui', None)
+        if p is not None and getattr(p, 'dirty', False):
+            out.append('Pokémon data')
+        mp = getattr(self, 'map_ui', None)
+        if mp is not None and (any(x.dirty for x in getattr(mp, 'layers', [])) or
+                               any(t.dirty for t in getattr(mp, 'tables', {}).values()) or
+                               mp.__dict__.get('scene_dirty')):
+            out.append('Map')
+        return out
+
+    def reload_clean_tabs(self):
+        """Tabs that hold a table without unsaved changes read it again (the current mod changed, or a tool
+        wrote into it), so they never save an old copy back."""
+        for name in ('poke_ui', 'data_ui', 'map_ui'):
+            ui = getattr(self, name, None)
+            try:
+                if ui is not None and hasattr(ui, 'reload_if_clean'):
+                    ui.reload_if_clean()
+            except Exception:  # noqa: BLE001
+                log_error(traceback.format_exc())
+
+    def confirm_save_target(self, what, loaded_src, loaded_stamp, m, rel, parent=None):
+        """Before a tab saves `rel` into mod m: True if that's safe. Asks when the tab's copy came from another
+        mod, or when the mod's file changed since the tab read it (another window or tool wrote it)."""
+        target = m.path_for(rel)
+        now = zm.file_stamp(target)
+        same = os.path.normcase(os.path.abspath(loaded_src or '')) == os.path.normcase(os.path.abspath(target))
+        from_mods = os.path.normcase(os.path.abspath(loaded_src or '')).startswith(
+            os.path.normcase(os.path.abspath(zm.MODS_DIR)) + os.sep)
+        if same and now == loaded_stamp:
+            return True
+        if not same and not from_mods and now is None:
+            return True                       # opened from the game, the mod has no copy yet: normal case
+        if not same and from_mods:
+            other = os.path.basename(os.path.dirname(loaded_src.split(os.sep + 'romfs' + os.sep)[0] + os.sep))
+            why = ('%s was opened while "%s" was the current mod. Saving puts that copy - with "%s"\'s changes - '
+                   'into "%s"%s.' % (what, other, other, m.name, ', replacing its own copy' if now else ''))
+        else:
+            why = ('%s changed in "%s" since this tab read it (another window or tool, e.g. Port a Pokémon, '
+                   'saved it). Saving replaces those changes with this tab\'s copy.' % (what, m.name))
+        return messagebox.askyesno('Save', why + '\n\nSave anyway? (No: nothing is saved - reopen the table to '
+                                   'get the current version.)', icon='warning', parent=parent or self)
 
     def cur_texture(self):
         if not self.cur or self.cur.get('kind') != 'texture':
@@ -3109,7 +3278,9 @@ class App(tk.Tk):
         if self.extracting:
             return
         sel = [self.split_iid(i)[1] for i in self.tree.selection() if not i.endswith('|dummy')]
-        sel = [i for i in sel if not i.startswith(('H|', 'U|'))]
+        sel = [i for i in sel if not i.startswith(('H|', 'U|', 'CV|', 'VI|'))]
+        # a game-text hit extracts the text file it is in
+        sel = list(dict.fromkeys('F|' + i[2:].rsplit('|', 1)[0] if i.startswith('T|') else i for i in sel))
         # files belonging to selected Pokémon / clothing name matches
         name_files = {i: [p for _, p in self.buckets.get(self.name_hits[i][0].pattern, [])]
                       for i in sel if i.startswith('N|') and i in self.name_hits}
@@ -3208,13 +3379,20 @@ class App(tk.Tk):
 
     # ---------------- queue ----------------
     def poll_queue(self):
+        # one failing callback (e.g. for a window that was closed meanwhile) must not stop all the others
         try:
             while True:
                 fn = self.q.get_nowait()
-                fn()
+                try:
+                    fn()
+                except tk.TclError:
+                    pass                # its window was closed - nothing to update
+                except Exception:  # noqa: BLE001
+                    log_error(traceback.format_exc())
         except queue.Empty:
             pass
-        self.after(30, self.poll_queue)
+        finally:
+            self.after(30, self.poll_queue)
 
 
 def main():
