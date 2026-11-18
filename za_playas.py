@@ -161,9 +161,11 @@ def rebound_weights(trmsh_path, buf, char_trskl, player_trskl, jmap, free):
     import za_trinity as zt
     pk = zt.Skeleton(player_trskl)
     pw = pk.world_matrices()
+    ck = zt.Skeleton(char_trskl)
+    cw = ck.world_matrices()
     cand = [b for b in pk.bones if b.joint >= 0 and b.name not in SKIP_NEAREST and '_index_' not in b.name
-            and not any(k in b.name for k in ('thumb', 'middle', 'ring', 'pinky'))]
-    cpos = np.array([pw[pk.index[b.name]][:3, 3] for b in cand])
+            and not any(k in b.name for k in ('thumb', 'middle', 'ring', 'pinky')) and b.name in ck.index]
+    cpos = np.array([cw[ck.index[b.name]][:3, 3] for b in cand])
     cj = np.array([b.joint for b in cand])
     with open(trmsh_path, 'rb') as f:
         mroot = zt.Table.root(f.read())
@@ -375,6 +377,23 @@ def fitted_to_player(trmsh_path, buf, char_trskl, player_trskl, ratio, target_na
     ck, pk = zt.Skeleton(char_trskl), zt.Skeleton(player_trskl)
     cw, pw = ck.world_matrices(), pk.world_matrices()
     shrink = np.diag([1.0 / ratio, 1.0 / ratio, 1.0 / ratio, 1.0])
+
+    # how much longer or shorter each bone is in the player than in the (height-scaled) character: measured to
+    # the first child both skeletons have; a bone without one takes its parent's. The part of the mesh on a bone
+    # is resized by it, so a longer finger segment doesn't poke past the player's shorter one when it bends.
+    def length_ratio(name, seen=0):
+        pi = pk.index.get(name)
+        ci = ck.index.get(name)
+        if pi is None or ci is None or seen > 8:
+            return 1.0
+        for k, b in enumerate(pk.bones):
+            if b.parent == pi and b.name in ck.index and b.joint >= 0:
+                lp = np.linalg.norm(pw[k][:3, 3] - pw[pi][:3, 3])
+                lc = np.linalg.norm(cw[ck.index[b.name]][:3, 3] - cw[ci][:3, 3]) / ratio
+                if lp > 1e-3 and lc > 1e-3:
+                    return float(np.clip(lp / lc, 0.5, 2.0))
+        par = pk.bones[pi].parent
+        return length_ratio(pk.bones[par].name, seen + 1) if par >= 0 else 1.0
     move = {}
     for j, node in enumerate(ck.joint_to_node):
         if node < 0:
@@ -386,7 +405,9 @@ def fitted_to_player(trmsh_path, buf, char_trskl, player_trskl, ratio, target_na
         a = tgt if tgt in ck.index else name             # a bone the player lacks moves with the one it follows
         frame = cw[ck.index[a]].copy()
         frame[:3, 3] /= ratio                            # the character at the player's height: positions only
-        move[j] = pw[pk.index[tgt]] @ np.linalg.inv(frame) @ shrink
+        k = length_ratio(tgt) if tgt in ck.index else 1.0
+        resize = np.diag([k, k, k, 1.0])
+        move[j] = pw[pk.index[tgt]] @ resize @ np.linalg.inv(frame) @ shrink
     with open(trmsh_path, 'rb') as f:
         mroot = zt.Table.root(f.read())
     buf = bytearray(buf)
@@ -452,8 +473,45 @@ def fitted_to_player(trmsh_path, buf, char_trskl, player_trskl, ratio, target_na
     return bytes(buf)
 
 
+def player_skeleton_bytes(root, char_skel, ratio):
+    """p0_base.trskl with, patched into its own bytes (a round trip through the schema loses part of this file,
+    and a skeleton missing it crashes the game): the character's inverse bind matrices for every bone both
+    skeletons have - so the character's mesh, left as it is, is skinned the way it was made - and the root
+    bone's scale for the character's height (no animation moves the root)."""
+    import struct
+    import za_trinity as zt
+    sp = os.path.join(root, *BASE_DIR.split('/'), 'p0_base.trskl')
+    with open(sp, 'rb') as f:
+        raw = bytearray(f.read())
+    t = zt.Table.root(raw)
+    nodes, joints = t.tables(1), t.tables(2)
+    cj = char_skel.get('JointInfos') or []
+    cbind = {n['Name']: cj[n['JointInfoIndex']] for n in char_skel['TransformNodes']
+             if n.get('JointInfoIndex') is not None and n['JointInfoIndex'] < len(cj)}
+    swapped = 0
+    for n in nodes:
+        name, j = n.string(0), n.scalar(5, 'i', -1)
+        if name not in cbind or not 0 <= j < len(joints):
+            continue
+        mt = joints[j].table(2)
+        m = cbind[name].get('InverseBindPoseMatrix') or {}
+        if mt is None or not all(mt.off(k) for k in range(4)):
+            raise PlayAsError("The player skeleton has an unexpected layout - can't fit the character to it.")
+        for k, axis in enumerate(('AxisX', 'AxisY', 'AxisZ', 'AxisW')):
+            a = m.get(axis) or {}
+            struct.pack_into('<3f', raw, mt.pos + mt.off(k), a.get('X', 0.0), a.get('Y', 0.0), a.get('Z', 0.0))
+        swapped += 1
+    if ratio != 1.0:
+        rn = nodes[0]
+        srt = rn.table(1)
+        if rn.string(0) != 'chara_root' or srt is None or not srt.off(0):
+            raise PlayAsError("The player skeleton has an unexpected layout - can't set the height.")
+        struct.pack_into('<3f', raw, srt.pos + srt.off(0), ratio, ratio, ratio)
+    return bytes(raw), swapped
+
+
 def make(root, mod, char_rel, hide_parts=True, log=None, reorder=False, bind_player=True, own_height=True,
-         fit=True):
+         fit=False):
     """Make `mod` turn the player into the character in game folder `char_rel` (from characters())."""
     say = log or (lambda s: None)
     src = os.path.join(root, *char_rel.split('/'))
@@ -541,8 +599,6 @@ def make(root, mod, char_rel, hide_parts=True, log=None, reorder=False, bind_pla
             if fit:                             # bones of other lengths or angles: vertices follow the player's
                 data = fitted_to_player(mp, data, os.path.join(src, skl_name),
                                         os.path.join(root, *BASE_DIR.split('/'), 'p0_base.trskl'), ratio, names)
-            elif ratio != 1.0:
-                data = scaled_positions(mp, data, 1.0 / ratio)
             data, sums = rebound_weights(mp, data, os.path.join(src, skl_name),
                                          os.path.join(root, *BASE_DIR.split('/'), 'p0_base.trskl'), jmap, free)
             mod.add_bytes('%s/%s' % (BASE_DIR, bname), data)
@@ -563,20 +619,11 @@ def make(root, mod, char_rel, hide_parts=True, log=None, reorder=False, bind_pla
             zm.from_json(json.dumps(md), msch, mod.path_for('%s/%s' % (BASE_DIR, m_['PathName'])))
         mdl2 = dict(mdl, Skeleton={'PathName': 'p0_base.trskl'})
         zm.from_json(json.dumps(mdl2), sch, mod.path_for(BASE_MDL))
-        if ratio != 1.0:                         # only the root bone's scale changes; bones and order stay the same
-            # patched in the original file's bytes: a round trip through the schema loses part of this file
-            # (and a skeleton missing it crashes the game)
-            import struct
-            sp = os.path.join(root, *BASE_DIR.split('/'), 'p0_base.trskl')
-            with open(sp, 'rb') as f:
-                raw_sk = bytearray(f.read())
-            rn = zt.Table.root(raw_sk).tables(1)[0]
-            srt = rn.table(1)
-            if rn.string(0) != 'chara_root' or srt is None or not srt.off(0):
-                raise PlayAsError("The player skeleton has an unexpected layout - can't set the height.")
-            struct.pack_into('<3f', raw_sk, srt.pos + srt.off(0), ratio, ratio, ratio)
-            mod.add_bytes('%s/p0_base.trskl' % BASE_DIR, bytes(raw_sk))
-            say('own height: %.0f%% of the player (the skeleton is scaled from its root)' % (ratio * 100))
+        if not fit:                             # the character's mesh as it is, with its own bind pose
+            sk_bytes, swapped = player_skeleton_bytes(root, char, ratio)
+            mod.add_bytes('%s/p0_base.trskl' % BASE_DIR, sk_bytes)
+            say('player skeleton: the character\'s bind pose for %d bones%s' % (
+                swapped, ', own height %.0f%% of the player' % (ratio * 100) if ratio != 1.0 else ''))
         moved = sum(1 for o, n_ in jmap.items() if next((x['Name'] for x in char['TransformNodes']
                                                          if x.get('JointInfoIndex') == o), '') not in
                     {x['Name'] for x in player['TransformNodes']})
