@@ -80,6 +80,7 @@ on it), a modded Switch (Atmosphere) or an emulator.
 - **Pattern textures**: *Edit pattern textures…* lists every texture of a clothing pattern (base, layer mask, palette, normal map…) with a preview, explains what each one does, marks textures shared with other patterns or other items, and opens them for live editing.
 - **Game text**: in-app editor with search, highlighted `[VAR …]` codes and multi-line text. Export/import as a text file also works.
 - **Pokémon data** (`personal_array`): types, abilities, base stats, EV yield, catch rate, growth rate, gender, egg groups, size, level-up moves, evolutions, TM moves and egg moves.
+- **Port a Pokémon**: bring a Pokémon from a Scarlet/Violet dump into Z-A as a new Pokémon in a free species slot (model, animations, Z-A materials, species data, moves, alpha move, cry, wild behaviour, Pokédex entry, spawns), with icons rendered in Z-A's style.
 - **Game data tab**: a table editor for:
   - **Moves**: power, accuracy, PP, type, category, priority, status effects, stat changes and every flag.
   - **Items**: price, max stack and TM move.
@@ -282,6 +283,30 @@ Pick a Pokémon on the left, edit it, then press **Save changes to current mod**
 - Evolutions are one per line: `method level argument species form`.
 - TM moves and egg moves can be move names or numbers.
 
+#### Port a Pokémon from Scarlet/Violet
+**Port a Pokémon from Scarlet/Violet…** (below the list) adds a Pokémon from your own Scarlet/Violet dump to the
+current mod as a new Pokémon. Z-A has species data for every Pokémon up to #1010 but only uses 364; a Pokémon whose
+data it has but doesn't use is a **free slot** - nothing in the game is replaced.
+1. Choose your dump (its `romfs`, or the folder that holds `pokemon/data`) and pick a Pokémon. Only free slots are
+   listed unless you untick it; Pokémon past #1010 can't be added (the game stops when one is caught).
+2. **Animation system from**: Z-A uses its own animation system for every Pokémon, so the ported Pokémon borrows one
+   from a Z-A Pokémon - its own animations still play. The list is ranked by how alike the walk cycles, skeletons
+   and sizes are, and the best match is preselected. A Pokémon that hops, floats or flies makes it move like that
+   too, so pick one that moves the same way.
+3. Options: wild behaviour from the same Pokémon, its female model, the cry (the same Pokémon's, or your own sound
+   file), the Pokédex (not listed / take over another Pokémon's entry / add a new entry - experimental), and new
+   spawn points in a wild zone with a level range.
+4. **Port into current mod**. The report lists what was written and a check of everything the game needs. Then pick
+   a pose for its **icons** and fine-tune it in the icon editor (drag to turn, scroll to zoom, right-drag to move, a
+   timeline for the exact moment of the animation, normal/shiny preview at the game's size); the toolkit renders them
+   in Z-A's icon style and adds them to the mod.
+
+What it writes: the model folder (mesh, skeleton, textures and animations as they are, materials rebuilt with Z-A
+shaders, the borrowed animation system renamed to it, and every animation slot Z-A needs - missing ones get its
+closest animation); its species row with the "in this game" flag, Z-A-usable moves and evolutions to Pokémon in the
+game; resource table entry, size, movement, alpha move, wild behaviour and cry. Test with a copy of your save: a
+save that has the Pokémon needs the mod installed.
+
 ### Game data tab
 1. Pick a table, find a row and edit its fields. Not sure which table? **Search all tables…** searches every data
    table at once: type names or numbers (`Pikachu`, `Tackle`, `a0403_w01`, `25 alpha`) and double-click a result to
@@ -455,6 +480,8 @@ Lumiose Toolkit/
   za_newitem.py           new clothing items and hairstyles (copies one: model, .ccdata, ids, names, shop/salon)
   za_checklist.py         in-game test checklist made from what a mod changes
   za_datasearch.py        Search all tables (index of every data table's rows, search window)
+  za_portmon.py           Port a Pokémon from Scarlet/Violet (model, materials, animation system, data, window)
+  za_iconrender.py        renders Pokémon icons in Z-A's style in a hidden browser window (tools/icon_render)
   za_texnames.py          plain-English texture descriptions for Browse (About column, search)
   za_whatsnew.py          What's new window (shows CHANGELOG.md once after each update)
   za_version.py           version number and release repository

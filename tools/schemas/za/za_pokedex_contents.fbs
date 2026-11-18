@@ -1,0 +1,12 @@
+// world/exl/pokedex_contents_data/pokedex_contents_data/pokedex_contents_data.bin
+// One entry per species in a Pokédex: 232 Regular, then 132 Hyperspace (dex = 1), each part sorted by species.
+// The number shown in the Pokédex comes from the species' personal data (dex.index).
+table PokedexContentsEntry {
+  order: int;      // 1-based position in this file
+  species: int;    // national dex number
+  dex: int;        // 0 = Regular, 1 = Hyperspace
+}
+table PokedexContents {
+  entries: [PokedexContentsEntry];
+}
+root_type PokedexContents;

@@ -41,6 +41,10 @@ class PokemonTab:
                 os.path.join(zm.SCHEMAS, 'pokedocs', 'za_personal.fbs'))
 
     # ---------------- UI ----------------
+    def port_pokemon(self):
+        import za_portmon
+        za_portmon.open_window(self.app)
+
     def build(self):
         P = self.parent
         paned = ttk.PanedWindow(P, orient='horizontal')
@@ -57,6 +61,7 @@ class PokemonTab:
         self.only_za = tk.BooleanVar(value=True)
         ttk.Checkbutton(left, text='Only Pokémon in Legends: Z-A', variable=self.only_za,
                         command=self.fill_list).pack(anchor='w')
+        ttk.Button(left, text='Port a Pokémon from Scarlet/Violet…', command=self.port_pokemon).pack(anchor='w', pady=(4, 0))
         lf = ttk.Frame(left)
         lf.pack(fill='both', expand=True, pady=(4, 0))
         self.lst = ttk.Treeview(lf, show='tree', selectmode='browse')

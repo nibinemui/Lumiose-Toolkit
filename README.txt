@@ -6,6 +6,14 @@ The first start opens "Import game files" to unpack your game dump. The window h
 Browse & extract, Mods, Map, Pokémon data and Game data. "Dark mode" (top right) switches the theme.
 README.md is the full manual (features, installing, troubleshooting).
 
+WHAT'S NEW IN 2.0.0
+-------------------
+  * Port a Pokemon (Pokemon data tab): bring a Pokemon from your Scarlet/Violet dump into Z-A as a new
+    Pokemon in a free species slot - model, animations, materials for Z-A, species data, moves, alpha
+    move, cry (or your own sound), wild behaviour, optional Pokedex entry and wild-zone spawns.
+  * Icons in Z-A's style for ported Pokemon: pick a pose, get the normal and shiny icons.
+  * Test ported Pokemon with a copy of your save.
+
 WHAT'S NEW IN 1.6.2
 -------------------
   * Search all tables... (Game data tab): search every data table at once by name or number

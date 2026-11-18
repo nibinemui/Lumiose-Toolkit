@@ -1,0 +1,6 @@
+// param_chr/catalog/bin/sources/flatbuffers/character/pokemon/wild_single.data.bin
+// The wild-behaviour resources that exist: param_chr/data/character/pokemon/wild_single/<name>.bin
+table WildSingleCatalog {
+  names: [string];   // e.g. 0025_00_00 = species 25, form 0, variant 0
+}
+root_type WildSingleCatalog;

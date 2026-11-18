@@ -3222,6 +3222,10 @@ def main():
         sys.argv.remove('--viewer')
         import za_viewer
         return za_viewer.main()
+    if '--iconrender' in sys.argv:      # the .exe started as the icon renderer (see za_iconrender.command)
+        sys.argv.remove('--iconrender')
+        import za_iconrender
+        return za_iconrender.main()
     if '--editor' in sys.argv:          # the .exe started as the image editor window (see editor_command)
         sys.argv.remove('--editor')
         import za_editor

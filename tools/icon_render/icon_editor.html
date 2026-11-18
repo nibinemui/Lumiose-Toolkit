@@ -1,0 +1,183 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Icon editor</title>
+<style>
+  :root { --bg:#1e1e21; --panel:#26262a; --line:#3a3a40; --fg:#e6e6ea; --dim:#9a9aa3; --acc:#4fa3ff; }
+  html,body { margin:0; height:100%; background:var(--bg); color:var(--fg); font:13px "Segoe UI",sans-serif; }
+  body { display:flex; gap:16px; padding:16px; box-sizing:border-box; }
+  #stage { position:relative; width:560px; height:560px; flex:none; border:1px solid var(--line); border-radius:6px;
+           background: repeating-conic-gradient(#2c2c31 0 25%, #34343a 0 50%) 0 0 / 24px 24px; cursor:grab; }
+  #stage:active { cursor:grabbing; }
+  #stage canvas { display:block; width:560px; height:560px; }
+  #hint { position:absolute; left:8px; bottom:6px; color:var(--dim); font-size:12px; pointer-events:none;
+          text-shadow:0 1px 2px #000; }
+  #side { flex:1; display:flex; flex-direction:column; gap:12px; min-width:260px; }
+  .box { background:var(--panel); border:1px solid var(--line); border-radius:6px; padding:10px 12px; }
+  .box h3 { margin:0 0 8px; font-size:12px; font-weight:600; color:var(--dim); text-transform:uppercase; letter-spacing:.04em; }
+  select, button { font:inherit; color:var(--fg); background:#303036; border:1px solid var(--line); border-radius:4px; padding:5px 8px; }
+  select { width:100%; }
+  button { cursor:pointer; } button:hover { border-color:#5a5a64; }
+  button.primary { background:var(--acc); border-color:var(--acc); color:#08121f; font-weight:600; }
+  input[type=range] { width:100%; accent-color:var(--acc); }
+  .row { display:flex; gap:8px; align-items:center; } .row > * { flex:1; }
+  .seg { display:flex; } .seg button { flex:1; border-radius:0; } .seg button:first-child { border-radius:4px 0 0 4px; }
+  .seg button:last-child { border-radius:0 4px 4px 0; } .seg button.on { background:#3d4e66; border-color:var(--acc); }
+  #previews { display:flex; gap:12px; align-items:flex-end; }
+  #previews canvas { background: repeating-conic-gradient(#2c2c31 0 25%, #34343a 0 50%) 0 0 / 12px 12px; border-radius:4px; }
+  .small { color:var(--dim); font-size:12px; }
+  #actions { margin-top:auto; display:flex; gap:8px; justify-content:flex-end; }
+</style>
+<script type="importmap">{ "imports": { "three": "/three/three.module.js", "three/addons/": "/three/addons/" } }</script>
+</head><body>
+<div id="stage"><div id="hint">Drag to turn · Scroll to zoom · Right-drag to move</div></div>
+<div id="side">
+  <div class="box"><h3>Pose</h3>
+    <select id="clip"></select>
+    <div class="row" style="margin-top:8px"><button id="play" style="flex:none;width:70px">Play</button>
+      <input id="time" type="range" min="0" max="1000" value="500"></div>
+    <div class="small" id="tlabel"></div>
+  </div>
+  <div class="box"><h3>View</h3>
+    <div class="seg" id="zooms"><button data-z="0.58,0.3">Close</button><button data-z="0.75,0.18">Medium</button><button data-z="1.0,0.04">Full</button></div>
+    <div class="row" style="margin-top:8px"><button id="front">Face front</button><button id="side3">Three-quarter</button><button id="reset">Reset</button></div>
+    <div class="seg" style="margin-top:8px"><button id="nrm" class="on">Normal</button><button id="shy">Shiny</button></div>
+  </div>
+  <div class="box"><h3>Actual size</h3>
+    <div id="previews"><canvas id="p160" width="160" height="160"></canvas><canvas id="p80" width="80" height="80"></canvas></div>
+    <div class="small">How it looks in the game (160 × 160) and in small lists.</div>
+  </div>
+  <div id="actions"><button id="cancel">Cancel</button><button id="use" class="primary">Use this icon</button></div>
+</div>
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+const job = await (await fetch('/job.json')).json();
+const ST = Object.assign({ light: [-0.5, 0.65, 0.6], shadow: [0.84, 0.73, 0.68], s0: 0.0, s1: 1.05, rim: 0.28,
+                           rimpow: 3.0, bright: 1.12, sat: 1.03 }, job.style || {});
+function matcap() {
+  const N = 256, cv = document.createElement('canvas'); cv.width = cv.height = N;
+  const g = cv.getContext('2d'), img = g.createImageData(N, N);
+  const L = new THREE.Vector3(...ST.light).normalize();
+  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+    const nx = (x + 0.5) / N * 2 - 1, ny = 1 - (y + 0.5) / N * 2, r2 = nx * nx + ny * ny, i = (y * N + x) * 4;
+    const nz = Math.sqrt(Math.max(0, 1 - Math.min(r2, 1)));
+    const wrap = (nx * L.x + ny * L.y + nz * L.z) * 0.5 + 0.5;
+    let t = Math.min(1, Math.max(0, (wrap - ST.s0) / (ST.s1 - ST.s0))); t = t * t * (3 - 2 * t);
+    const edge = Math.pow(1 - nz, ST.rimpow) * Math.max(0, ny + 0.35);
+    for (let c = 0; c < 3; c++) { let v = ST.shadow[c] + (1 - ST.shadow[c]) * t;
+      v = v + (1 - v) * Math.min(1, edge * ST.rim * 4); img.data[i + c] = Math.round(Math.min(1, v) * 255); }
+    img.data[i + 3] = 255;
+  }
+  g.putImageData(img, 0, 0);
+  const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace; return tex;
+}
+const MC = matcap();
+
+function robustSphere(objs) {
+  // bounding sphere of the posed model that ignores the outermost 2% of vertices on each axis, so a small part
+  // flying away (a thrown shell, a long tail tip) doesn't shrink the Pokémon in the frame
+  const xs = [], ys = [], zs = [], v = new THREE.Vector3();
+  for (const o of objs) {
+    const pos = o.geometry && o.geometry.attributes.position; if (!pos) continue;
+    const step = Math.max(1, Math.floor(pos.count / 4000));
+    for (let i = 0; i < pos.count; i += step) { o.getVertexPosition(i, v); v.applyMatrix4(o.matrixWorld); xs.push(v.x); ys.push(v.y); zs.push(v.z); }
+  }
+  if (!xs.length) return new THREE.Box3().setFromObject(objs[0] || new THREE.Object3D()).getBoundingSphere(new THREE.Sphere());
+  const q = (a, f) => { a.sort((p, r) => p - r); return a[Math.min(a.length - 1, Math.max(0, Math.round(f * (a.length - 1))))]; };
+  const box = new THREE.Box3(new THREE.Vector3(q(xs, .02), q(ys, .02), q(zs, .02)), new THREE.Vector3(q(xs, .98), q(ys, .98), q(zs, .98)));
+  return box.getBoundingSphere(new THREE.Sphere());
+}
+
+const stage = document.getElementById('stage');
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
+renderer.setPixelRatio(1); renderer.setSize(560, 560); renderer.setClearColor(0x000000, 0);
+renderer.outputColorSpace = THREE.SRGBColorSpace; renderer.toneMapping = THREE.NoToneMapping;
+stage.prepend(renderer.domElement);
+const cam = new THREE.PerspectiveCamera(20, 1, 0.001, 1000);
+const controls = new OrbitControls(cam, renderer.domElement);
+controls.enableDamping = true; controls.screenSpacePanning = true; controls.rotateSpeed = 0.7;
+const loader = new GLTFLoader();
+const excl = job.exclude ? new RegExp(job.exclude) : null;
+const M = {};
+for (const key of job.models) {
+  const gltf = await loader.loadAsync('/glb/' + key);
+  const frame = [];
+  gltf.scene.traverse(o => { if (o.isMesh) {
+    const m = o.material;
+    if (!excl || !excl.test(m.name || '')) frame.push(o);
+    const mat = new THREE.MeshMatcapMaterial({ matcap: MC, map: m.map, normalMap: m.normalMap, transparent: m.transparent, alphaTest: 0.3 });
+    mat.color.setRGB(ST.bright, ST.bright, ST.bright);
+    mat.onBeforeCompile = (s) => { s.fragmentShader = s.fragmentShader.replace('#include <opaque_fragment>',
+      'float l_ = dot(outgoingLight, vec3(0.2126,0.7152,0.0722)); outgoingLight = mix(vec3(l_), outgoingLight, ' + ST.sat.toFixed(3) + ');\n#include <opaque_fragment>'); };
+    o.material = mat; o.frustumCulled = false; } });
+    { const vc = o => (o.geometry && o.geometry.attributes.position) ? o.geometry.attributes.position.count : 0;
+      const big = Math.max(0, ...frame.map(vc));
+      for (let i = frame.length - 1; i >= 0; i--) if (vc(frame[i]) < big * 0.2) frame.splice(i, 1); }
+  const scene = new THREE.Scene(); scene.add(gltf.scene);
+  M[key] = { gltf, scene, frame, mixer: new THREE.AnimationMixer(gltf.scene) };
+}
+let cur = 'normal';
+const clipSel = document.getElementById('clip'), time = document.getElementById('time'), tlabel = document.getElementById('tlabel');
+(job.anims || []).forEach((n, i) => { const o = document.createElement('option'); o.value = i;
+  o.textContent = n.replace(/^\d+_/, '').replace(/_loop$/, '').replace(/(\d+)$/, ' $1').replace(/_/g, ' '); clipSel.appendChild(o); });
+const init = job.start || {};
+clipSel.value = init.clip ?? 0; time.value = Math.round((init.t ?? 0.5) * 1000);
+function pose() {
+  const ci = +clipSel.value, t = time.value / 1000;
+  for (const k in M) { const X = M[k]; X.mixer.stopAllAction(); const clip = X.gltf.animations[ci];
+    if (clip) { X.mixer.clipAction(clip).play(); X.mixer.setTime(clip.duration * t); } X.gltf.scene.updateMatrixWorld(true); }
+  const clip = M[cur].gltf.animations[ci];
+  tlabel.textContent = clip ? (clip.duration * t).toFixed(2) + ' s of ' + clip.duration.toFixed(2) + ' s' : '';
+}
+function frameView(margin, up, yawDeg, pitchDeg) {
+  const X = M[cur]; const sph = robustSphere(X.frame);
+  const dist = sph.radius * margin / Math.sin(THREE.MathUtils.degToRad(10));
+  const yaw = THREE.MathUtils.degToRad(yawDeg ?? currentYaw()), pitch = THREE.MathUtils.degToRad(pitchDeg ?? 10);
+  const c = sph.center.clone(); c.y += sph.radius * up;
+  cam.position.set(c.x + dist * Math.sin(yaw) * Math.cos(pitch), c.y + dist * Math.sin(pitch), c.z + dist * Math.cos(yaw) * Math.cos(pitch));
+  controls.target.copy(c); cam.lookAt(c); controls.update();
+}
+function currentYaw() { const v = cam.position.clone().sub(controls.target); return THREE.MathUtils.radToDeg(Math.atan2(v.x, v.z)); }
+let zoom = [init.margin ?? 0.58, init.up ?? 0.3];
+pose(); frameView(zoom[0], zoom[1], init.yaw ?? 55, init.pitch ?? 10);
+let playing = false, last = performance.now();
+const p160 = document.getElementById('p160').getContext('2d'), p80 = document.getElementById('p80').getContext('2d');
+let prevTick = 0;
+function loop(now) {
+  if (playing) { const clip = M[cur].gltf.animations[+clipSel.value];
+    if (clip) { time.value = (+time.value + (now - last) / 1000 / clip.duration * 1000) % 1000; pose(); } }
+  last = now;
+  controls.update();
+  renderer.render(M[cur].scene, cam);
+  if (now - prevTick > 120) { prevTick = now;
+    p160.clearRect(0, 0, 160, 160); p160.drawImage(renderer.domElement, 0, 0, 160, 160);
+    p80.clearRect(0, 0, 80, 80); p80.drawImage(renderer.domElement, 0, 0, 80, 80); }
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+clipSel.onchange = () => { pose(); };
+time.oninput = () => { playing = false; document.getElementById('play').textContent = 'Play'; pose(); };
+document.getElementById('play').onclick = (e) => { playing = !playing; e.target.textContent = playing ? 'Pause' : 'Play'; };
+document.querySelectorAll('#zooms button').forEach(b => b.onclick = () => {
+  zoom = b.dataset.z.split(',').map(parseFloat); frameView(zoom[0], zoom[1]);
+  document.querySelectorAll('#zooms button').forEach(x => x.classList.toggle('on', x === b)); });
+document.getElementById('front').onclick = () => frameView(zoom[0], zoom[1], 0, 8);
+document.getElementById('side3').onclick = () => frameView(zoom[0], zoom[1], 55, 10);
+document.getElementById('reset').onclick = () => { clipSel.value = init.clip ?? 0; time.value = Math.round((init.t ?? 0.5) * 1000);
+  pose(); zoom = [init.margin ?? 0.58, init.up ?? 0.3]; frameView(zoom[0], zoom[1], init.yaw ?? 55, init.pitch ?? 10); };
+const setVar = (k) => { if (!M[k]) return; cur = k; document.getElementById('nrm').classList.toggle('on', k === 'normal');
+  document.getElementById('shy').classList.toggle('on', k === 'shiny'); };
+document.getElementById('nrm').onclick = () => setVar('normal');
+document.getElementById('shy').onclick = () => setVar('shiny');
+if (!M.shiny) document.getElementById('shy').disabled = true;
+document.getElementById('cancel').onclick = () => fetch('/done');
+document.getElementById('use').onclick = async () => {
+  playing = false;
+  renderer.setSize(640, 640, false);
+  for (const k of Object.keys(M)) {
+    renderer.render(M[k].scene, cam);
+    await fetch('/save?name=final_' + k, { method: 'POST', body: renderer.domElement.toDataURL('image/png') });
+  }
+  await fetch('/done');
+};
+</script></body></html>

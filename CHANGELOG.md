@@ -1,5 +1,20 @@
 # Patch notes
 
+## 2.0.0 - 2026-11-17
+
+### New
+- **Port a Pokémon** (Pokémon data tab → **Port a Pokémon from Scarlet/Violet…**): brings a Pokémon from your Scarlet/Violet dump into Legends: Z-A as a new Pokémon, in a species slot Z-A has data for but doesn't use - nothing in the game is replaced. It lists every Pokémon in the dump that has a free slot (about 140, e.g. Cyndaquil, Oshawott, Wooper, Tauros, Mew), and in one go writes:
+  - the Pokémon's own model, skeleton, textures and animations, with its materials rebuilt for Z-A's shaders (Scarlet/Violet's own shaders crash Z-A);
+  - Z-A's animation system for it, taken from a Z-A Pokémon that moves the same way - picked automatically by comparing walk cycles, skeletons and size, with the best matches to choose from. Animations Z-A needs that it doesn't have get its closest one;
+  - its species data switched on for Z-A, its moves limited to ones Z-A can use, evolutions kept only to Pokémon in the game, an alpha move, size and movement data, wild behaviour, and a cry (another Pokémon's, or **your own sound file**);
+  - optional: its female model, a Pokédex entry (take over an existing one, or add a new one - experimental), and new spawn points in a wild zone with the levels you choose.
+  - A check at the end lists anything missing.
+- **Icons in Z-A's style**: after porting, pick a pose from a sheet of renders of the Pokémon (roars, cheers, attacks…), then fine-tune it in the **icon editor** - drag to turn it, scroll to zoom, right-drag to move it in the frame, pick the animation and the exact moment on a timeline (or play it), Close / Medium / Full framing, face-front and three-quarter views, a normal / shiny toggle and live previews at the game's icon size. The icons are rendered in the look of Z-A's own icons, normal and shiny, and added to the mod.
+- The Pokédex contents table and the wild behaviour catalog can now be read, edited and searched like other tables.
+
+### Note
+- Porting is new: the recipe was proven in game with Cyndaquil (spawns, battles, can be caught, moves properly), but test every ported Pokémon with a copy of your save. A save that has a ported Pokémon needs the mod installed to load.
+
 ## 1.6.2 - 2026-11-17
 
 ### New
