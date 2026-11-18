@@ -615,7 +615,8 @@ class App(tk.Tk):
         ttk.Button(top, text='Browse…', command=self.pick_out).pack(side='left')
         ttk.Button(top, text='Open', command=self.open_out).pack(side='left', padx=(3, 12))
         ttk.Label(top, text='Current mod:').pack(side='left')
-        self.mod_combo = ttk.Combobox(top, textvariable=self.mod_var, state='readonly', width=22)
+        self.mod_combo = ttk.Combobox(top, textvariable=self.mod_var, state='readonly', width=22,
+                                      postcommand=self.refresh_mod_names)
         self.mod_combo.pack(side='left', padx=3)
         ttk.Button(top, text='New mod…', command=self.new_mod).pack(side='left')
         ttk.Checkbutton(top, text='Dark mode', variable=self.dark_var,
@@ -925,7 +926,10 @@ class App(tk.Tk):
 
         L = ttk.Frame(paned)
         paned.add(L, weight=1)
-        ttk.Label(L, text='My mods', style='Head.TLabel').pack(anchor='w', pady=(0, 4))
+        hf = ttk.Frame(L)
+        hf.pack(fill='x', pady=(0, 4))
+        ttk.Label(hf, text='My mods', style='Head.TLabel').pack(side='left')
+        ttk.Button(hf, text='Refresh', command=self.refresh_mods_clicked).pack(side='right')
         lf = ttk.Frame(L)
         lf.pack(fill='both', expand=True)
         self.mods_list = tk.Listbox(lf, exportselection=False, activestyle='none', borderwidth=0, highlightthickness=0)
@@ -1071,6 +1075,26 @@ class App(tk.Tk):
             self.mods_list.see(i)
         self.show_mod()
         self.refresh_order()
+
+    def refresh_mod_names(self):
+        """Current mod list: re-read the mods folder each time it opens (mods added or removed outside)."""
+        try:
+            self.mod_combo.configure(values=[m.name for m in zm.list_mods()])
+        except Exception:  # noqa: BLE001
+            log_error(traceback.format_exc())
+
+    def refresh_mods_clicked(self):
+        """Mods tab > Refresh: re-read the mods folder and the selected mod's files."""
+        before = set(self.mods_list.get(0, 'end'))
+        self.refresh_mods()
+        after = set(self.mods_list.get(0, 'end'))
+        added, gone = sorted(after - before), sorted(before - after)
+        msg = 'Mods refreshed: %d mod(s)' % len(after)
+        if added:
+            msg += ', new: ' + ', '.join(added)
+        if gone:
+            msg += ', gone: ' + ', '.join(gone)
+        self.status_var.set(msg + '.')
 
     def selected_mod(self):
         sel = self.mods_list.curselection()

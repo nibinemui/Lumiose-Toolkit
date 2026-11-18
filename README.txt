@@ -10,7 +10,8 @@ WHAT'S NEW IN 1.6.2
 -------------------
   * Search all tables... (Game data tab): search every data table at once by name or number
     ("Pikachu", "Tackle", "a0403_w01") and double-click a result to open that row.
-  * Mods tab: scrollbars on My mods and the mod's file list.
+  * Mods tab: scrollbars on My mods and the mod's file list, and a Refresh button (the Current mod
+    list also picks up mods added outside the program).
 
 WHAT'S NEW IN 1.6.1
 -------------------

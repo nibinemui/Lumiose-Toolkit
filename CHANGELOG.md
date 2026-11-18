@@ -7,6 +7,7 @@
 
 ### Improved
 - Mods tab: **My mods** and the mod's **file list** have scrollbars; the file list also scrolls sideways, so long paths are readable.
+- Mods added, removed or changed outside the program show up without restarting it: **Refresh** (Mods tab, next to My mods) re-reads the mods folder, and the **Current mod** list re-reads it every time it opens.
 
 ## 1.6.1 - 2026-11-17
 
