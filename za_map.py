@@ -149,6 +149,18 @@ class Layer:
         self.data = json.loads(zm.to_json(src, zm.schema_for(path)))
         self.dirty = False
         self.var = None
+        # the game's own points, when the mod has its own copy of the table: the others were added by the mod
+        self.base = None
+        if os.path.normcase(src) != os.path.normcase(path):
+            try:
+                game = json.loads(zm.to_json(path, zm.schema_for(path)))
+                self.base = {s.get('Name') for g in game.get('values', []) for s in g.get('root', [])}
+            except Exception:  # noqa: BLE001
+                self.base = None
+
+    def added(self, s):
+        """True for a point the mod added (not in the game's own table)."""
+        return self.base is not None and s.get('Name') not in self.base
 
     def points(self):
         for gi, g in enumerate(self.data.get('values', [])):
@@ -183,10 +195,18 @@ class PortalLayer:
         self.label, self.colour = 'Hyperspace portals', (190, 60, 255)
         self.rel, self.path, self.src, self.stamp = GATE_SCENES, None, None, None
         self.dirty, self.var = False, None
+        self.files = []                             # (game path, file read, its stamp) - to notice changes
+        game_names, any_mod = set(), False          # the game's own portal names (used if a mod changes a scene)
         pts = []
         for p in sorted(glob.glob(os.path.join(root, *GATE_SCENES.split('/'), '*', '*.trscn'))):
             rel = os.path.relpath(p, root).replace(os.sep, '/')
-            d = json.loads(zm.to_json(_mod_file(p, root, romfs)[0], zm.schema_for(p)))
+            src = _mod_file(p, root, romfs)[0]
+            self.files.append((p, src, zm.file_stamp(src)))
+            d = json.loads(zm.to_json(src, zm.schema_for(p)))
+            modded = os.path.normcase(src) != os.path.normcase(p)
+            game = json.loads(zm.to_json(p, zm.schema_for(p))) if modded else d
+            game_names |= {gate_name(c) for c in game['Chunks']}
+            any_mod = any_mod or modded
             for c in d['Chunks']:
                 name = gate_name(c)
                 b = bytes(c.get('Data', []))
@@ -199,7 +219,11 @@ class PortalLayer:
                             '_scene': rel})
         if not pts:
             raise ValueError('no Hyperspace portal scene files')
+        self.base = game_names if any_mod else None
         self.data = {'values': [{'root': pts}]}
+
+    def added(self, s):
+        return self.base is not None and s.get('Name') not in self.base
 
     def points(self):
         for si, s in enumerate(self.data['values'][0]['root']):
@@ -432,13 +456,16 @@ class MapTab:
         if not self.loaded or not self.layers:
             return
         if any(x.dirty for x in self.layers) or any(t.dirty for t in self.tables.values()) or \
-                self.__dict__.get('scene_dirty') or self.__dict__.get('new_points'):
-            return
+                self.__dict__.get('scene_dirty'):
+            return                                   # (points created earlier and saved don't hold it back)
         m = self.app.current_mod(ask=False)
+        romfs = m.romfs if m else None
         root = os.path.normpath(self.app.root_var.get())
-        objs = list(self.layers) + list(self.tables.values())
-        if all(os.path.normcase(_mod_file(o.path, root, m.romfs if m else None)[0]) == os.path.normcase(o.src)
-               and zm.file_stamp(o.src) == o.stamp for o in objs):
+        files = [(o.path, o.src, o.stamp) for o in list(self.layers) + list(self.tables.values()) if o.path]
+        for L in self.layers:
+            files += getattr(L, 'files', [])         # the portal layer's scene files
+        if all(os.path.normcase(_mod_file(p, root, romfs)[0]) == os.path.normcase(src) and zm.file_stamp(src) == st
+               for p, src, st in files):
             return
         if self.app.nb.select() == str(self.parent):
             self.load()
@@ -654,6 +681,7 @@ class MapTab:
         self.visible = []
         icons = self.show_icons.get()
         isz = 22 if self.zoom < 1 else (32 if self.zoom < 3 else 44)
+        new_here = self.__dict__.get('new_points', {})
         for L in self.layers:
             if not L.var or not L.var.get():
                 continue
@@ -664,9 +692,17 @@ class MapTab:
                     continue
                 sx, sy = self.to_screen(*w2m(self.cal, x, z))
                 if -10 < sx < cw + 10 and -10 < sy < ch + 10:
+                    # points a mod added (not the game's own) are black, ringed in their layer's colour
+                    added = s.get('Name') in new_here or (hasattr(L, 'added') and L.added(s))
                     ic = self.spawn_icon(s.get('Name'), isz) if mon else None
                     if ic is not None:
+                        if added:
+                            h = isz / 2 + 2
+                            d.ellipse((sx - h, sy - h, sx + h, sy + h), fill=(0, 0, 0), outline=L.colour, width=2)
                         img.paste(ic, (int(sx - isz / 2), int(sy - isz / 2)), ic)
+                    elif added:
+                        d.ellipse((sx - r - 1, sy - r - 1, sx + r + 1, sy + r + 1), fill=(0, 0, 0), outline=L.colour,
+                                  width=2)
                     else:
                         d.ellipse((sx - r, sy - r, sx + r, sy + r), fill=L.colour, outline=(255, 255, 255))
                     self.visible.append((sx, sy, L, gi, si))
@@ -791,7 +827,10 @@ class MapTab:
         self.f['Y'].set('%.3f' % y)
         self.f['Z'].set('%.3f' % z)
         self.f['RY'].set('%.1f' % _roty(s))
-        lines = ['Layer : %s' % L.label, 'Table : %s' % L.rel, 'Group %d, entry %d' % (gi, si), '']
+        lines = ['Layer : %s' % L.label, 'Table : %s' % L.rel, 'Group %d, entry %d' % (gi, si)]
+        if s.get('Name') in self.__dict__.get('new_points', {}) or (hasattr(L, 'added') and L.added(s)):
+            lines.append('Added by a mod (not in the game) - drawn in black')
+        lines.append('')
         mons = self.encounter_lines(s.get('Name'))
         if mons:
             lines += ['Spawns here:'] + ['  ' + m for m in mons] + ['']
