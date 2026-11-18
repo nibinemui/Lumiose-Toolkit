@@ -142,6 +142,24 @@ def ground_height(mt, x, z, fallback):
     return ys[len(ys) // 2]
 
 
+def _npc_scenes(mt, places, when):
+    """Where a new NPC's scene entry goes. The town's NPCs are split over scene files by time: '_day_time' holds
+    the daytime ones and '_always' the ones there day and night (and the night-only ones); the plain file isn't
+    what the game loads for them. So: by day -> the day scene, always / at night -> the always scene, each built
+    from the template's entry. Areas without such files keep the template's scene files."""
+    r0, _, _, off, src, src_chunks = places[0]
+    m = re.match(r'^(.*/)([^/]*_placement_npc_spawner)(?:_day_time|_always)?_/\2(?:_day_time|_always)?_0\.trscn$', r0)
+    if not m:
+        return places
+    want = '_day_time' if when == 'day' else '_always'
+    target = '%s%s%s_/%s%s_0.trscn' % (m.group(1), m.group(2), want, m.group(2), want)
+    root = os.path.normpath(mt.app.root_var.get())
+    if not os.path.isfile(os.path.join(root, *target.split('/'))):
+        return places
+    chunks = mt.scene(target)[0]['Chunks']
+    return [(target, chunks, len(chunks), off, src, src_chunks)]
+
+
 def _zones(mt):
     """{Pokémon spawn point name: its Wild Zone id} for the points of a zone."""
     t = mt.tables.get('spawner')
@@ -221,7 +239,8 @@ def create(mt, kind, x, z, spec):
     new = new_name(old, taken_names(mt))
     if not new:
         raise ValueError('No free name left for a copy of %s.' % old)
-    # every scene file that places the original (NPCs are often in a day and a night scene)
+    # the scene entry is built from the template's (the game's own format), placed in the scene file(s) the new
+    # point belongs in: (scene file, its chunks, insert at, position offset, entry to build from, source chunks)
     px, py, pz = _pos(p)
     places = []
     for r_ in mt.find_scenes(old, KINDS[kind][3]) or [rel]:
@@ -229,9 +248,11 @@ def create(mt, kind, x, z, spec):
         ci = next((i for i, c in enumerate(chunks) if old.encode() in bytes(c.get('Data', []))), None)
         off = mt._pos_offset(chunks[ci]['Data'], px, py, pz) if ci is not None else None
         if off is not None:
-            places.append((r_, chunks, ci, off))
+            places.append((r_, chunks, ci + 1, off, chunks[ci], chunks))
     if not places:
         raise ValueError("Could not find where %s's position is stored in its scene file." % old)
+    if kind == 'npc':
+        places = _npc_scenes(mt, places, spec.get('when', 'always'))
     y = ground_height(mt, x, z, py)
     # 1. position
     q = copy.deepcopy(p)
@@ -257,16 +278,16 @@ def create(mt, kind, x, z, spec):
     rng = random.Random(hash(new) & 0xFFFFFFFF)
     new_id = {}
     spots = []
-    for r_, chunks, ci, off in places:
-        ids = []
 
-        def all_ids(cs):
-            for c in cs:
-                ids.append(c.get('Id'))
-                all_ids(c.get('Children') or [])
-        all_ids(chunks)
-        unique = {k for k in ids if ids.count(k) == 1}
-        used = set(ids) | set(new_id.values())
+    def ids_of(cs, out):
+        for c in cs:
+            out.append(c.get('Id'))
+            ids_of(c.get('Children') or [], out)
+        return out
+    for r_, chunks, at, off, src, src_chunks in places:
+        src_ids = ids_of(src_chunks, [])
+        unique = {k for k in src_ids if src_ids.count(k) == 1}        # ids only the template's entry uses
+        used = set(ids_of(chunks, [])) | set(src_ids) | set(new_id.values())
 
         def rename(c):
             b = bytes(c.get('Data', []))
@@ -282,12 +303,12 @@ def create(mt, kind, x, z, spec):
                 c['Id'] = new_id[c['Id']]
             for ch in c.get('Children') or []:
                 rename(ch)
-        nc = copy.deepcopy(chunks[ci])
+        nc = copy.deepcopy(src)
         rename(nc)
         b = bytearray(nc['Data'])
         struct.pack_into('<3f', b, off, x, y, z)
         nc['Data'] = list(b)
-        chunks.insert(ci + 1, nc)
+        chunks.insert(at, nc)
         mt.__dict__.setdefault('scene_dirty', set()).add(r_)
         spots.append((r_, off))
     mt.__dict__.setdefault('new_points', {})[new] = spots
