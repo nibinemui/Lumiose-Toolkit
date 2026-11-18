@@ -38,6 +38,22 @@ def _bones(path):
     return {n.get('Name') for n in d.get('TransformNodes') or [] if n.get('Name')}
 
 
+MAX_JOINT_GAP = 0.085          # m: how far a character's joints may sit from the player's
+HEIGHT_RANGE = (0.93, 1.06)    # the character's height compared with the player's
+
+
+def built_like_player(char_trskl, player_trskl):
+    """True if the character's joints sit close to the player's and it is about as tall."""
+    import numpy as np
+    import za_trinity as zt
+    ck, pk = zt.Skeleton(char_trskl), zt.Skeleton(player_trskl)
+    cw, pw = ck.world_matrices(), pk.world_matrices()
+    gaps = [np.linalg.norm(cw[ck.index[b.name]][:3, 3] - pw[pk.index[b.name]][:3, 3])
+            for b in pk.bones if b.name in ck.index and b.joint >= 0]
+    h = head_height(char_trskl) / max(head_height(player_trskl), 1e-6)
+    return bool(gaps) and max(gaps) <= MAX_JOINT_GAP and HEIGHT_RANGE[0] <= h <= HEIGHT_RANGE[1]
+
+
 def characters(root):
     """[(label, game folder)] of every human character model that can stand in for the player."""
     out = []
@@ -58,6 +74,10 @@ def characters(root):
             except Exception:  # noqa: BLE001
                 continue
             if len(missing) > 4:                 # not a human body the player's animations can move
+                continue
+            # only characters built like the player: the player's animations fit them. Taller or differently
+            # proportioned ones (Vinnie, the hotel manager...) get stretched fingers and a floating mega band
+            if not built_like_player(sk, os.path.join(root, *BASE_DIR.split('/'), 'p0_base.trskl')):
                 continue
             what = m.group(3) or ''
             label = NICE.get(what)
@@ -504,8 +524,8 @@ def player_skeleton_bytes(root, char_skel, ratio, char_trskl=None):
     return bytes(raw), swapped
 
 
-def make(root, mod, char_rel, hide_parts=True, log=None, reorder=False, bind_player=True, own_height=True,
-         fit=None, nearest_weights=False):
+def make(root, mod, char_rel, hide_parts=True, log=None, reorder=False, bind_player=True, own_height=False,
+         fit=True, nearest_weights=False):
     """Make `mod` turn the player into the character in game folder `char_rel` (from characters())."""
     say = log or (lambda s: None)
     src = os.path.join(root, *char_rel.split('/'))
