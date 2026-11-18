@@ -26,7 +26,7 @@ NICE = {'hotel_manager': 'Hotel owner', 'president': 'President', 'secretary': '
         'friend_f': 'Lida', 'friend_m': 'Naveen', 'rival_f': 'Taunie', 'rival_m': 'Urbain',
         'detective': 'Emma', 'researcher': 'Researcher', 'co_member_m': 'Member of group CO (male)',
         'co_member_f': 'Member of group CO (female)', 'f': 'Woman', 'co': 'Member of group CO',
-        'ca': 'Member of group CA'}
+        'ca': 'Ansha'}
 
 
 class PlayAsError(Exception):
@@ -41,8 +41,13 @@ def _bones(path):
 # names the game's text doesn't give (or only as a code)
 NAMES = {'tr0003_00_hotel_manager': 'AZ', 'tr0004_00_f': 'L / Lysandre', 'tr0005_00_president': 'Jett',
          'tr0023_00_researcher': 'Mable', 'tr0030_00_co_member_m': 'Rust Syndicate Grunt (male)',
-         'tr0031_00_co_member_f': 'Rust Syndicate Grunt (female)', 'tr1000_01_co': 'Korrina (coat)'}
-MAX_JOINT_GAP = 0.085          # m: how far a character's joints may sit from the player's (at the player's height)
+         'tr0031_00_co_member_f': 'Rust Syndicate Grunt (female)', 'tr1000_01_co': 'Korrina (coat)',
+         'tr1001_00_ca': 'Ansha', 'tr1001_01_ca': 'Ansha (apron)'}
+# characters are brought to the player's height; ones much taller or shorter than the player (AZ, Ivor, children)
+# look odd squeezed or stretched to it, so they aren't offered
+MIN_SIZE, MAX_SIZE = 0.85, 1.25
+NOT_PLAYABLE = {'1001'}          # Ansha
+MAX_JOINT_GAP = 0.085         # m: how far a character's joints may sit from the player's (at the player's height)
 ACCESSORY_BONES = ('bag', 'bangle', 'left_attach', 'right_attach')     # attachment points, not the body
 
 
@@ -135,6 +140,8 @@ def characters(root):
             if m.group(2) != '00' and f not in NAMES:
                 label += ' (variant %d)' % int(m.group(2))
             r = size_ratio(sk, os.path.join(root, *BASE_DIR.split('/'), 'p0_base.trskl'))
+            if not MIN_SIZE <= r <= MAX_SIZE or m.group(1) in NOT_PLAYABLE:
+                continue                         # much taller / shorter characters look odd at the player's height
             if abs(r - 1) > 0.02:
                 label += '  (resized)'
             out.append(('%s  -  tr%s' % (label, m.group(1)), '%s/%s' % (d, f)))
@@ -992,7 +999,8 @@ NPC_NAMES = {
     'old_a_f': 'Old Female NPC', 'child_a_f': 'Child Female NPC', 'child_a_m': 'Child Male NPC',
     'hunk_f': 'Hunk Female NPC', 'hunk_m': 'Hunk Male NPC', 'tall_m': 'Tall Male NPC', 'tall_f': 'Tall Female NPC'}
 NPC_DIR = 'ik_chara/sav_cc_vr'
-NPC_BODIES_THAT_FIT = ('bu', 'dm', 'fm', 'gm', 'rv')   # 'em' doesn't fit the player even resized
+# 'em' doesn't fit the player even resized; 'bu' is the children's body (schoolkids too) - far shorter than the player
+NPC_BODIES_THAT_FIT = ('dm', 'fm', 'gm', 'rv')
 
 
 def npc_list(root):
