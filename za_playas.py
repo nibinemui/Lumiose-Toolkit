@@ -524,6 +524,134 @@ def fitted_to_player(trmsh_path, buf, char_trskl, player_trskl, ratio, target_na
     return bytes(buf)
 
 
+FACE_BONES = ('eye', 'brow', 'lip', 'teeth', 'jaw', 'cheek', 'mouth', 'tongue', 'nose', 'look')
+
+
+def idle_animation(root, char_rel):
+    """The character's own standing-idle animation (.tranm), or None."""
+    import glob
+    folder = os.path.join(root, 'ik_chara', 'motion_uq', os.path.basename(char_rel))
+    found = sorted(glob.glob(os.path.join(folder, '*defaultwait01_loop.tranm'))) or \
+        sorted(glob.glob(os.path.join(folder, '*wait*loop*.tranm')))
+    return found[0] if found else None
+
+
+def hanging_bones(char_trskl, player_trskl, anim):
+    """Bones on the character's head the player doesn't have (hair strands, bandanas, ribbons) that its idle
+    animation moves - not the face. On the player they can't move, so they're baked hanging the way the idle
+    holds them instead of sticking out in the model's default pose."""
+    import za_trinity as zt
+    ck, pk = zt.Skeleton(char_trskl), zt.Skeleton(player_trskl)
+    out = set()
+    for i, b in enumerate(ck.bones):
+        if b.name in pk.index or b.name not in anim.tracks or any(k in b.name for k in FACE_BONES):
+            continue
+        p_, hops = b.parent, 0
+        while 0 <= p_ < len(ck.bones) and ck.bones[p_].name != 'head' and hops < 64:
+            p_, hops = ck.bones[p_].parent, hops + 1
+        if 0 <= p_ < len(ck.bones):
+            out.add(b.name)
+    return out
+
+
+def baked_pose(trmsh_path, buf, char_trskl, anim_path, bones):
+    """The mesh buffer with `bones` (names) posed as in the first frame of the animation - their vertices moved
+    (normals and tangents turned) - and every other bone left in the model's own pose."""
+    import numpy as np
+    import za_trinity as zt
+    ck = zt.Skeleton(char_trskl)
+    anim = zt.Animation(anim_path)
+    rest = ck.world_matrices()
+    posed = [None] * len(ck.bones)
+
+    def first(ch, key, default):
+        v = ch.get(key)
+        if v is None:
+            return default
+        vals = np.asarray(v[1])
+        return tuple(float(x) for x in vals[0]) if len(vals) else default
+
+    def world(i):
+        if posed[i] is None:
+            b = ck.bones[i]
+            t, q, sc = b.t, b.q, b.s
+            if b.name in bones:
+                ch = anim.tracks.get(b.name, {})
+                t, q, sc = first(ch, 't', t), first(ch, 'r', q), first(ch, 's', sc)
+            local = zt.trs_matrix(t, q, sc)
+            posed[i] = world(b.parent) @ local if 0 <= b.parent < len(ck.bones) and b.parent != i else local
+        return posed[i]
+    move = {}
+    for j, node in enumerate(ck.joint_to_node):
+        if node >= 0 and ck.bones[node].name in bones:
+            move[j] = world(node) @ np.linalg.inv(rest[node])
+    if not move:
+        return buf
+    with open(trmsh_path, 'rb') as f:
+        mroot = zt.Table.root(f.read())
+    buf = bytearray(buf)
+    bt = zt.Table.root(buf).tables(1)
+    for i, mesh in enumerate(mroot.tables(1)):
+        if i >= len(bt):
+            break
+        vbufs = bt[i].tables(1)
+        for decl in mesh.tables(3):
+            sizes = [t_.u32(0) for t_ in decl.tables(1)]
+            els = [(e.scalar(0, 'i', -1), e.u32(1), e.u32(2), e.u32(3), e.u32(4)) for e in decl.tables(0)]
+
+            def column(el):
+                si, usage, layer, fmt, off = el
+                stride = sizes[0 if si == -1 else si] if 0 <= (0 if si == -1 else si) < len(sizes) else 0
+                size = zt.FMT_SIZE.get(fmt)
+                if not stride or not size or layer >= len(vbufs):
+                    return None
+                start, count = vbufs[layer].vector(0)
+                n_ = count // stride
+                arr = np.frombuffer(bytes(buf[start:start + n_ * stride]), np.uint8).reshape(n_, stride).copy()
+                return start, stride, off, size, n_, arr
+
+            def put(c, data):
+                start, stride, off, size, n_, arr = c
+                arr[:, off:off + size] = data
+                buf[start:start + n_ * stride] = arr.tobytes()
+            pos = next((e for e in els if e[1] == zt.POSITION and e[3] in (51, 54)), None)
+            idx = [e for e in els if e[1] == zt.BLEND_INDEX]
+            wgt = [e for e in els if e[1] == zt.BLEND_WEIGHTS]
+            if pos is None or not idx or len(idx) != len(wgt):
+                continue
+            J = np.concatenate([zt._decode(np.ascontiguousarray(column(e)[5][:, e[4]:e[4] + zt.FMT_SIZE[e[3]]]),
+                                           e[3], zt.BLEND_INDEX) for e in idx], 1).astype(np.int64)
+            W = np.concatenate([zt._decode(np.ascontiguousarray(column(e)[5][:, e[4]:e[4] + zt.FMT_SIZE[e[3]]]),
+                                           e[3], zt.BLEND_WEIGHTS) for e in wgt], 1)
+            W = W / np.maximum(W.sum(1, keepdims=True), 1e-8)
+            if not np.isin(J[W > 0], list(move)).any():
+                continue
+            top = int(J.max()) + 1
+            mats = np.stack([move.get(j, np.eye(4)) for j in range(top)])
+            M = np.einsum('vk,vkij->vij', W, mats[J])
+            cp = column(pos)
+            n_ = cp[4]
+            width = 12 if pos[3] == 51 else 16
+            raw = np.ascontiguousarray(cp[5][:, pos[4]:pos[4] + width]).view('<f4').reshape(n_, width // 4).copy()
+            P = raw[:, :3] if pos[3] == 51 else raw[:, 1:4]
+            P2 = np.einsum('vij,vj->vi', M[:, :3, :3], P) + M[:, :3, 3]
+            if pos[3] == 51:
+                raw[:, :3] = P2
+            else:
+                raw[:, 1:4] = P2
+            put(cp, raw.astype('<f4').view(np.uint8).reshape(n_, width))
+            for e in els:
+                if e[1] in (zt.NORMAL, zt.TANGENT, zt.BINORMAL) and e[3] == 43:
+                    c = column(e)
+                    if c is None or c[4] != n_:
+                        continue
+                    v = np.ascontiguousarray(c[5][:, e[4]:e[4] + 8]).view('<f2').reshape(n_, 4).astype(np.float32)
+                    d = np.einsum('vij,vj->vi', M[:, :3, :3], v[:, :3])
+                    v[:, :3] = d / np.maximum(np.linalg.norm(d, axis=1, keepdims=True), 1e-8)
+                    put(c, v.astype('<f2').view(np.uint8).reshape(n_, 8))
+    return bytes(buf)
+
+
 def player_skeleton_bytes(root, char_skel, ratio, char_trskl=None):
     """p0_base.trskl with, patched into its own bytes (a round trip through the schema loses part of this file,
     and a skeleton missing it crashes the game): bind matrices that move each bone's part of the character's
@@ -651,6 +779,13 @@ def make(root, mod, char_rel, hide_parts=True, log=None, reorder=False, bind_pla
         # a character taller or shorter than the player: its mesh is brought to the player's height so its joints
         # meet the player's, and the player's skeleton is scaled back up (or down) from its root bone, which no
         # animation moves - so it stands at its own height
+        hang, anim_path = set(), idle_animation(root, char_rel)
+        if anim_path:
+            import za_trinity as zt
+            hang = hanging_bones(os.path.join(src, skl_name), os.path.join(root, *BASE_DIR.split('/'), 'p0_base.trskl'),
+                                 zt.Animation(anim_path))
+            if hang:
+                say('hanging as in its idle: %d hair / band bones' % len(hang))
         ratio = 1.0                          # the character brought to the player's height (its mesh scaled)
         ph = head_height(os.path.join(root, *BASE_DIR.split('/'), 'p0_base.trskl'))
         ch = head_height(os.path.join(src, skl_name))
@@ -662,6 +797,8 @@ def make(root, mod, char_rel, hide_parts=True, log=None, reorder=False, bind_pla
                 bname = zt.Table.root(f.read()).string(2)
             with open(os.path.join(src, bname), 'rb') as f:
                 data = f.read()
+            if hang:                            # hair strands, bandanas: hanging as in the character's idle
+                data = baked_pose(mp, data, os.path.join(src, skl_name), anim_path, hang)
             if fit:                             # bones of other lengths or angles: vertices follow the player's
                 data = fitted_to_player(mp, data, os.path.join(src, skl_name),
                                         os.path.join(root, *BASE_DIR.split('/'), 'p0_base.trskl'), ratio, names)
