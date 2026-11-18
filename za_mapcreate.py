@@ -832,7 +832,9 @@ def open_menu(mt, x, z):
             ttk.Spinbox(cf, from_=1, to=10, textvariable=lo, width=4).pack(side='left', padx=4)
             ttk.Label(cf, text='to').pack(side='left')
             ttk.Spinbox(cf, from_=1, to=10, textvariable=hi, width=4).pack(side='left', padx=4)
-            when = when_row(g, 5, span=2)
+            wrow = ttk.Frame(g)
+            wrow.grid(row=5, column=0, columnspan=3, sticky='w')
+            when = when_row(wrow, 0, span=1)
 
             def spec():
                 chosen = [(int(re.search(r'#(\d+)\)\s*$', lst.item(i, 'text')).group(1)), int(lst.item(i, 'values')[0]))
