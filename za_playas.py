@@ -40,7 +40,8 @@ def _bones(path):
 
 # names the game's text doesn't give (or only as a code)
 NAMES = {'tr0003_00_hotel_manager': 'AZ', 'tr0004_00_f': 'L / Lysandre', 'tr0005_00_president': 'Jett',
-         'tr0023_00_researcher': 'Mable'}
+         'tr0023_00_researcher': 'Mable', 'tr0030_00_co_member_m': 'Rust Syndicate Grunt (male)',
+         'tr0031_00_co_member_f': 'Rust Syndicate Grunt (female)', 'tr1000_01_co': 'Korrina (coat)'}
 MAX_JOINT_GAP = 0.085          # m: how far a character's joints may sit from the player's (at the player's height)
 ACCESSORY_BONES = ('bag', 'bangle', 'left_attach', 'right_attach')     # attachment points, not the body
 
