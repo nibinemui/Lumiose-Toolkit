@@ -128,6 +128,27 @@ def player_order_skeleton(player, char):
     return out, jmap
 
 
+def player_joint_map(player, char):
+    """old character joint -> the player's joint of the same bone; bones the player doesn't have (face, hair...)
+    go to their nearest parent the player has (e.g. head)."""
+    pj = {n['Name']: n['JointInfoIndex'] for n in player['TransformNodes'] if n.get('JointInfoIndex') is not None}
+    nodes = char['TransformNodes']
+    by_name = {n['Name']: n for n in nodes}
+    out = {}
+    for n in nodes:
+        j = n.get('JointInfoIndex')
+        if j is None:
+            continue
+        cur, hops = n, 0
+        while cur is not None and cur['Name'] not in pj and hops < 64:
+            pname = cur.get('ParentNodeName') or (nodes[cur['ParentNodeIndex']]['Name']
+                                                  if cur.get('ParentNodeIndex') is not None else '')
+            cur = by_name.get(pname)
+            hops += 1
+        out[j] = pj[cur['Name']] if cur is not None and cur['Name'] in pj else pj.get('waist', 0)
+    return out
+
+
 def renumber_joints(trmsh_path, buf, jmap):
     """The mesh buffer with every vertex's bone indices (joint numbers) renumbered old -> new."""
     import numpy as np
@@ -197,7 +218,7 @@ def collapsed_buffer(trmsh_path):
     return name, bytes(buf)
 
 
-def make(root, mod, char_rel, hide_parts=True, log=None, reorder=False):
+def make(root, mod, char_rel, hide_parts=True, log=None, reorder=False, bind_player=True):
     """Make `mod` turn the player into the character in game folder `char_rel` (from characters())."""
     say = log or (lambda s: None)
     src = os.path.join(root, *char_rel.split('/'))
@@ -246,6 +267,28 @@ def make(root, mod, char_rel, hide_parts=True, log=None, reorder=False):
             zm.from_json(json.dumps(md), msch, mod.path_for('%s/%s' % (BASE_DIR, m_['PathName'])))
         say('skeleton in the player\'s bone order (%d bones, %d joints)' % (len(skel['TransformNodes']),
                                                                            len(skel['JointInfos'])))
+    if bind_player:     # the character's meshes skinned to the player's own skeleton (p0_base.trskl)
+        import za_trinity as zt
+        jmap = player_joint_map(player, char)
+        for m_ in mdl.get('Meshes') or []:
+            mp = os.path.join(src, m_['PathName'])
+            with open(mp, 'rb') as f:
+                bname = zt.Table.root(f.read()).string(2)
+            with open(os.path.join(src, bname), 'rb') as f:
+                data = f.read()
+            mod.add_bytes('%s/%s' % (BASE_DIR, bname), renumber_joints(mp, data, jmap))
+            msch = zm.schema_for(mp)
+            md = json.loads(zm.to_json(mp, msch))
+            for mesh in md.get('Meshes') or []:
+                for bw in mesh.get('boneWeight') or []:
+                    bw['RigIndex'] = jmap.get(bw.get('RigIndex', 0), 0)
+            zm.from_json(json.dumps(md), msch, mod.path_for('%s/%s' % (BASE_DIR, m_['PathName'])))
+        mdl2 = dict(mdl, Skeleton={'PathName': 'p0_base.trskl'})
+        zm.from_json(json.dumps(mdl2), sch, mod.path_for(BASE_MDL))
+        moved = sum(1 for o, n_ in jmap.items() if next((x['Name'] for x in char['TransformNodes']
+                                                         if x.get('JointInfoIndex') == o), '') not in
+                    {x['Name'] for x in player['TransformNodes']})
+        say('skinned to the player\'s skeleton (%d of its bones follow their nearest player bone)' % moved)
     say('base model: %s (%d files)' % (os.path.basename(char_rel), n))
     # 3. the player's own parts drawn as nothing (every mesh collapsed to a point)
     hidden = 0
