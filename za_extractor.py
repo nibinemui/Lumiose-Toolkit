@@ -534,6 +534,8 @@ class App(tk.Tk):
         s.map('.', foreground=[('disabled', c['disabled'])])
         s.configure('Dim.TLabel', foreground=c['dim'])
         s.configure('Head.TLabel', font=('Segoe UI', 10, 'bold'))
+        s.configure('Warn.TLabel', font=('Segoe UI', 9, 'bold'),             # experimental features
+                    foreground='#ffb454' if dark else '#b35c00')
         s.configure('TNotebook', background=c['bg'], bordercolor=c['border'], tabmargins=(2, 4, 2, 0))
         s.configure('TNotebook.Tab', background=c['panel'], foreground=c['fg'], padding=(10, 4), bordercolor=c['border'])
         s.map('TNotebook.Tab', background=[('selected', c['bg']), ('active', c['hover'])],

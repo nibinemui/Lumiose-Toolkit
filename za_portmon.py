@@ -1073,7 +1073,8 @@ class PortWindow:
         bg = ttk.Style(w).lookup('TFrame', 'background') or None
         if bg:
             w.configure(background=bg)
-        top = ttk.Frame(w, padding=(10, 10, 10, 4))
+        ttk.Label(w, text=zm.EXPERIMENTAL, style='Warn.TLabel', padding=(10, 8, 10, 0)).pack(fill='x')
+        top = ttk.Frame(w, padding=(10, 6, 10, 4))
         top.pack(fill='x')
         ttk.Label(top, text='Scarlet/Violet dump:').pack(side='left')
         self.sv_var = tk.StringVar(value=app.settings.get('sv_dump', ''))
@@ -1390,7 +1391,8 @@ class IconPicker:
         bg = ttk.Style(w).lookup('TFrame', 'background') or None
         if bg:
             w.configure(background=bg)
-        ttk.Label(w, padding=(10, 10, 10, 0), wraplength=860, justify='left', text=(
+        ttk.Label(w, text=zm.EXPERIMENTAL, style='Warn.TLabel', padding=(10, 8, 10, 0)).pack(fill='x')
+        ttk.Label(w, padding=(10, 6, 10, 0), wraplength=860, justify='left', text=(
             'Pick a pose for %s\'s icons, then "Edit this pose…" to fine-tune it - turn it, zoom, move it in the frame '
             'and choose the exact moment of the animation - or "Use as is". Icons are rendered from its model in Z-A\'s '
             'icon style; the shiny icon uses the same pose.' % name)).pack(fill='x')

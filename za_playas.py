@@ -670,6 +670,89 @@ def baked_pose(trmsh_path, buf, char_trskl, anim_path, bones):
     return bytes(buf)
 
 
+def held_meshes(trmsh_path, buf, char_trskl, player_trskl):
+    """Indices of the meshes the character holds in a hand (briefcase, cane...): pieces that follow only bones the
+    player doesn't have, hung under a hand. Hands and gloves follow the player's own hand bones, so they stay."""
+    import numpy as np
+    import za_trinity as zt
+    ck, pk = zt.Skeleton(char_trskl), zt.Skeleton(player_trskl)
+
+    def held_bone(i):
+        if not 0 <= i < len(ck.bones) or ck.bones[i].name in pk.index:
+            return False
+        hops = 0
+        while 0 <= i < len(ck.bones) and hops < 64:
+            n = ck.bones[i].name
+            if 'hand' in n or 'attach' in n or any(k in n for k in ('thumb', 'index', 'middle', 'ring', 'pinky')):
+                return True
+            if n in ('spine_01', 'spine_02', 'spine_03', 'neck', 'head', 'hips', 'waist', 'origin', 'chara_root'):
+                return False
+            i, hops = ck.bones[i].parent, hops + 1
+        return False
+    held_joint = {j for j, node in enumerate(ck.joint_to_node) if node >= 0 and held_bone(node)}
+    if not held_joint:
+        return set()
+    with open(trmsh_path, 'rb') as f:
+        mroot = zt.Table.root(f.read())
+    bt = zt.Table.root(bytearray(buf)).tables(1)
+    out = set()
+    for i, mesh in enumerate(mroot.tables(1)):
+        if i >= len(bt):
+            break
+        vbufs = bt[i].tables(1)
+        for decl in mesh.tables(3):
+            sizes = [t.u32(0) for t in decl.tables(1)]
+            els = [(e.scalar(0, 'i', -1), e.u32(1), e.u32(2), e.u32(3), e.u32(4)) for e in decl.tables(0)]
+            idx = [e for e in els if e[1] == zt.BLEND_INDEX]
+            wgt = [e for e in els if e[1] == zt.BLEND_WEIGHTS]
+            if not idx or len(idx) != len(wgt):
+                continue
+
+            def col(e):
+                si, usage, layer, fmt, off = e
+                stride = sizes[0 if si == -1 else si] if 0 <= (0 if si == -1 else si) < len(sizes) else 0
+                size = zt.FMT_SIZE.get(fmt)
+                start, count = vbufs[layer].vector(0)
+                n_ = count // stride
+                arr = np.frombuffer(bytes(buf[start:start + n_ * stride]), np.uint8).reshape(n_, stride)
+                return zt._decode(np.ascontiguousarray(arr[:, off:off + size]), fmt, usage)
+            J = np.concatenate([col(e) for e in idx], 1).astype(np.int64)
+            W = np.concatenate([col(e) for e in wgt], 1)
+            total = float(W.sum())
+            on_held = float(W[np.isin(J, list(held_joint))].sum())
+            if total > 0 and on_held / total >= 0.9:
+                out.add(i)
+    return out
+
+
+def collapse_meshes(trmsh_path, buf, indices):
+    """The mesh buffer with the meshes at `indices` drawn as nothing (positions and bone weights zeroed)."""
+    import za_trinity as zt
+    with open(trmsh_path, 'rb') as f:
+        mroot = zt.Table.root(f.read())
+    buf = bytearray(buf)
+    bt = zt.Table.root(buf).tables(1)
+    for i, mesh in enumerate(mroot.tables(1)):
+        if i not in indices or i >= len(bt):
+            continue
+        vbufs = bt[i].tables(1)
+        for decl in mesh.tables(3):
+            sizes = [t.u32(0) for t in decl.tables(1)]
+            for el in decl.tables(0):
+                si, usage, layer, fmt, offset = el.scalar(0, 'i', -1), el.u32(1), el.u32(2), el.u32(3), el.u32(4)
+                if usage not in (zt.POSITION, zt.BLEND_WEIGHTS) or layer >= len(vbufs):
+                    continue
+                stride = sizes[0 if si == -1 else si] if 0 <= (0 if si == -1 else si) < len(sizes) else 0
+                size = zt.FMT_SIZE.get(fmt)
+                start, count = vbufs[layer].vector(0)
+                if not stride or not size:
+                    continue
+                for k in range(count // stride):
+                    q = start + k * stride + offset
+                    buf[q:q + size] = bytes(size)
+    return bytes(buf)
+
+
 def player_skeleton_bytes(root, char_skel, ratio, char_trskl=None):
     """p0_base.trskl with, patched into its own bytes (a round trip through the schema loses part of this file,
     and a skeleton missing it crashes the game): bind matrices that move each bone's part of the character's
@@ -720,7 +803,7 @@ def player_skeleton_bytes(root, char_skel, ratio, char_trskl=None):
 
 
 def make(root, mod, char_rel, hide_parts=True, log=None, reorder=False, bind_player=True, own_height=False,
-         fit=True, nearest_weights=False):
+         fit=True, nearest_weights=False, keep_held=False):
     """Make `mod` turn the player into the character in game folder `char_rel` (from characters())."""
     say = log or (lambda s: None)
     if char_rel.endswith('.ccdata'):                     # a part-built NPC: assembled first, then like the others
@@ -729,7 +812,7 @@ def make(root, mod, char_rel, hide_parts=True, log=None, reorder=False, bind_pla
         tmp = tempfile.mkdtemp(prefix='playas_')
         try:
             return make(root, mod, npc_folder(root, char_rel, tmp), hide_parts, log, reorder, bind_player,
-                        own_height, fit, nearest_weights)
+                        own_height, fit, nearest_weights, keep_held)
         finally:
             shutil.rmtree(tmp, ignore_errors=True)
     # a game folder, or a folder assemble_npc() made (a part-built NPC)
@@ -825,6 +908,11 @@ def make(root, mod, char_rel, hide_parts=True, log=None, reorder=False, bind_pla
                 bname = zt.Table.root(f.read()).string(2)
             with open(os.path.join(src, bname), 'rb') as f:
                 data = f.read()
+            held = set() if keep_held else held_meshes(mp, data, os.path.join(src, skl_name),
+                                                       os.path.join(root, *BASE_DIR.split('/'), 'p0_base.trskl'))
+            if held:                            # briefcase, cane...: the player needs both hands free
+                data = collapse_meshes(mp, data, held)
+                say('left out what it holds in its hands: %d piece(s)' % len(held))
             if hang:                            # hair strands, bandanas: hanging as in the character's idle
                 data = baked_pose(mp, data, os.path.join(src, skl_name), anim_path, hang)
             if fit:                             # bones of other lengths or angles: vertices follow the player's
@@ -1098,6 +1186,7 @@ def open_window(app):
         w.configure(background=bg)
     f = ttk.Frame(w, padding=12)
     f.pack(fill='both', expand=True)
+    ttk.Label(f, text=zm.EXPERIMENTAL, style='Warn.TLabel', wraplength=530, justify='left').pack(fill='x', pady=(0, 6))
     ttk.Label(f, wraplength=530, justify='left', text=(
         'Your player becomes one of the game\'s characters. Its own face, hair and clothes are hidden, '
         'whatever the save wears, so only the character is drawn. Pick one, "Show in 3D" to see it, then '
@@ -1117,6 +1206,9 @@ def open_window(app):
     status = tk.StringVar(value='Reading the characters…')
     hide = tk.BooleanVar(value=True)
     ttk.Checkbutton(f, text="Hide the player's own face, hair and clothes", variable=hide).pack(anchor='w')
+    keep = tk.BooleanVar(value=False)
+    ttk.Checkbutton(f, text='Keep what the character holds in its hands (briefcase, cane…) - off: both hands free',
+                    variable=keep).pack(anchor='w')
     bar = ttk.Frame(f)
     bar.pack(fill='x', pady=(8, 0))
     ttk.Label(f, textvariable=status, style='Dim.TLabel', wraplength=530, justify='left').pack(fill='x', pady=(6, 0))
@@ -1161,12 +1253,12 @@ def open_window(app):
                 'Play as a character', 'Mod "%s" already changes the player model. Replace that?' % m.name,
                 parent=w):
             return
-        h = hide.get()
+        h, kh = hide.get(), keep.get()
 
         def job():
             m.snapshot()
             remove(root, m)
-            r = make(root, m, c[1], hide_parts=h)
+            r = make(root, m, c[1], hide_parts=h, keep_held=kh)
             m.snapshot('play as %s' % c[0])
             return r
 

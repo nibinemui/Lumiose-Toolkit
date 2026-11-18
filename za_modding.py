@@ -653,6 +653,9 @@ def import_dds(dds_path, bntx_bytes, texture_index=0, layer=0, log=None, keep_si
 # mods
 # ---------------------------------------------------------------------------
 
+EXPERIMENTAL = 'THIS FEATURE IS EXPERIMENTAL! SOME THINGS MAY NOT WORK PROPERLY OR LOOK INCORRECT!'
+
+
 def file_stamp(path):
     """(mtime, size) of a file, or None if it doesn't exist - to notice a file that changed since it was read."""
     try:

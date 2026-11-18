@@ -8,6 +8,7 @@ import tkinter as tk
 import traceback
 from tkinter import filedialog, messagebox, ttk
 
+import za_modding as zm
 import za_soundbank as sb
 
 AUDIO_FILES = [('Audio files', '*.wav *.mp3 *.ogg *.flac *.opus *.m4a *.aac *.aif *.aiff *.wma *.mp2 *.ac3'),
@@ -534,7 +535,7 @@ class AudioTab:
         if not m:
             return
         title = simpledialog.askstring(
-            'Add battle music', 'Name in the battle music list (all languages):', parent=self.app,
+            'Add battle music', '%s\n\nName in the battle music list (all languages):' % zm.EXPERIMENTAL, parent=self.app,
             initialvalue=os.path.splitext(os.path.basename(p))[0][:40])
         if not title or not title.strip():
             return
