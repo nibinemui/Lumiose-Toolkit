@@ -218,7 +218,138 @@ def collapsed_buffer(trmsh_path):
     return name, bytes(buf)
 
 
-def make(root, mod, char_rel, hide_parts=True, log=None, reorder=False, bind_player=True):
+def head_height(trskl_path):
+    """Height of the 'head' bone in the rest pose (m) - how tall a character's skeleton is."""
+    import za_trinity as zt
+    sk = zt.Skeleton(trskl_path)
+    w = sk.world_matrices()
+    i = sk.index.get('head')
+    return float(w[i][1, 3]) if i is not None else 0.0
+
+
+def scaled_positions(trmsh_path, buf, factor):
+    """The mesh buffer with every vertex position multiplied by factor (about the feet: the model's origin)."""
+    import numpy as np
+    import za_trinity as zt
+    with open(trmsh_path, 'rb') as f:
+        mroot = zt.Table.root(f.read())
+    buf = bytearray(buf)
+    bt = zt.Table.root(buf).tables(1)
+    for i, mesh in enumerate(mroot.tables(1)):
+        if i >= len(bt):
+            break
+        vbufs = bt[i].tables(1)
+        for decl in mesh.tables(3):
+            sizes = [t.u32(0) for t in decl.tables(1)]
+            for e in decl.tables(0):
+                si, usage, layer, fmt, off = e.scalar(0, 'i', -1), e.u32(1), e.u32(2), e.u32(3), e.u32(4)
+                if usage != zt.POSITION or layer >= len(vbufs) or fmt not in (51, 54):
+                    continue
+                stride = sizes[0 if si == -1 else si] if 0 <= (0 if si == -1 else si) < len(sizes) else 0
+                if not stride:
+                    continue
+                start, count = vbufs[layer].vector(0)
+                n_ = count // stride
+                arr = np.frombuffer(bytes(buf[start:start + n_ * stride]), np.uint8).reshape(n_, stride).copy()
+                width = 12 if fmt == 51 else 16
+                v = np.ascontiguousarray(arr[:, off:off + width]).view('<f4').reshape(n_, width // 4).copy()
+                if fmt == 51:
+                    v *= factor
+                else:
+                    v[:, 1:4] *= factor                      # W is stored first
+                arr[:, off:off + width] = v.astype('<f4').view(np.uint8).reshape(n_, width)
+                buf[start:start + n_ * stride] = arr.tobytes()
+    return bytes(buf)
+
+
+def fitted_to_player(trmsh_path, buf, char_trskl, player_trskl, ratio, target_name):
+    """The mesh buffer with every vertex moved from where its bones are in the character to where the same bones
+    are in the player's skeleton (scaled to the character's height first), with normals and tangents turned
+    along. target_name: character bone name -> the player bone it follows. Old joint numbers are kept."""
+    import numpy as np
+    import za_trinity as zt
+    ck, pk = zt.Skeleton(char_trskl), zt.Skeleton(player_trskl)
+    cw, pw = ck.world_matrices(), pk.world_matrices()
+    shrink = np.diag([1.0 / ratio, 1.0 / ratio, 1.0 / ratio, 1.0])
+    move = {}
+    for j, node in enumerate(ck.joint_to_node):
+        if node < 0:
+            continue
+        name = ck.bones[node].name
+        tgt = target_name.get(name)
+        if tgt is None or tgt not in pk.index:
+            continue
+        a = tgt if tgt in ck.index else name             # a bone the player lacks moves with the one it follows
+        frame = cw[ck.index[a]].copy()
+        frame[:3, 3] /= ratio                            # the character at the player's height: positions only
+        move[j] = pw[pk.index[tgt]] @ np.linalg.inv(frame) @ shrink
+    with open(trmsh_path, 'rb') as f:
+        mroot = zt.Table.root(f.read())
+    buf = bytearray(buf)
+    bt = zt.Table.root(buf).tables(1)
+    for i, mesh in enumerate(mroot.tables(1)):
+        if i >= len(bt):
+            break
+        vbufs = bt[i].tables(1)
+        for decl in mesh.tables(3):
+            sizes = [t.u32(0) for t in decl.tables(1)]
+            els = [(e.scalar(0, 'i', -1), e.u32(1), e.u32(2), e.u32(3), e.u32(4)) for e in decl.tables(0)]
+
+            def column(el):
+                si, usage, layer, fmt, off = el
+                stride = sizes[0 if si == -1 else si] if 0 <= (0 if si == -1 else si) < len(sizes) else 0
+                size = zt.FMT_SIZE.get(fmt)
+                if not stride or not size or layer >= len(vbufs):
+                    return None
+                start, count = vbufs[layer].vector(0)
+                n_ = count // stride
+                arr = np.frombuffer(bytes(buf[start:start + n_ * stride]), np.uint8).reshape(n_, stride).copy()
+                return start, stride, off, size, n_, arr
+
+            def put(c, data):
+                start, stride, off, size, n_, arr = c
+                arr[:, off:off + size] = data
+                buf[start:start + n_ * stride] = arr.tobytes()
+            pos = next((e for e in els if e[1] == zt.POSITION and e[3] in (51, 54)), None)
+            idx = [e for e in els if e[1] == zt.BLEND_INDEX]
+            wgt = [e for e in els if e[1] == zt.BLEND_WEIGHTS]
+            if pos is None or not idx or len(idx) != len(wgt):
+                continue
+            cp = column(pos)
+            if cp is None:
+                continue
+            n_ = cp[4]
+            J = np.concatenate([zt._decode(np.ascontiguousarray(column(e)[5][:, e[4]:e[4] + zt.FMT_SIZE[e[3]]]),
+                                           e[3], zt.BLEND_INDEX) for e in idx], 1).astype(np.int64)
+            W = np.concatenate([zt._decode(np.ascontiguousarray(column(e)[5][:, e[4]:e[4] + zt.FMT_SIZE[e[3]]]),
+                                           e[3], zt.BLEND_WEIGHTS) for e in wgt], 1)
+            W = W / np.maximum(W.sum(1, keepdims=True), 1e-8)
+            top = int(J.max()) + 1 if J.size else 1
+            mats = np.stack([move.get(j, shrink) for j in range(top)])
+            M = np.einsum('vk,vkij->vij', W, mats[J])
+            width = 12 if pos[3] == 51 else 16
+            raw = np.ascontiguousarray(cp[5][:, pos[4]:pos[4] + width]).view('<f4').reshape(n_, width // 4).copy()
+            P = raw[:, :3] if pos[3] == 51 else raw[:, 1:4]
+            P2 = np.einsum('vij,vj->vi', M[:, :3, :3], P) + M[:, :3, 3]
+            if pos[3] == 51:
+                raw[:, :3] = P2
+            else:
+                raw[:, 1:4] = P2
+            put(cp, raw.astype('<f4').view(np.uint8).reshape(n_, width))
+            for e in els:                                     # directions turn with their vertex
+                if e[1] in (zt.NORMAL, zt.TANGENT, zt.BINORMAL) and e[3] == 43:
+                    c = column(e)
+                    if c is None or c[4] != n_:
+                        continue
+                    v = np.ascontiguousarray(c[5][:, e[4]:e[4] + 8]).view('<f2').reshape(n_, 4).astype(np.float32)
+                    d = np.einsum('vij,vj->vi', M[:, :3, :3], v[:, :3])
+                    v[:, :3] = d / np.maximum(np.linalg.norm(d, axis=1, keepdims=True), 1e-8)
+                    put(c, v.astype('<f2').view(np.uint8).reshape(n_, 8))
+    return bytes(buf)
+
+
+def make(root, mod, char_rel, hide_parts=True, log=None, reorder=False, bind_player=True, own_height=True,
+         fit=True):
     """Make `mod` turn the player into the character in game folder `char_rel` (from characters())."""
     say = log or (lambda s: None)
     src = os.path.join(root, *char_rel.split('/'))
@@ -270,13 +401,31 @@ def make(root, mod, char_rel, hide_parts=True, log=None, reorder=False, bind_pla
     if bind_player:     # the character's meshes skinned to the player's own skeleton (p0_base.trskl)
         import za_trinity as zt
         jmap = player_joint_map(player, char)
+        pjn = {x['JointInfoIndex']: x['Name'] for x in player['TransformNodes'] if x.get('JointInfoIndex') is not None}
+        names = {x['Name']: pjn.get(jmap.get(x['JointInfoIndex'])) for x in char['TransformNodes']
+                 if x.get('JointInfoIndex') is not None}
+        # a character taller or shorter than the player: its mesh is brought to the player's height so its joints
+        # meet the player's, and the player's skeleton is scaled back up (or down) from its root bone, which no
+        # animation moves - so it stands at its own height
+        ratio = 1.0
+        if own_height:
+            ph = head_height(os.path.join(root, *BASE_DIR.split('/'), 'p0_base.trskl'))
+            ch = head_height(os.path.join(src, skl_name))
+            if ph > 0 and ch > 0 and abs(ch / ph - 1) > 0.02:
+                ratio = ch / ph
         for m_ in mdl.get('Meshes') or []:
             mp = os.path.join(src, m_['PathName'])
             with open(mp, 'rb') as f:
                 bname = zt.Table.root(f.read()).string(2)
             with open(os.path.join(src, bname), 'rb') as f:
                 data = f.read()
-            mod.add_bytes('%s/%s' % (BASE_DIR, bname), renumber_joints(mp, data, jmap))
+            if fit:                             # bones of other lengths or angles: vertices follow the player's
+                data = fitted_to_player(mp, data, os.path.join(src, skl_name),
+                                        os.path.join(root, *BASE_DIR.split('/'), 'p0_base.trskl'), ratio, names)
+            elif ratio != 1.0:
+                data = scaled_positions(mp, data, 1.0 / ratio)
+            data = renumber_joints(mp, data, jmap)
+            mod.add_bytes('%s/%s' % (BASE_DIR, bname), data)
             msch = zm.schema_for(mp)
             md = json.loads(zm.to_json(mp, msch))
             for mesh in md.get('Meshes') or []:
@@ -285,6 +434,13 @@ def make(root, mod, char_rel, hide_parts=True, log=None, reorder=False, bind_pla
             zm.from_json(json.dumps(md), msch, mod.path_for('%s/%s' % (BASE_DIR, m_['PathName'])))
         mdl2 = dict(mdl, Skeleton={'PathName': 'p0_base.trskl'})
         zm.from_json(json.dumps(mdl2), sch, mod.path_for(BASE_MDL))
+        if ratio != 1.0:                         # only the root bone's scale changes; bones and order stay the same
+            import copy
+            sk = copy.deepcopy(player)
+            root_node = next(x for x in sk['TransformNodes'] if x['Name'] == 'chara_root')
+            root_node['Transform_']['Scale'] = {'X': ratio, 'Y': ratio, 'Z': ratio}
+            zm.from_json(json.dumps(sk), skl_sch, mod.path_for('%s/p0_base.trskl' % BASE_DIR))
+            say('own height: %.0f%% of the player (the skeleton is scaled from its root)' % (ratio * 100))
         moved = sum(1 for o, n_ in jmap.items() if next((x['Name'] for x in char['TransformNodes']
                                                          if x.get('JointInfoIndex') == o), '') not in
                     {x['Name'] for x in player['TransformNodes']})
