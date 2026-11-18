@@ -1,0 +1,11 @@
+// world/exl/audio/bgm_command/bgm_command.bin - what each music "command" the game sends does
+// (worked out from the file: name, action kind, music layer, Wwise event or state, a number)
+table BgmCommand {
+  name: string;      // the command the game sends, e.g. "VS_SELECT_01_PLAY", "A_A01_IN"
+  action: int;       // 7 play event, 8 set state, 12 stop layer, 5 ..., 2 ...
+  layer: string;     // FIELD, VS_TRAINER, DEMO, EV_LOCK, FACILITY ...
+  event: string;     // Wwise event / state name, e.g. "PLAY_BGM_IK_VS_SELECT_01"
+  value: int;
+}
+table BgmCommandTable { commands: [BgmCommand]; }
+root_type BgmCommandTable;

@@ -100,7 +100,10 @@ on it), a modded Switch (Atmosphere) or an emulator.
   - Pick any **interior, dungeon or zone** from the Area list. Optionally lay a dungeon floor map underneath and align it; the alignment is saved per area.
 - **Audio tab**: every song, jingle, sound effect, Pokémon cry, voice and ambience sound (over 14,000), searchable by
   name, with its type. Play, export and **replace** them with any audio file (WAV, MP3, OGG, FLAC, M4A…), with
-  volume, loudness matching and loop points.
+  volume, loudness matching and loop points. **Add as new battle music…** adds a song to the game's battle music
+  list as a new entry.
+- **Play as a character** (Mods tab): the player becomes one of the game's characters; the player's own face, hair
+  and clothes are hidden.
 - **Experimental**:
   - Import an edited glTF back into a model. Tangents are recomputed from the UVs, each vertex keeps its strongest bone
     influences, and it warns when a part ends up on the other side of the body from the bones it follows (e.g. a
@@ -489,6 +492,8 @@ Lumiose Toolkit/
   za_checklist.py         in-game test checklist made from what a mod changes
   za_datasearch.py        Search all tables (index of every data table's rows, search window)
   za_textsearch.py        Search all text (index of every message file in every language, search window)
+  za_bgm.py               New battle music (bank objects, music commands, battle music list, names)
+  za_playas.py            Play as a character (player base model, hidden player parts, window)
   za_portmon.py           Port a Pokémon from Scarlet/Violet (model, materials, animation system, data, window)
   za_iconrender.py        renders Pokémon icons in Z-A's style in a hidden browser window (tools/icon_render)
   za_texnames.py          plain-English texture descriptions for Browse (About column, search)

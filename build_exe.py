@@ -27,7 +27,7 @@ OUT = os.path.join(DIST, NAME)
 
 HIDDEN = ['za_map', 'za_pokedit', 'za_dataedit', 'za_textedit', 'za_history', 'za_import', 'za_mated',
           'za_audio', 'za_viewer', 'za_deps', 'za_names', 'za_trinity', 'za_formats', 'za_modding',
-          'za_setup', 'restore_missing', 'za_colours', 'za_conflicts', 'za_update', 'za_version', 'za_editor', 'za_prefs', 'za_report', 'za_whatsnew', 'za_soundbank', 'za_audiotab', 'za_merge', 'za_newitem', 'za_texnames', 'za_checklist', 'za_datasearch', 'za_portmon', 'za_iconrender', 'za_textsearch',
+          'za_setup', 'restore_missing', 'za_colours', 'za_conflicts', 'za_update', 'za_version', 'za_editor', 'za_prefs', 'za_report', 'za_whatsnew', 'za_soundbank', 'za_audiotab', 'za_merge', 'za_newitem', 'za_texnames', 'za_checklist', 'za_datasearch', 'za_portmon', 'za_iconrender', 'za_textsearch', 'za_bgm', 'za_playas',
           'webview', 'webview.platforms.edgechromium', 'webview.platforms.winforms']
 # big packages that may be installed but are never used by the program
 EXCLUDE = ['torch', 'tensorflow', 'cv2', 'matplotlib', 'scipy', 'pandas', 'IPython', 'jupyter', 'notebook',

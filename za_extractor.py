@@ -1046,6 +1046,7 @@ class App(tk.Tk):
         ttk.Button(bf, text='Check conflicts', command=self.check_conflicts).pack(side='left')
         ttk.Button(bf, text='Check new items', command=self.check_new_items).pack(side='left', padx=(4, 0))
         ttk.Button(bf, text='Test checklist…', command=self.test_checklist).pack(side='left', padx=(4, 0))
+        ttk.Button(bf, text='Play as a character…', command=self.play_as).pack(side='left', padx=(4, 0))
         ttk.Button(bf, text='Build package(s)', command=self.build_packages).pack(side='left', padx=4)
         rf = ttk.Frame(R)
         rf.pack(fill='x', pady=(2, 4))
@@ -2403,6 +2404,14 @@ class App(tk.Tk):
         self.nb.select(self.data_tab)
         self.data_ui._started = True
         self.data_ui.open_at(rel, row, item)
+
+    def play_as(self):
+        import za_playas
+        try:
+            za_playas.open_window(self)
+        except Exception as e:  # noqa: BLE001
+            log_error(traceback.format_exc())
+            messagebox.showerror('Lumiose Toolkit', 'Could not open Play as a character: %s' % e)
 
     def test_checklist(self):
         """Mods tab: what to check in game, made from what the selected (or current) mod changes."""

@@ -12,6 +12,8 @@
 - **Icons in Z-A's style**: after porting, pick a pose from a sheet of renders of the Pokémon (roars, cheers, attacks…), then fine-tune it in the **icon editor** - drag to turn it, scroll to zoom, right-drag to move it in the frame, pick the animation and the exact moment on a timeline (or play it), Close / Medium / Full framing, face-front and three-quarter views, a normal / shiny toggle and live previews at the game's icon size. The icons are rendered in the look of Z-A's own icons, normal and shiny, and added to the mod.
 - **Add spawn point…** (Map tab, under *Encounters at this spawn*): select a Pokémon spawn point, pick a Pokémon (ported ones included) and its levels, and a new spawn point appears 3 m away with its own encounter. Tick **Edit mode** to drag it into place, then **Save changes to current mod**. Everything the game needs for a new point is written: its position, spawner, encounter and its entry in the area's scene file. Spawn point names are checked against your other mods, so two mods never make the same point.
 - **Search all text…** (Browse & extract tab, next to the language list): one search across every line of game text - dialogue, item and move names and descriptions, menus - in one language or **all languages** at once. Case and accents don't matter, every word must match (in the line or its label), and "quotes" find a phrase. The full line is shown below the results; double-click to edit it. Text your current mod changed is searched in the mod's version (marked [mod]). The first search reads the text in a few seconds per language; after that only changed files are read again.
+- **New battle music** (Audio tab → pick an audio file → **Add as new battle music…**): your song becomes a new entry in the game's battle music list, unlocked from the start, with the name you give it in every language - none of the game's songs is replaced. Volume, "match the loudness" (of the game's battle music) and loop points work as for replacing; with a loop that doesn't start at 0, the song plays from the start once and then loops.
+- **Play as a character** (Mods tab → **Play as a character…**): your player becomes one of the game's characters - Taunie, Urbain, Emma, Naveen, Lida, Vinnie, the bosses and others (26 in all, "Show in 3D" to see each). The player's own face, hair and clothes are hidden whatever the save wears, so only the character is drawn. "Remove from mod" puts the player back.
 - The Pokédex contents table and the wild behaviour catalog can now be read, edited and searched like other tables.
 
 ### Fixed
@@ -35,6 +37,7 @@
 - Smaller fixes: the Map and Pokémon data tabs retry loading after an error, creating an item while a generic table is open, Show in Explorer / Copy path on text results, extracting from text results, JSON export failures, 3D viewer checkboxes before the model has loaded, a broken mod.json (kept as mod.json.bak).
 
 ### Note
+- New battle music and Play as a character are new: test them with a copy of your save.
 - Porting is new: the recipe was proven in game with Cyndaquil (spawns, battles, can be caught, moves properly), but test every ported Pokémon with a copy of your save. A save that has a ported Pokémon needs the mod installed to load.
 
 ## 1.6.2 - 2026-11-17

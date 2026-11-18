@@ -56,7 +56,7 @@ TRINITY_EXTS = ('trmdl', 'trmsh', 'trmbf', 'trmtr', 'trskl', 'tranm', 'tracm', '
 NAMED_SCHEMAS = {'dress_up_data.bin': 'dress_up_data.fbs', 'poke_resource_table.trpmcatalog': 'trpmcatalog.fbs',
                  'personal_array.bin': 'za_personal.fbs'}
 # schemas reverse-engineered for this tool (tools/schemas/za); every one rebuilds the game file byte-for-byte
-ZA_SCHEMAS = {'waza_array.bin': 'za_waza.fbs', 'item_data.bin': 'za_item.fbs',
+ZA_SCHEMAS = {'bgm_command.bin': 'za_bgm_command.fbs', 'waza_array.bin': 'za_waza.fbs', 'item_data.bin': 'za_item.fbs',
               'shop_item_lineup.bin': 'za_shop_item_lineup.fbs', 'shop_dress_up_lineup.bin': 'za_shop_dressup_lineup.fbs',
               'shop_hair_make_lineup.bin': 'za_shop_dressup_lineup.fbs',
               'dress_up_group_data.bin': 'za_dress_up_group_data.fbs', 'hair_make_data.bin': 'za_hair_make_data.fbs',

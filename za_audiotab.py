@@ -163,6 +163,7 @@ class AudioTab:
         ttk.Button(r4, text='▶ Preview', command=self.preview).pack(side='left')
         self.replace_btn = ttk.Button(r4, text='Replace in current mod', command=self.replace)
         self.replace_btn.pack(side='right')
+        ttk.Button(r4, text='Add as new battle music…', command=self.add_battle_music).pack(side='right', padx=6)
 
         self.report = tk.Text(right, height=7, wrap='word', relief='flat', borderwidth=0, highlightthickness=0,
                               font=('Segoe UI', 9), padx=6, pady=4)
@@ -514,6 +515,61 @@ class AudioTab:
             self.select()
             self.app.mod_changed(m, '%s/%s.bnk' % (sb.BANK_DIR, e['bank']), 'sound replaced')
         self.app.run_bg('Replacing sound', job, done)
+
+    def add_battle_music(self):
+        """The audio file as a new song in the battle music picker - no game song is replaced."""
+        from tkinter import simpledialog
+        import za_bgm
+        p = self.file_var.get()
+        if not p or not os.path.isfile(p):
+            messagebox.showinfo('Add battle music', 'Pick an audio file first (Browse…). Volume and loop points '
+                                'below are used too.')
+            return
+        try:
+            opt = self.options()
+        except sb.SoundError as ex:
+            messagebox.showerror('Add battle music', str(ex))
+            return
+        m = self.app.current_mod()
+        if not m:
+            return
+        title = simpledialog.askstring(
+            'Add battle music', 'Name in the battle music list (all languages):', parent=self.app,
+            initialvalue=os.path.splitext(os.path.basename(p))[0][:40])
+        if not title or not title.strip():
+            return
+        root = self.root()
+        ref = next((e for e in self.entries if any(n.startswith('PLAY_BGM_IK_VS_SELECT_') for n in e.get('events') or [])
+                    and e.get('replaceable', True)), None)          # a battle song of the game's own
+
+        def job():
+            gain = opt['gain_db']
+            if opt['match_loudness'] and ref is not None:     # as loud as the game's own battle music
+                import numpy as np
+                import za_audio
+                _, o = za_audio.read_wav(self.decoded(ref, root, original=True))
+                rate, s_ = sb.load_audio(p)
+                gain += sb.rms_db(o) - sb.rms_db(s_)
+                peak = int(np.abs(s_.astype(np.int32)).max()) or 1
+                gain = min(gain, 20 * np.log10(32767.0 / peak))
+            try:
+                m.snapshot()
+            except Exception:  # noqa: BLE001
+                pass
+            rep_ = za_bgm.add_battle_song(root, m, p, title, loop=opt['loop'], gain_db=gain)
+            if gain:
+                rep_.append('volume %+.1f dB' % gain)
+            try:
+                m.snapshot('new battle music: %s' % title)
+            except Exception:  # noqa: BLE001
+                pass
+            return rep_
+
+        def done(rep_):
+            self.show_report(rep_ + ['In the game it is in the battle music list, unlocked from the start. Test with a '
+                                     'copy of your save.'])
+            self.app.mod_changed(m, za_bgm.PICKER, 'new battle music')
+        self.app.run_bg('Adding battle music', job, done)
 
     def restore(self):
         e = self.cur
