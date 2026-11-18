@@ -197,7 +197,7 @@ def collapsed_buffer(trmsh_path):
     return name, bytes(buf)
 
 
-def make(root, mod, char_rel, hide_parts=True, log=None):
+def make(root, mod, char_rel, hide_parts=True, log=None, reorder=False):
     """Make `mod` turn the player into the character in game folder `char_rel` (from characters())."""
     say = log or (lambda s: None)
     src = os.path.join(root, *char_rel.split('/'))
@@ -223,28 +223,29 @@ def make(root, mod, char_rel, hide_parts=True, log=None):
     skl_sch = zm.schema_for(os.path.join(src, skl_name))
     player = json.loads(zm.to_json(os.path.join(root, *BASE_DIR.split('/'), 'p0_base.trskl'), skl_sch))
     char = json.loads(zm.to_json(os.path.join(src, skl_name), skl_sch))
-    skel, jmap = player_order_skeleton(player, char)
-    import za_trinity as zt
-    for m_ in mdl.get('Meshes') or []:          # vertices name their bones by joint number: renumber them too
-        mp = os.path.join(src, m_['PathName'])
-        with open(mp, 'rb') as f:
-            bname = zt.Table.root(f.read()).string(2)
-        with open(os.path.join(src, bname), 'rb') as f:
-            data = f.read()
-        mod.add_bytes('%s/%s' % (BASE_DIR, bname), renumber_joints(mp, data, jmap))
-    # only the character's own skeleton file: the player's p0_base.trskl stays as it is (the game's player
-    # systems are made for its bones - replacing it crashes the game)
-    zm.from_json(json.dumps(skel), skl_sch, mod.path_for('%s/%s' % (BASE_DIR, skl_name)))
-    for m_ in mdl.get('Meshes') or []:
-        mp = os.path.join(src, m_['PathName'])
-        msch = zm.schema_for(mp)
-        md = json.loads(zm.to_json(mp, msch))
-        for mesh in md.get('Meshes') or []:
-            for bw in mesh.get('boneWeight') or []:
-                bw['RigIndex'] = jmap.get(bw.get('RigIndex', 0), bw.get('RigIndex', 0))
-        zm.from_json(json.dumps(md), msch, mod.path_for('%s/%s' % (BASE_DIR, m_['PathName'])))
-    say('skeleton in the player\'s bone order (%d bones, %d joints)' % (len(skel['TransformNodes']),
-                                                                       len(skel['JointInfos'])))
+    if reorder:     # experimental: the player's bone order (crashed the game in testing - off for now)
+        skel, jmap = player_order_skeleton(player, char)
+        import za_trinity as zt
+        for m_ in mdl.get('Meshes') or []:          # vertices name their bones by joint number: renumber them too
+            mp = os.path.join(src, m_['PathName'])
+            with open(mp, 'rb') as f:
+                bname = zt.Table.root(f.read()).string(2)
+            with open(os.path.join(src, bname), 'rb') as f:
+                data = f.read()
+            mod.add_bytes('%s/%s' % (BASE_DIR, bname), renumber_joints(mp, data, jmap))
+        # only the character's own skeleton file: the player's p0_base.trskl stays as it is (the game's player
+        # systems are made for its bones - replacing it crashes the game)
+        zm.from_json(json.dumps(skel), skl_sch, mod.path_for('%s/%s' % (BASE_DIR, skl_name)))
+        for m_ in mdl.get('Meshes') or []:
+            mp = os.path.join(src, m_['PathName'])
+            msch = zm.schema_for(mp)
+            md = json.loads(zm.to_json(mp, msch))
+            for mesh in md.get('Meshes') or []:
+                for bw in mesh.get('boneWeight') or []:
+                    bw['RigIndex'] = jmap.get(bw.get('RigIndex', 0), bw.get('RigIndex', 0))
+            zm.from_json(json.dumps(md), msch, mod.path_for('%s/%s' % (BASE_DIR, m_['PathName'])))
+        say('skeleton in the player\'s bone order (%d bones, %d joints)' % (len(skel['TransformNodes']),
+                                                                           len(skel['JointInfos'])))
     say('base model: %s (%d files)' % (os.path.basename(char_rel), n))
     # 3. the player's own parts drawn as nothing (every mesh collapsed to a point)
     hidden = 0
