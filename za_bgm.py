@@ -1,4 +1,5 @@
-"""New music: add a song to the game's battle music picker (Options > Battle music), as a new entry - none of
+"""New music: add a song to the game's battle music list (the "Battle BGM" setting of online Private Battles), as a
+new entry - none of
 the game's songs is replaced.
 
 How the game plays a picked song: battle_bgm_select_array lists the entries (a command name such as

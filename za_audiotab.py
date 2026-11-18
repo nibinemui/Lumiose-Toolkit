@@ -535,7 +535,7 @@ class AudioTab:
         if not m:
             return
         title = simpledialog.askstring(
-            'Add battle music', '%s\n\nName in the battle music list (all languages):' % zm.EXPERIMENTAL, parent=self.app,
+            'Add battle music', '%s\n\nName in the Private Battles "Battle BGM" list (all languages):' % zm.EXPERIMENTAL, parent=self.app,
             initialvalue=os.path.splitext(os.path.basename(p))[0][:40])
         if not title or not title.strip():
             return
@@ -567,7 +567,8 @@ class AudioTab:
             return rep_
 
         def done(rep_):
-            self.show_report(rep_ + ['In the game it is in the battle music list, unlocked from the start. Test with a '
+            self.show_report(rep_ + ['In the game it is in the "Battle BGM" list of online Private Battles (Create / Join a Room), unlocked from the start - '
+                                     'that list is only used there, not in Battle Zones or wild battles. Test with a '
                                      'copy of your save.'])
             self.app.mod_changed(m, za_bgm.PICKER, 'new battle music')
         self.app.run_bg('Adding battle music', job, done)

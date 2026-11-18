@@ -16,7 +16,7 @@ WHAT'S NEW IN 2.0.0
     Pokemon and levels you pick. Tick Edit mode to drag it into place, then save.
   * Search all text... (Browse & extract): every line of game text in one language or all of them,
     double-click to edit the line.
-  * Audio tab: "Add as new battle music..." - your song as a new entry in the battle music list.
+  * Audio tab: "Add as new battle music..." - your song as a new entry in the "Battle BGM" list of online Private Battles.
   * Mods tab: "Play as a character..." - the player becomes one of the game's characters.
   * Mods tab: "Merge mods..." - several of your mods combined into one new mod.
   * Many fixes: tabs no longer save an old copy of a table into another mod, closing asks about

@@ -100,8 +100,8 @@ on it), a modded Switch (Atmosphere) or an emulator.
   - Pick any **interior, dungeon or zone** from the Area list. Optionally lay a dungeon floor map underneath and align it; the alignment is saved per area.
 - **Audio tab**: every song, jingle, sound effect, Pokémon cry, voice and ambience sound (over 14,000), searchable by
   name, with its type. Play, export and **replace** them with any audio file (WAV, MP3, OGG, FLAC, M4A…), with
-  volume, loudness matching and loop points. **Add as new battle music…** adds a song to the game's battle music
-  list as a new entry.
+  volume, loudness matching and loop points. **Add as new battle music…** adds a song to the "Battle BGM" list
+  of online Private Battles as a new entry.
 - **Play as a character** (Mods tab): the player becomes one of the game's characters (19 named characters and 133
   trainer and townsfolk outfits), fitted to the player's skeleton; the player's own face, hair and clothes are hidden.
 - **Experimental**:
