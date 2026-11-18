@@ -455,7 +455,7 @@ def fitted_to_player(trmsh_path, buf, char_trskl, player_trskl, ratio, target_na
     return bytes(buf)
 
 
-def player_skeleton_bytes(root, char_skel, ratio):
+def player_skeleton_bytes(root, char_skel, ratio, char_trskl=None):
     """p0_base.trskl with, patched into its own bytes (a round trip through the schema loses part of this file,
     and a skeleton missing it crashes the game): the character's inverse bind matrices for every bone both
     skeletons have - so the character's mesh, left as it is, is skinned the way it was made - and the root
@@ -470,6 +470,31 @@ def player_skeleton_bytes(root, char_skel, ratio):
     cj = char_skel.get('JointInfos') or []
     cbind = {n['Name']: cj[n['JointInfoIndex']] for n in char_skel['TransformNodes']
              if n.get('JointInfoIndex') is not None and n['JointInfoIndex'] < len(cj)}
+    # fingers: the player's animations set the player's (shorter or longer) finger bone lengths, so each finger
+    # segment of the character is resized around its own bone to the player's length - or its tips poke past the
+    # joints when the hand closes
+    shrink = {}
+    if char_trskl:
+        import numpy as np
+        ck, pk = zt.Skeleton(char_trskl), zt.Skeleton(sp)
+        cw, pw = ck.world_matrices(), pk.world_matrices()
+        fingers = [b.name for b in pk.bones if any(k in b.name for k in ('thumb', 'index', 'middle', 'ring', 'pinky'))]
+        for name in fingers:
+            pi, ci = pk.index.get(name), ck.index.get(name)
+            if pi is None or ci is None:
+                continue
+            kid = next((k for k, b in enumerate(pk.bones) if b.parent == pi and b.name in ck.index), None)
+            if kid is None:
+                continue
+            lp = np.linalg.norm(pw[kid][:3, 3] - pw[pi][:3, 3]) * ratio
+            lc = np.linalg.norm(cw[ck.index[pk.bones[kid].name]][:3, 3] - cw[ci][:3, 3])
+            if lp > 1e-4 and lc > 1e-4:
+                shrink[name] = float(np.clip(lp / lc, 0.4, 1.2))
+        for name in fingers:                    # the last segment: like the one before it
+            if name not in shrink and pk.index.get(name) is not None:
+                par = pk.bones[pk.index[name]].parent
+                if par >= 0 and pk.bones[par].name in shrink:
+                    shrink[name] = shrink[pk.bones[par].name]
     swapped = 0
     for n in nodes:
         name, j = n.string(0), n.scalar(5, 'i', -1)
@@ -487,9 +512,11 @@ def player_skeleton_bytes(root, char_skel, ratio):
             if max(abs(x - y) for x, y in zip(new, old)) > 0.05:
                 changed = True
         if changed:
+            f = shrink.get(name, 1.0)
             for k, axis in enumerate(('AxisX', 'AxisY', 'AxisZ', 'AxisW')):
                 a = m.get(axis) or {}
-                struct.pack_into('<3f', raw, mt.pos + mt.off(k), a.get('X', 0.0), a.get('Y', 0.0), a.get('Z', 0.0))
+                struct.pack_into('<3f', raw, mt.pos + mt.off(k), a.get('X', 0.0) * f, a.get('Y', 0.0) * f,
+                                 a.get('Z', 0.0) * f)
             swapped += 1
     if ratio != 1.0:
         rn = nodes[0]
@@ -617,7 +644,7 @@ def make(root, mod, char_rel, hide_parts=True, log=None, reorder=False, bind_pla
         mdl2 = dict(mdl, Skeleton={'PathName': 'p0_base.trskl'})
         zm.from_json(json.dumps(mdl2), sch, mod.path_for(BASE_MDL))
         if not fit:                             # the character's mesh as it is, with its own bind pose
-            sk_bytes, swapped = player_skeleton_bytes(root, char, ratio)
+            sk_bytes, swapped = player_skeleton_bytes(root, char, ratio, os.path.join(src, skl_name))
             if swapped or ratio != 1.0:         # built like the player already: the game's skeleton stays as it is
                 mod.add_bytes('%s/p0_base.trskl' % BASE_DIR, sk_bytes)
             say('player skeleton: the character\'s bind pose for %d bones%s' % (
