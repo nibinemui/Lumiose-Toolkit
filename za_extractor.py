@@ -967,6 +967,7 @@ class App(tk.Tk):
         lb.pack(fill='x', pady=4)
         ttk.Button(lb, text='New…', command=self.new_mod).pack(side='left')
         ttk.Button(lb, text='Make current', command=self.make_current).pack(side='left', padx=3)
+        ttk.Button(lb, text='Merge mods…', command=self.merge_mods_window).pack(side='left', padx=(0, 3))
         ttk.Button(lb, text='Open folder', command=lambda: self.selected_mod() and os.startfile(self.selected_mod().folder)).pack(side='left')
         ttk.Button(lb, text='Delete…', command=self.delete_mod).pack(side='right')
 
@@ -2404,6 +2405,14 @@ class App(tk.Tk):
         self.nb.select(self.data_tab)
         self.data_ui._started = True
         self.data_ui.open_at(rel, row, item)
+
+    def merge_mods_window(self):
+        import za_mergewin
+        try:
+            za_mergewin.open_window(self)
+        except Exception as e:  # noqa: BLE001
+            log_error(traceback.format_exc())
+            messagebox.showerror('Lumiose Toolkit', 'Could not open Merge mods: %s' % e)
 
     def play_as(self):
         import za_playas

@@ -385,7 +385,7 @@ A mod is just a folder: `Lumiose Toolkit\mods\<name>\romfs\<game paths>` plus `m
 On the **Mods** tab:
 1. Select your mod and fill in its details. You can see and remove its files there.
 2. Use **History / compare / restore…** (or double-click a file) to see every saved version, compare it, or roll it back.
-3. Add the mods you want to the **load order**. When two mods change the same **game data table** (shops, items, clothing, moves…) or **text file**, they are **merged**: rows each mod adds are all kept, and only a field both change differently goes to the higher mod (the build log lists it). For other files (models, textures, sounds) the top one wins. Identical copies are never a conflict. Merging happens when you build or install the mods **together** - mods installed separately in ZA Recomp still replace each other's files. **Check conflicts** opens a list of every file that more than one mod changes. It covers your mods, the load order and the mods installed in ZA Recomp / Lumiose Online, and shows which version the game uses.
+3. Add the mods you want to the **load order**. When two mods change the same **game data table** (shops, items, clothing, moves…) or **text file**, they are **merged**: rows each mod adds are all kept, and only a field both change differently goes to the higher mod (the build log lists it). For other files (models, textures, sounds) the top one wins. Identical copies are never a conflict. Merging happens when you build or install the mods **together** - mods installed separately in ZA Recomp still replace each other's files. To keep a combination as one mod, use **Merge mods…** (under My mods): it makes a new mod from the mods you tick, merged the same way. **Check conflicts** opens a list of every file that more than one mod changes. It covers your mods, the load order and the mods installed in ZA Recomp / Lumiose Online, and shows which version the game uses.
    **Check new items** checks the selected mod's new clothing items and hairstyles (ids, files, names, shops) and
    writes the result to the build log. **Test checklist…** lists what to check in the game for that mod - tick what
    works, then copy or save it for whoever tests with you.
@@ -494,6 +494,7 @@ Lumiose Toolkit/
   za_textsearch.py        Search all text (index of every message file in every language, search window)
   za_bgm.py               New battle music (bank objects, music commands, battle music list, names)
   za_playas.py            Play as a character (player base model, hidden player parts, window)
+  za_mergewin.py          Merge mods (several mods into one new mod, window)
   za_portmon.py           Port a Pokémon from Scarlet/Violet (model, materials, animation system, data, window)
   za_iconrender.py        renders Pokémon icons in Z-A's style in a hidden browser window (tools/icon_render)
   za_texnames.py          plain-English texture descriptions for Browse (About column, search)

@@ -7,8 +7,9 @@ clothing item (p1_/p2_ upb, lwb, drs, p0_ ftw, lgw, glv, hdw, bag, acc, eyw), ea
 with its own skeleton, matched to the base by bone names.
 
 The mod: the base model gets the character's meshes, materials and skeleton (every character's skeleton has the
-player's bones, so the player's animations move it), and every part's model is replaced by an empty one - the
-same kind of model the base normally is - so whatever the save wears, nothing is drawn over the character.
+player's bones, so the player's animations move it), and every part is drawn as nothing: its vertex positions and
+bone weights are set to zero, so every vertex lands on one point. Its files, mesh and material names stay as they
+are - the game's own "none" items show a part needs a real mesh and material (an empty model crashes the game).
 """
 import json
 import os
@@ -71,11 +72,35 @@ def characters(root):
     return out
 
 
-def _empty(mdl):
-    """An empty model like the player's base: no meshes, materials or LODs, the same skeleton."""
-    return {'Meshes': [], 'Skeleton': mdl.get('Skeleton') or {}, 'Materials': [], 'LODs': [],
-            'Bounds': {'MinBound': {'X': 0.0, 'Y': 0.0, 'Z': 0.0}, 'MaxBound': {'X': 0.0, 'Y': 0.0, 'Z': 0.0}},
-            'Field_06': {'X': 0.0, 'Y': 0.0, 'Z': 0.0, 'W': 0.0}}
+def collapsed_buffer(trmsh_path):
+    """(buffer file name, bytes) of a mesh's .trmbf with every vertex's position and bone weights set to zero."""
+    import za_trinity as zt
+    with open(trmsh_path, 'rb') as f:
+        mroot = zt.Table.root(f.read())
+    name = mroot.string(2)
+    with open(os.path.join(os.path.dirname(trmsh_path), name), 'rb') as f:
+        buf = bytearray(f.read())
+    broot = zt.Table.root(buf)
+    buffers = broot.tables(1)
+    for i, mesh in enumerate(mroot.tables(1)):
+        if i >= len(buffers):
+            break
+        vbufs = buffers[i].tables(1)
+        for decl in mesh.tables(3):
+            sizes = [t.u32(0) for t in decl.tables(1)]
+            for el in decl.tables(0):
+                si, usage, layer, fmt, offset = el.scalar(0, 'i', -1), el.u32(1), el.u32(2), el.u32(3), el.u32(4)
+                if usage not in (zt.POSITION, zt.BLEND_WEIGHTS) or layer >= len(vbufs):
+                    continue
+                stride = sizes[0 if si == -1 else si] if 0 <= (0 if si == -1 else si) < len(sizes) else 0
+                size = zt.FMT_SIZE.get(fmt)
+                start, count = vbufs[layer].vector(0)
+                if not stride or not size or offset + size > stride:
+                    continue
+                for k in range(count // stride):
+                    q = start + k * stride + offset
+                    buf[q:q + size] = bytes(size)
+    return name, bytes(buf)
 
 
 def make(root, mod, char_rel, hide_parts=True, log=None):
@@ -100,7 +125,7 @@ def make(root, mod, char_rel, hide_parts=True, log=None):
     os.makedirs(os.path.dirname(out), exist_ok=True)
     zm.from_json(json.dumps(mdl), sch, out)
     say('base model: %s (%d files)' % (os.path.basename(char_rel), n))
-    # 3. the player's own parts drawn as nothing
+    # 3. the player's own parts drawn as nothing (every mesh collapsed to a point)
     hidden = 0
     if hide_parts:
         parts = os.path.join(root, *PARTS_DIR.split('/'))
@@ -108,13 +133,13 @@ def make(root, mod, char_rel, hide_parts=True, log=None):
             d = os.path.join(parts, f)
             if not os.path.isdir(d):
                 continue
-            for x in os.listdir(d):
-                if x.endswith('.trmdl'):
-                    pm = json.loads(zm.to_json(os.path.join(d, x), sch))
-                    o = mod.path_for('%s/%s/%s' % (PARTS_DIR, f, x))
-                    os.makedirs(os.path.dirname(o), exist_ok=True)
-                    zm.from_json(json.dumps(_empty(pm)), sch, o)
-                    hidden += 1
+            n_mesh = 0
+            for x in sorted(os.listdir(d)):
+                if x.endswith('.trmsh'):
+                    name, data = collapsed_buffer(os.path.join(d, x))
+                    mod.add_bytes('%s/%s/%s' % (PARTS_DIR, f, name), data)
+                    n_mesh += 1
+            hidden += 1 if n_mesh else 0
         say('player face, hair and clothes hidden: %d models' % hidden)
     return {'character': char_rel, 'files': n, 'hidden': hidden}
 
@@ -245,7 +270,7 @@ def remove(root, mod):
     """Take the player model change out of `mod` again."""
     gone = 0
     for rel in list(mod.files()):
-        if rel.startswith(BASE_DIR + '/') or (rel.startswith(PARTS_DIR + '/') and rel.endswith('.trmdl')):
+        if rel.startswith(BASE_DIR + '/') or (rel.startswith(PARTS_DIR + '/') and rel.endswith(('.trmdl', '.trmbf'))):
             mod.remove(rel)
             gone += 1
     return gone
