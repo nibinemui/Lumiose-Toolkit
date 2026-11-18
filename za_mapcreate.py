@@ -221,12 +221,16 @@ def create(mt, kind, x, z, spec):
     new = new_name(old, taken_names(mt))
     if not new:
         raise ValueError('No free name left for a copy of %s.' % old)
-    sc = mt.scene(rel)
-    chunks = sc[0]['Chunks']
-    ci = next((i for i, c in enumerate(chunks) if old.encode() in bytes(c.get('Data', []))), None)
+    # every scene file that places the original (NPCs are often in a day and a night scene)
     px, py, pz = _pos(p)
-    off = mt._pos_offset(chunks[ci]['Data'], px, py, pz) if ci is not None else None
-    if off is None:
+    places = []
+    for r_ in mt.find_scenes(old, KINDS[kind][3]) or [rel]:
+        chunks = mt.scene(r_)[0]['Chunks']
+        ci = next((i for i, c in enumerate(chunks) if old.encode() in bytes(c.get('Data', []))), None)
+        off = mt._pos_offset(chunks[ci]['Data'], px, py, pz) if ci is not None else None
+        if off is not None:
+            places.append((r_, chunks, ci, off))
+    if not places:
         raise ValueError("Could not find where %s's position is stored in its scene file." % old)
     y = ground_height(mt, x, z, py)
     # 1. position
@@ -248,38 +252,45 @@ def create(mt, kind, x, z, spec):
     APPLY[kind](mt, s, new, spec)
     rr.insert(i + 1, s)
     table.dirty = True
-    # 4. scene: the template's chunk tree, renamed, with fresh ids for chunks that belong only to it, moved
-    ids = []
-
-    def all_ids(cs):
-        for c in cs:
-            ids.append(c.get('Id'))
-            all_ids(c.get('Children') or [])
-    all_ids(chunks)
-    unique = {k for k in ids if ids.count(k) == 1}
-    used = set(ids)
+    # 4. scene(s): the template's chunk tree, renamed, with fresh ids for chunks that belong only to it, moved.
+    # An id gets the same new id in every scene file, as the original's day and night copies share theirs
     rng = random.Random(hash(new) & 0xFFFFFFFF)
+    new_id = {}
+    spots = []
+    for r_, chunks, ci, off in places:
+        ids = []
 
-    def rename(c):
-        b = bytes(c.get('Data', []))
-        if old.encode() in b:
-            c['Data'] = list(b.replace(old.encode(), new.encode()))
-        if c.get('Id') in unique:
-            nid = rng.getrandbits(64)
-            while nid in used:
-                nid = rng.getrandbits(64)
-            used.add(nid)
-            c['Id'] = nid
-        for ch in c.get('Children') or []:
-            rename(ch)
-    nc = copy.deepcopy(chunks[ci])
-    rename(nc)
-    b = bytearray(nc['Data'])
-    struct.pack_into('<3f', b, off, x, y, z)
-    nc['Data'] = list(b)
-    chunks.insert(ci + 1, nc)
-    mt.__dict__.setdefault('scene_dirty', set()).add(rel)
-    mt.__dict__.setdefault('new_points', {})[new] = (rel, off)
+        def all_ids(cs):
+            for c in cs:
+                ids.append(c.get('Id'))
+                all_ids(c.get('Children') or [])
+        all_ids(chunks)
+        unique = {k for k in ids if ids.count(k) == 1}
+        used = set(ids) | set(new_id.values())
+
+        def rename(c):
+            b = bytes(c.get('Data', []))
+            if old.encode() in b:
+                c['Data'] = list(b.replace(old.encode(), new.encode()))
+            if c.get('Id') in unique:
+                if c['Id'] not in new_id:
+                    nid = rng.getrandbits(64)
+                    while nid in used:
+                        nid = rng.getrandbits(64)
+                    new_id[c['Id']] = nid
+                used.add(new_id[c['Id']])
+                c['Id'] = new_id[c['Id']]
+            for ch in c.get('Children') or []:
+                rename(ch)
+        nc = copy.deepcopy(chunks[ci])
+        rename(nc)
+        b = bytearray(nc['Data'])
+        struct.pack_into('<3f', b, off, x, y, z)
+        nc['Data'] = list(b)
+        chunks.insert(ci + 1, nc)
+        mt.__dict__.setdefault('scene_dirty', set()).add(r_)
+        spots.append((r_, off))
+    mt.__dict__.setdefault('new_points', {})[new] = spots
     mt.index_spawn_tables()
     mt.spawn_info = {n: mt.encounter_lines(n) for n in mt.spawner_by_obj}
     mt.sel = (L, gi, si + 1)
@@ -315,9 +326,16 @@ def _apply_pokemon(mt, s, new, spec):
     info['weight'] = info.get('weight') or 100
     info['activationCondition'] = copy.deepcopy(FORCE)
     info.pop('appearedWeatherCondition', None)
+    # day / night as the game marks it: 1 = by day, 2 = at night (night ones also have a night-only spawner)
+    info.pop('appearedTimeCondition', None)
+    if spec.get('when') == 'day':
+        info['appearedTimeCondition'] = 1
+    elif spec.get('when') == 'night':
+        info['appearedTimeCondition'] = 2
     s['encountDataInfoList'] = [info]
-    # the copied spawner may only work in some weather, time or story point: the new one always does
-    s['activationCondition'] = copy.deepcopy(FORCE)
+    # the copied spawner may only work in some weather, time or story point: the new one always does (or only at
+    # night, if asked)
+    s['activationCondition'] = _when(spec) if spec.get('when') == 'night' else copy.deepcopy(FORCE)
     if 'activationConditionForUi' in s:
         s['activationConditionForUi'] = copy.deepcopy(FORCE)
 
@@ -357,24 +375,42 @@ def _wild_behaviour(mt, species, form):
         mt.__dict__.setdefault('extra_files', {})[rel] = f.read()
 
 
+TIME_CONDITION = {'day': 'time_noon_condition', 'night': 'time_night_condition'}
+
+
+def _when(spec):
+    """The spawner condition for 'always' / 'day' / 'night' (the game's own day and night conditions)."""
+    c = TIME_CONDITION.get(spec.get('when'))
+    return [{'element': [{'param': [{'condition': c}]}]}] if c else copy.deepcopy(FORCE)
+
+
 def _apply_itemball(mt, s, new, spec):
     tid = 'lt_' + new
     _item_table(mt, 'ib_items', tid, [(spec['item'], spec['count'], 100)])
     s['tableInfoList'] = [{'tableId': tid, 'activationCondition': copy.deepcopy(FORCE)}]
-    s.pop('activationCondition', None)
+    if spec.get('when') in TIME_CONDITION:
+        s['activationCondition'] = _when(spec)
+    else:
+        s.pop('activationCondition', None)
 
 
 def _apply_random(mt, s, new, spec):
     tid = 'lt_' + new
     _item_table(mt, 'rp_items', tid, [(i, 1, w) for i, w in spec['items']])
     s['tableInfoList'] = [{'tableId': tid, 'activationCondition': copy.deepcopy(FORCE)}]
-    s['activationCondition'] = copy.deepcopy(FORCE)
+    s['activationCondition'] = _when(spec)
     for o in s.get('appearanceSpawnerObjectInfoList') or []:
         o['appearanceInfo'] = {'minCount': spec['min'], 'maxCount': max(spec['min'], spec['max'])}
 
 
 def _apply_gimmick(mt, s, new, spec):
     s['activationCondition'] = copy.deepcopy(FORCE)
+    # the placement flags this kind of object has most often in the game (a wall crystal's flags sink a
+    # ground crystal into the ground)
+    flags = _usual_flags(mt, spec['gimmick'])
+    if flags is not None:
+        for o in s.get('appearanceSpawnerObjectInfoList') or []:
+            o['additionalFlagList'] = list(flags)
     s['spawnWazagimmickInfoList'] = [{'privateId': spec['gimmick'], 'weight': 100, 'maxCount': 1,
                                       'activationCondition': copy.deepcopy(FORCE)}]
 
@@ -384,6 +420,8 @@ def _apply_npc(mt, s, new, spec):
     s.pop('encountId', None)                         # a person, not one of the story's Pokémon NPCs
     for cond in s.get('appearingConditionList') or []:
         cond['element'] = copy.deepcopy(FORCE)[0]['element']
+        if spec['when'] in TIME_CONDITION:                # as the game's day / night NPCs: condition and flag
+            cond['element'].append({'param': [{'condition': TIME_CONDITION[spec['when']]}]})
         cond['dayNightFlag'] = {} if spec['when'] == 'always' else {'dayNightFlag': 1 if spec['when'] == 'day' else 2}
         for o in cond.get('spawnerObjectInfoList') or []:
             tags = spec.get('talk')
@@ -425,6 +463,36 @@ def gimmick_label(group):
     return None
 
 
+def _gimmick_groups(mt):
+    """{gimmick id: its group in the game's gimmick table} (read once)."""
+    if '_gimmick_groups' not in mt.__dict__:
+        group = {}
+        try:
+            root = os.path.normpath(mt.app.root_var.get())
+            for r in _flat(_table_rows(root, 'world/ik_data/field/field_wazagimmick_private/'
+                                             'field_wazagimmick_private/field_wazagimmick_private_array.bin')):
+                for o in r.get('objectName') or []:
+                    group.setdefault(o, r.get('groupId'))
+        except Exception:  # noqa: BLE001
+            pass
+        mt.__dict__['_gimmick_groups'] = group
+    return mt.__dict__['_gimmick_groups']
+
+
+def _usual_flags(mt, pid):
+    """The placement flags the game's spawners of the same kind of object (as `pid`) have most often, or None."""
+    group = _gimmick_groups(mt)
+    label = gimmick_label(group.get(pid))
+    t = mt.tables.get('wg_spawner')
+    count = {}
+    for r in rows(t) if t and label else []:
+        if any(gimmick_label(group.get(g.get('privateId'))) == label for g in r.get('spawnWazagimmickInfoList') or []):
+            for o in r.get('appearanceSpawnerObjectInfoList') or []:
+                k = tuple(o.get('additionalFlagList') or [])
+                count[k] = count.get(k, 0) + 1
+    return max(count, key=count.get) if count else None
+
+
 def gimmick_choices(mt):
     """[(name shown in the menu, the game's gimmick id)], each kind of object once."""
     t = mt.tables.get('wg_spawner')
@@ -433,15 +501,7 @@ def gimmick_choices(mt):
         for g in r.get('spawnWazagimmickInfoList') or []:
             if g.get('privateId'):
                 used[g['privateId']] = used.get(g['privateId'], 0) + 1
-    group = {}
-    try:
-        root = os.path.normpath(mt.app.root_var.get())
-        for r in _flat(_table_rows(root, 'world/ik_data/field/field_wazagimmick_private/field_wazagimmick_private/'
-                                         'field_wazagimmick_private_array.bin')):
-            for o in r.get('objectName') or []:
-                group.setdefault(o, r.get('groupId'))
-    except Exception:  # noqa: BLE001
-        pass
+    group = _gimmick_groups(mt)
     out = {}
     for pid in sorted(used, key=lambda p: -used[p]):           # the most used copy of each object
         label = gimmick_label(group.get(pid))
@@ -655,6 +715,16 @@ def open_menu(mt, x, z):
             box.configure(values=[v for v in values if q in v.lower()][:500] if q else values)
         box.bind('<KeyRelease>', f)
 
+    def when_row(g, row, column=0, span=3):
+        """'Appears: always / by day / at night' - returns its variable."""
+        var = tk.StringVar(value='always')
+        ttk.Label(g, text='Appears:').grid(row=row, column=column, sticky='w', pady=(6, 0))
+        wf = ttk.Frame(g)
+        wf.grid(row=row, column=column + 1, columnspan=span, sticky='w', pady=(6, 0))
+        for v, t in (('always', 'always'), ('day', 'by day'), ('night', 'at night')):
+            ttk.Radiobutton(wf, text=t, value=v, variable=var).pack(side='left', padx=(0, 8))
+        return var
+
     def step2(kind):
         clear()
         ttk.Label(body, text=KINDS[kind][0], style='Head.TLabel').pack(anchor='w', pady=(0, 8))
@@ -705,6 +775,7 @@ def open_menu(mt, x, z):
                 else:
                     alpha_note.grid_remove()
             alpha.trace_add('write', alpha_changed)
+            when = when_row(g, 6)
 
             def spec():
                 m = re.search(r'#(\d+)\)?\s*$', sp.get())
@@ -713,7 +784,7 @@ def open_menu(mt, x, z):
                 big = alpha.get()
                 return {'species': int(m.group(1)), 'form': int(form.get()), 'min': int(lo.get()),
                         'max': int(hi.get()), 'size': 255 if big else (-1 if rnd.get() else int(size.get())),
-                        'alpha': big}
+                        'alpha': big, 'when': when.get()}
             nav(kind, spec)
         elif kind == 'itemball':
             items = ['%s (#%d)' % (n, i) for i, n in sorted(mt.item_names.items()) if n and i]
@@ -724,12 +795,13 @@ def open_menu(mt, x, z):
             cnt = tk.IntVar(value=1)
             ttk.Label(g, text='How many:').grid(row=1, column=0, sticky='w')
             ttk.Spinbox(g, from_=1, to=99, textvariable=cnt, width=5).grid(row=1, column=1, sticky='w', pady=2)
+            when = when_row(g, 2, span=1)
 
             def spec():
                 m = re.search(r'#(\d+)\)\s*$', it.get())
                 if not m:
                     raise ValueError('Pick an item from the list.')
-                return {'item': int(m.group(1)), 'count': int(cnt.get())}
+                return {'item': int(m.group(1)), 'count': int(cnt.get()), 'when': when.get()}
             nav(kind, spec)
         elif kind == 'random':
             items = ['%s (#%d)' % (n, i) for i, n in sorted(mt.item_names.items()) if n and i]
@@ -760,13 +832,14 @@ def open_menu(mt, x, z):
             ttk.Spinbox(cf, from_=1, to=10, textvariable=lo, width=4).pack(side='left', padx=4)
             ttk.Label(cf, text='to').pack(side='left')
             ttk.Spinbox(cf, from_=1, to=10, textvariable=hi, width=4).pack(side='left', padx=4)
+            when = when_row(g, 5, span=2)
 
             def spec():
                 chosen = [(int(re.search(r'#(\d+)\)\s*$', lst.item(i, 'text')).group(1)), int(lst.item(i, 'values')[0]))
                           for i in lst.get_children()]
                 if not chosen:
                     raise ValueError('Add at least one item.')
-                return {'items': chosen, 'min': int(lo.get()), 'max': int(hi.get())}
+                return {'items': chosen, 'min': int(lo.get()), 'max': int(hi.get()), 'when': when.get()}
             nav(kind, spec)
         elif kind == 'gimmick':
             types = dict(gimmick_choices(mt))
@@ -791,12 +864,7 @@ def open_menu(mt, x, z):
             ab = ttk.Combobox(g, values=names, width=52)
             ab.grid(row=0, column=1, sticky='w', pady=2)
             filtered(ab, names)
-            when = tk.StringVar(value='always')
-            ttk.Label(g, text='Appears:').grid(row=1, column=0, sticky='w')
-            wf = ttk.Frame(g)
-            wf.grid(row=1, column=1, sticky='w', pady=2)
-            for v, t in (('always', 'always'), ('day', 'by day'), ('night', 'at night')):
-                ttk.Radiobutton(wf, text=t, value=v, variable=when).pack(side='left', padx=(0, 8))
+            when = when_row(g, 1, span=1)
             acts = dict(NPC_BEHAVIOURS)
             ttk.Label(g, text='Behaviour:').grid(row=2, column=0, sticky='w')
             tb = ttk.Combobox(g, values=list(acts), width=52, state='readonly')

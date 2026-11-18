@@ -75,6 +75,11 @@ def city_cal(size):
     return {'swap': False, 'sx': -1, 'sz': -1, 'scale': sc, 'ox': size / 2 + MAP_CX * sc, 'oy': size / 2 + MAP_CZ * sc}
 
 
+def _spots(info):
+    """[(scene file, position offset)] of a new point: one, or several (a copy in every scene the original is in)."""
+    return info if isinstance(info, list) else [info]
+
+
 def w2m(cal, x, z):
     a, b = (z, x) if cal['swap'] else (x, z)
     return cal['ox'] + cal['sx'] * cal['scale'] * a, cal['oy'] + cal['sz'] * cal['scale'] * b
@@ -510,7 +515,7 @@ class MapTab:
             self.area_labels['%s  (%d points)' % (a, n)] = a
         self.area_box.configure(values=list(self.area_labels))
         self.layers, self.species, self.tables = layers, species, tables
-        for k in ('scene_of', 'scenes', 'scene_dirty', 'new_points', 'extra_files'):   # new points of the old tables
+        for k in ('scene_of', 'scenes_of', 'scenes', 'scene_dirty', 'new_points', 'extra_files'):   # new points of the old tables
             self.__dict__.pop(k, None)
         self.icon_cache = {}                         # another mod may have its own (ported) Pokémon's icons
         self.index_spawn_tables()
@@ -1261,6 +1266,29 @@ class MapTab:
         cache[name] = None
         return None
 
+    def find_scenes(self, name, pattern):
+        """Every scene file matching `pattern` that places `name` (an NPC can be in a day and a night scene)."""
+        first = self.find_scene(name, pattern)
+        if not first:
+            return []
+        cache = self.__dict__.setdefault('scenes_of', {})
+        if name not in cache:
+            root = os.path.normpath(self.app.root_var.get())
+            key = name.encode()
+            out = [first]
+            for path in sorted(glob.glob(os.path.join(root, 'world', 'ik_scene', '**', pattern), recursive=True)):
+                rel = os.path.relpath(path, root).replace(os.sep, '/')
+                if rel == first:
+                    continue
+                try:
+                    with open(_mod_file(path, root, self.romfs)[0], 'rb') as f:
+                        if key in f.read():
+                            out.append(rel)
+                except OSError:
+                    continue
+            cache[name] = out
+        return cache[name]
+
     def scene(self, rel):
         """[data, schema path, game path] of a scene file (the mod's copy if it has one), loaded once."""
         sc = self.__dict__.setdefault('scenes', {})
@@ -1422,10 +1450,10 @@ class MapTab:
         info = self.__dict__.get('new_points', {}).pop(name, None)
         if not info:
             return
-        rel = info[0]
-        chunks = self.scenes[rel][0]['Chunks']
-        chunks[:] = [c for c in chunks if name.encode() not in bytes(c.get('Data', []))]
-        self.__dict__.setdefault('scene_dirty', set()).add(rel)
+        for rel, _ in _spots(info):
+            chunks = self.scenes[rel][0]['Chunks']
+            chunks[:] = [c for c in chunks if name.encode() not in bytes(c.get('Data', []))]
+            self.__dict__.setdefault('scene_dirty', set()).add(rel)
         for g in self.tables['spawner'].data['values']:
             g['root'] = [s for s in g.get('root', [])
                          if not any(o.get('objectName') == name for o in s.get('appearanceSpawnerObjectInfoList', []))]
@@ -1490,24 +1518,27 @@ class MapTab:
         self.app.wait_window(w)
         return out.get('v')
 
-    def save_to_mod(self):
+    def _move_in_scene(self, rel, name, off, x, y, z, dirty):
         import struct
+        for c in self.scenes[rel][0]['Chunks']:
+            if name.encode() in bytes(c.get('Data', [])):
+                b = bytearray(c['Data'])
+                if struct.unpack_from('<3f', b, off) != struct.unpack('<3f', struct.pack('<3f', x, y, z)):
+                    struct.pack_into('<3f', b, off, x, y, z)
+                    c['Data'] = list(b)
+                    dirty.add(rel)
+                break
+
+    def save_to_mod(self):
         scene_dirty = self.__dict__.get('scene_dirty', set())
         # new points follow their position on the map into the scene file
-        for name, (rel, off) in self.__dict__.get('new_points', {}).items():
+        for name, info in self.__dict__.get('new_points', {}).items():
             pt = next((q for LL in self.layers for _, _, q in LL.points() if q.get('Name') == name), None)
-            if pt is None or rel not in self.__dict__.get('scenes', {}):
-                continue
-            x, y, z = _pos(pt)
-            for c in self.scenes[rel][0]['Chunks']:
-                if name.encode() in bytes(c.get('Data', [])):
-                    b = bytearray(c['Data'])
-                    if struct.unpack_from('<3f', b, off) != struct.unpack('<3f', struct.pack('<3f', x, y, z)):
-                        struct.pack_into('<3f', b, off, x, y, z)
-                        c['Data'] = list(b)
-                        scene_dirty.add(rel)
-                    break
-        changed = [L for L in self.layers if L.dirty] + [t for t in self.tables.values() if t.dirty]
+            for rel, off in _spots(info):
+                if pt is None or rel not in self.__dict__.get('scenes', {}):
+                    continue
+                self._move_in_scene(rel, name, off, *_pos(pt), dirty=scene_dirty)
+        changed =[L for L in self.layers if L.dirty] + [t for t in self.tables.values() if t.dirty]
         extra = self.__dict__.get('extra_files', {})      # other game files a new point needs (wild behaviour)
         if not changed and not scene_dirty and not extra:
             self.app.status_var.set('Nothing to save.')
