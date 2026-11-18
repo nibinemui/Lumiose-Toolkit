@@ -194,6 +194,29 @@ def add_to_bank(b, number, wem, ms, loop_ms):
 
 # ---- tables and text ---------------------------------------------------------------------------------------
 
+# the music event every trainer battle starts (Battle Zones, trainers who challenge you, story trainers)
+TRAINER_EVENT = 'PLAY_BGM_VS_TRAINER'
+
+
+def _use_for_trainers(root, mod, number):
+    """Trainer battles play song `number` instead of the normal trainer battle theme: the commands that start
+    the theme are pointed at the song's event (the game's own song stays in the bank). Returns how many."""
+    d, sch = _load(root, mod, COMMANDS)
+    n = 0
+    for r in d['commands']:
+        if r.get('event') == TRAINER_EVENT or (r.get('name') in TRAINER_COMMANDS and
+                                               str(r.get('event', '')).startswith('PLAY_BGM_IK_VS_SELECT_')):
+            r['event'] = 'PLAY_BGM_IK_VS_SELECT_%02d' % number
+            n += 1
+    if not n:
+        raise BgmError('The game\'s trainer battle music commands were not found.')
+    _save(mod, COMMANDS, d, sch)
+    return n
+
+
+TRAINER_COMMANDS = ('VS_TRAINER_INTERACT', 'TL_TRAINER_START', 'TL_TRAINER_ZA_START')
+
+
 def _add_commands(root, mod, number):
     d, sch = _load(root, mod, COMMANDS)
     rows = d['commands']
@@ -257,8 +280,9 @@ def _add_name(root, mod, number, title):
     return n
 
 
-def add_battle_song(root, mod, audio_path, title, loop=None, gain_db=0.0, log=None):
+def add_battle_song(root, mod, audio_path, title, loop=None, gain_db=0.0, log=None, trainer=False):
     """Add a new battle song to the picker in `mod`. loop = (start s, end s) or None (the whole song loops).
+    trainer: also play it in every trainer battle instead of the normal trainer battle theme.
     Returns a report (list of lines)."""
     say = log or (lambda s: None)
     rate, samples = sb.load_audio(audio_path)
@@ -291,6 +315,8 @@ def add_battle_song(root, mod, audio_path, title, loop=None, gain_db=0.0, log=No
         mod.add_bytes(bank_rel, data)
         say('BGM.bnk: new song %02d (%.1f s, %d Hz, %d channel(s))' % (number, secs, rate, samples.shape[1]))
         _add_commands(root, mod, number)
+        if trainer:
+            _use_for_trainers(root, mod, number)
         _add_picker(root, mod, number)
         langs = _add_name(root, mod, number, title)
     except Exception:
@@ -301,7 +327,10 @@ def add_battle_song(root, mod, audio_path, title, loop=None, gain_db=0.0, log=No
             else:
                 mod.add_bytes(rel, old)
         raise
-    return ['added "%s" to the battle music picker as entry %02d (unlocked from the start)' % (title, number),
+    return ['added "%s" to the Private Battles "Battle BGM" list as entry %02d (unlocked from the start)'
+            % (title, number)] + \
+        (['plays in every trainer battle (Battle Zones, trainers) instead of the normal trainer battle theme']
+         if trainer else []) + [
             'song %.1f s, %d Hz, %d channel(s), 16-bit PCM in BGM.bnk; %s' % (
                 secs, rate, samples.shape[1], 'loops the whole song' if not loop else
                 'plays from the start, then loops %.2f s - %.2f s' % (start, end) if start > 0.001 else

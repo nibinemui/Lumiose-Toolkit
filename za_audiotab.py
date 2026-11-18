@@ -539,6 +539,13 @@ class AudioTab:
             initialvalue=os.path.splitext(os.path.basename(p))[0][:40])
         if not title or not title.strip():
             return
+        trainer = messagebox.askyesnocancel(
+            'Add battle music', 'Also play it in trainer battles (Battle Zones and trainers who challenge you), '
+            'instead of the normal trainer battle theme?\n\nThe game\'s own theme is kept in the game files; '
+            'removing the mod brings it back. Wild Pokémon battles keep their music (it is part of the area '
+            'music, not one song).', parent=self.app)
+        if trainer is None:
+            return
         root = self.root()
         ref = next((e for e in self.entries if any(n.startswith('PLAY_BGM_IK_VS_SELECT_') for n in e.get('events') or [])
                     and e.get('replaceable', True)), None)          # a battle song of the game's own
@@ -557,7 +564,7 @@ class AudioTab:
                 m.snapshot()
             except Exception:  # noqa: BLE001
                 pass
-            rep_ = za_bgm.add_battle_song(root, m, p, title, loop=opt['loop'], gain_db=gain)
+            rep_ = za_bgm.add_battle_song(root, m, p, title, loop=opt['loop'], gain_db=gain, trainer=trainer)
             if gain:
                 rep_.append('volume %+.1f dB' % gain)
             try:
@@ -567,9 +574,10 @@ class AudioTab:
             return rep_
 
         def done(rep_):
-            self.show_report(rep_ + ['In the game it is in the "Battle BGM" list of online Private Battles (Create / Join a Room), unlocked from the start - '
-                                     'that list is only used there, not in Battle Zones or wild battles. Test with a '
-                                     'copy of your save.'])
+            self.show_report(rep_ + ['The "Battle BGM" list is in online Private Battles (Create / Join a Room); '
+                                     'it is only used there.' + (' Trainer battles play the song too.' if trainer else
+                                                                ' Battle Zones and other battles keep their music.') +
+                                     ' Test with a copy of your save.'])
             self.app.mod_changed(m, za_bgm.PICKER, 'new battle music')
         self.app.run_bg('Adding battle music', job, done)
 
