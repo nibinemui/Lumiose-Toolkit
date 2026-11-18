@@ -457,9 +457,9 @@ def fitted_to_player(trmsh_path, buf, char_trskl, player_trskl, ratio, target_na
 
 def player_skeleton_bytes(root, char_skel, ratio, char_trskl=None):
     """p0_base.trskl with, patched into its own bytes (a round trip through the schema loses part of this file,
-    and a skeleton missing it crashes the game): the character's inverse bind matrices for every bone both
-    skeletons have - so the character's mesh, left as it is, is skinned the way it was made - and the root
-    bone's scale for the character's height (no animation moves the root)."""
+    and a skeleton missing it crashes the game): bind matrices that move each bone's part of the character's
+    mesh, left as it is, to the player's joint (without turning it), and the root bone's scale for the
+    character's height (no animation moves the root). Returns (bytes, number of bones changed)."""
     import struct
     import za_trinity as zt
     sp = os.path.join(root, *BASE_DIR.split('/'), 'p0_base.trskl')
@@ -470,54 +470,31 @@ def player_skeleton_bytes(root, char_skel, ratio, char_trskl=None):
     cj = char_skel.get('JointInfos') or []
     cbind = {n['Name']: cj[n['JointInfoIndex']] for n in char_skel['TransformNodes']
              if n.get('JointInfoIndex') is not None and n['JointInfoIndex'] < len(cj)}
-    # fingers: the player's animations set the player's (shorter or longer) finger bone lengths, so each finger
-    # segment of the character is resized around its own bone to the player's length - or its tips poke past the
-    # joints when the hand closes
-    shrink = {}
-    if char_trskl:
-        import numpy as np
-        ck, pk = zt.Skeleton(char_trskl), zt.Skeleton(sp)
-        cw, pw = ck.world_matrices(), pk.world_matrices()
-        fingers = [b.name for b in pk.bones if any(k in b.name for k in ('thumb', 'index', 'middle', 'ring', 'pinky'))]
-        for name in fingers:
-            pi, ci = pk.index.get(name), ck.index.get(name)
-            if pi is None or ci is None:
-                continue
-            kid = next((k for k, b in enumerate(pk.bones) if b.parent == pi and b.name in ck.index), None)
-            if kid is None:
-                continue
-            lp = np.linalg.norm(pw[kid][:3, 3] - pw[pi][:3, 3]) * ratio
-            lc = np.linalg.norm(cw[ck.index[pk.bones[kid].name]][:3, 3] - cw[ci][:3, 3])
-            if lp > 1e-4 and lc > 1e-4:
-                shrink[name] = float(np.clip(lp / lc, 0.4, 1.2))
-        for name in fingers:                    # the last segment: like the one before it
-            if name not in shrink and pk.index.get(name) is not None:
-                par = pk.bones[pk.index[name]].parent
-                if par >= 0 and pk.bones[par].name in shrink:
-                    shrink[name] = shrink[pk.bones[par].name]
+    # the character's bind pose, without its turn: each bone's part of the mesh is only moved to where the
+    # player's joint is (at the character's height), never turned - where the character's bones point another way
+    # than the player's (fingers), turning them would splay the hand
+    import numpy as np
+    ck, pk = zt.Skeleton(char_trskl or sp), zt.Skeleton(sp)
+    cw, pw = ck.world_matrices(), pk.world_matrices()
+    scale = np.diag([ratio, ratio, ratio, 1.0])
     swapped = 0
     for n in nodes:
         name, j = n.string(0), n.scalar(5, 'i', -1)
-        if name not in cbind or not 0 <= j < len(joints):
+        if name not in cbind or name not in ck.index or name not in pk.index or not 0 <= j < len(joints):
             continue
         mt = joints[j].table(2)
-        m = cbind[name].get('InverseBindPoseMatrix') or {}
         if mt is None or not all(mt.off(k) for k in range(4)):
             raise PlayAsError("The player skeleton has an unexpected layout - can't fit the character to it.")
-        changed = False
-        for k, axis in enumerate(('AxisX', 'AxisY', 'AxisZ', 'AxisW')):
-            a = m.get(axis) or {}
-            new = (a.get('X', 0.0), a.get('Y', 0.0), a.get('Z', 0.0))
-            old = struct.unpack_from('<3f', raw, mt.pos + mt.off(k))
-            if max(abs(x - y) for x, y in zip(new, old)) > 0.05:
-                changed = True
-        if changed:
-            f = shrink.get(name, 1.0)
-            for k, axis in enumerate(('AxisX', 'AxisY', 'AxisZ', 'AxisW')):
-                a = m.get(axis) or {}
-                struct.pack_into('<3f', raw, mt.pos + mt.off(k), a.get('X', 0.0) * f, a.get('Y', 0.0) * f,
-                                 a.get('Z', 0.0) * f)
-            swapped += 1
+        wp = scale @ pw[pk.index[name]]                  # the player's joint, at the character's height
+        move = np.eye(4)
+        move[:3, 3] = wp[:3, 3] - cw[ck.index[name]][:3, 3]
+        ibm = np.linalg.inv(wp) @ move
+        old = np.array([struct.unpack_from('<3f', raw, mt.pos + mt.off(k)) for k in range(4)]).T   # 3x4 columns
+        if np.abs(ibm[:3, :4] - old).max() <= 0.05 and ratio == 1.0:
+            continue                                     # built like the player here: keep the game's own
+        for k in range(4):
+            struct.pack_into('<3f', raw, mt.pos + mt.off(k), *[float(x) for x in ibm[:3, k]])
+        swapped += 1
     if ratio != 1.0:
         rn = nodes[0]
         srt = rn.table(1)
@@ -601,7 +578,7 @@ def make(root, mod, char_rel, hide_parts=True, log=None, reorder=False, bind_pla
         if fit is None:
             # built like the player (same height and bind pose, e.g. Urbain, Taunie): the method proven in game;
             # built differently (e.g. Vinnie): the mesh stays as it is and its bind pose goes into the skeleton
-            fit = player_skeleton_bytes(root, char, 1.0)[1] == 0
+            fit = player_skeleton_bytes(root, char, 1.0, os.path.join(src, skl_name))[1] == 0
         # a character taller or shorter than the player: its mesh is brought to the player's height so its joints
         # meet the player's, and the player's skeleton is scaled back up (or down) from its root bone, which no
         # animation moves - so it stands at its own height
