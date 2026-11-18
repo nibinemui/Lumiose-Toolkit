@@ -368,6 +368,9 @@ The first time you open it, the tab builds its list of every sound and song (abo
   into your mod are listed too) and the levels. The new point appears 3 m away with its own encounter; tick **Edit
   mode** to drag it into place. Saving writes its position, spawner, encounter and its entry in the area's scene file
   (the scene file is what makes the game place it). Spawn points of interiors without a scene file can't be copied.
+- **Create Spawn Point**: click an empty spot and press **Create Spawn Point…** to add a Pokémon spawner, item ball,
+  random items, move gimmick, NPC or **Hyperspace portal** there (a portal goes against the nearest building wall).
+- **Hyperspace portals**: their own layer; move, turn or delete them like other points.
 - **Item balls and random items**: edit item, count and weight under *Contents*. Use **Make unique** first if the item table is shared with other points.
 - **Interiors, dungeons and zones**: pick one from **Area**. Its points are shown on a 10 m grid. To use a floor map as the background:
   1. Choose it under **Background** (the lab and sewer floors are included).

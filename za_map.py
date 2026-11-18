@@ -36,6 +36,7 @@ LAYER_STYLE = {   # file stem -> (label, colour)
     'royale_card_spawner_transform_array': ('Royale cards', (0, 170, 140)),
     'wazagimmick_spawner_transform_array': ('Move gimmicks', (120, 120, 120)),
     'medal_spawner_transform_array': ('Medals', (220, 0, 160)),
+    'hyperspace_gates': ('Hyperspace portals', (190, 60, 255)),
 }
 DEFAULT_ON = {'pokemon_spawner_transform_array', 'itemball_spawner_transform_array'}
 
@@ -153,6 +154,83 @@ class Layer:
         for gi, g in enumerate(self.data.get('values', [])):
             for si, s in enumerate(g.get('root', [])):
                 yield gi, si, s
+
+
+# Hyperspace portals ("gates"): not in a table but in the districts' scene files - each entry is a point with its
+# position (data offset 80) and a Rotation property sheet whose yaw (degrees) is at offset 96
+GATE_SCENES = 'world/ik_scene/field/area/t1/sub_scene/t1_gimmick/t1_dim_gate_spawner'
+GATE_POS, GATE_YAW = 80, 96
+_GATE_NAME = re.compile(rb'(?:[a-z0-9]+_gate_[A-Za-z0-9_]+|pos_t\d+_Ev_d\d+_\d+)(?=\0)')
+
+
+def gate_name(chunk):
+    found = _GATE_NAME.findall(bytes(chunk.get('Data', [])))
+    return found[-1].decode() if found else None
+
+
+def gate_yaw_sheet(chunk):
+    return next((k for k in chunk.get('Children') or [] if b'Rotation' in bytes(k.get('Data', []))
+                 and len(k.get('Data', [])) >= GATE_YAW + 4), None)
+
+
+class PortalLayer:
+    """The Hyperspace portal spots of the city, read from (and saved into) the districts' scene files."""
+    is_scene = True
+    stem = 'hyperspace_gates'
+
+    def __init__(self, root, romfs=None):
+        import struct
+        self.label, self.colour = 'Hyperspace portals', (190, 60, 255)
+        self.rel, self.path, self.src, self.stamp = GATE_SCENES, None, None, None
+        self.dirty, self.var = False, None
+        pts = []
+        for p in sorted(glob.glob(os.path.join(root, *GATE_SCENES.split('/'), '*', '*.trscn'))):
+            rel = os.path.relpath(p, root).replace(os.sep, '/')
+            d = json.loads(zm.to_json(_mod_file(p, root, romfs)[0], zm.schema_for(p)))
+            for c in d['Chunks']:
+                name = gate_name(c)
+                b = bytes(c.get('Data', []))
+                if not name or len(b) < GATE_POS + 12:
+                    continue
+                x, y, z = struct.unpack_from('<3f', b, GATE_POS)
+                sheet = gate_yaw_sheet(c)
+                yaw = struct.unpack_from('<f', bytes(sheet['Data']), GATE_YAW)[0] if sheet else 0.0
+                pts.append({'Name': name, 'Position': {'X': x, 'Y': y, 'Z': z}, 'Rotation': {'Y': yaw},
+                            '_scene': rel})
+        if not pts:
+            raise ValueError('no Hyperspace portal scene files')
+        self.data = {'values': [{'root': pts}]}
+
+    def points(self):
+        for si, s in enumerate(self.data['values'][0]['root']):
+            yield 0, si, s
+
+    def write_into(self, mt, dirty):
+        """Positions and facing of every portal into its scene file (as loaded by the Map tab)."""
+        import struct
+        for s in self.data['values'][0]['root']:
+            rel = s.get('_scene')
+            if not rel:
+                continue
+            for c in mt.scene(rel)[0]['Chunks']:
+                if gate_name(c) != s['Name']:
+                    continue
+                b = bytearray(c['Data'])
+                x, y, z = _pos(s)
+                new = struct.pack('<3f', x, y, z)
+                if bytes(b[GATE_POS:GATE_POS + 12]) != new:
+                    b[GATE_POS:GATE_POS + 12] = new
+                    c['Data'] = list(b)
+                    dirty.add(rel)
+                sheet = gate_yaw_sheet(c)
+                if sheet:
+                    kb = bytearray(sheet['Data'])
+                    yaw = struct.pack('<f', _roty(s))
+                    if bytes(kb[GATE_YAW:GATE_YAW + 4]) != yaw:
+                        kb[GATE_YAW:GATE_YAW + 4] = yaw
+                        sheet['Data'] = list(kb)
+                        dirty.add(rel)
+                break
 
 
 def _pos(s):
@@ -387,6 +465,10 @@ class MapTab:
                         layers.append(Layer(p, root, romfs))
                     except Exception:  # noqa: BLE001
                         pass
+                try:
+                    layers.append(PortalLayer(root, romfs))
+                except Exception:  # noqa: BLE001
+                    pass
                 species, tables = self.load_spawn_info(root, romfs)
                 self.app.q.put(lambda: self.loaded_ok(base, layers, species, tables))
             except Exception as e:  # noqa: BLE001
@@ -422,7 +504,9 @@ class MapTab:
                           ('rp_spawner', 'random_pop_item_spawner_data_array'),
                           ('rp_items', 'random_pop_item_table_data_array'),
                           ('wg_spawner', 'wazagimmick_spawner_data_array'),
-                          ('npc_spawner', 'placement_npc_spawner_data_array')):
+                          ('npc_spawner', 'placement_npc_spawner_data_array'),
+                          ('gates', 'dimension_gate_spawner_array'),
+                          ('gate_counts', 'dimension_progress_array')):
             try:
                 p = glob.glob(os.path.join(root, 'world', '**', stem + '.bin'), recursive=True)[0]
                 tables[key] = DataTable(p, root, romfs)
@@ -1032,6 +1116,10 @@ class MapTab:
         if not self.sel:
             return
         L, gi, si = self.sel
+        if getattr(L, 'is_scene', False):
+            messagebox.showinfo('Map', 'To add a Hyperspace portal, click an empty spot near a wall and use '
+                                'Create Spawn Point… - it gets its own portal data.')
+            return
         root = L.data['values'][gi]['root']
         s = copy.deepcopy(root[si])
         base = s.get('Name', 'point')
@@ -1057,9 +1145,23 @@ class MapTab:
         name = L.data['values'][gi]['root'][si].get('Name')
         if not messagebox.askyesno('Map', 'Remove "%s" from %s? (Only in your mod once you save.)' % (name, L.label)):
             return
-        del L.data['values'][gi]['root'][si]
+        gone = L.data['values'][gi]['root'].pop(si)
         self.sel = None
-        self.forget_new_point(name)
+        if getattr(L, 'is_scene', False):                   # a portal: its scene entry and its portal row
+            rel = gone.get('_scene')
+            if rel:
+                chunks = self.scene(rel)[0]['Chunks']
+                chunks[:] = [c for c in chunks if gate_name(c) != name]
+                self.__dict__.setdefault('scene_dirty', set()).add(rel)
+            t = self.tables.get('gates')
+            if t:
+                for g in t.data.get('values') or []:
+                    if 'root' in g:
+                        g['root'] = [r for r in g['root'] if r.get('gateSpawnerId') != name]
+                t.dirty = True
+            self.__dict__.get('new_points', {}).pop(name, None)
+        else:
+            self.forget_new_point(name)
         self.mark_dirty(L)
         self.show_sel()
         self.redraw()
@@ -1538,7 +1640,10 @@ class MapTab:
                 if pt is None or rel not in self.__dict__.get('scenes', {}):
                     continue
                 self._move_in_scene(rel, name, off, *_pos(pt), dirty=scene_dirty)
-        changed =[L for L in self.layers if L.dirty] + [t for t in self.tables.values() if t.dirty]
+        for L in [x for x in self.layers if x.dirty and getattr(x, 'is_scene', False)]:
+            L.write_into(self, scene_dirty)                # portals live in scene files, not a table
+            L.dirty = False
+        changed = [L for L in self.layers if L.dirty] + [t for t in self.tables.values() if t.dirty]
         extra = self.__dict__.get('extra_files', {})      # other game files a new point needs (wild behaviour)
         if not changed and not scene_dirty and not extra:
             self.app.status_var.set('Nothing to save.')
