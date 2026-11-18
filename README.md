@@ -369,7 +369,7 @@ The first time you open it, the tab builds its list of every sound and song (abo
   mode** to drag it into place. Saving writes its position, spawner, encounter and its entry in the area's scene file
   (the scene file is what makes the game place it). Spawn points of interiors without a scene file can't be copied.
 - **Create Spawn Point**: click an empty spot and press **Create Spawn Point…** to add a Pokémon spawner, item ball,
-  random items, move gimmick, NPC or **Hyperspace portal** there (a portal goes against the nearest building wall).
+  move gimmick or **Hyperspace portal** there (a portal goes against the nearest building wall).
 - **Hyperspace portals**: their own layer; move, turn or delete them like other points.
 - **Hyperspace spawns…**: the Pokémon Hyperspace brings, by zone type and rank - change, add or remove them.
 - Points the current mod added are drawn black.

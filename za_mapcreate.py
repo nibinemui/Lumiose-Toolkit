@@ -37,6 +37,9 @@ KINDS = {
                'A Hyperspace portal spot against the nearest wall. It joins the game\'s portals, which open a few '
                'at a time at random.'),
 }
+# kinds left out of the menu for now: new NPCs can't say or do anything of their own yet (that needs the game's
+# event scripts), and new random-item spots didn't show up in game. Their code stays for later.
+HIDDEN_KINDS = {'npc', 'random'}
 
 
 # ---- table helpers ------------------------------------------------------------------------------------------
@@ -880,6 +883,8 @@ def open_menu(mt, x, z):
             'What should be here? It copies the nearest point of that kind (its area and scene file) and takes the '
             'height of the points around it - check the height (Y) afterwards.')).pack(anchor='w', pady=(2, 10))
         for kind, (label, _, key, _, desc) in KINDS.items():
+            if kind in HIDDEN_KINDS:
+                continue
             row = ttk.Frame(body)
             row.pack(fill='x', pady=3)
             b = ttk.Button(row, text=label, width=18, command=lambda k=kind: step2(k))
