@@ -128,6 +128,44 @@ def player_order_skeleton(player, char):
     return out, jmap
 
 
+def renumber_joints(trmsh_path, buf, jmap):
+    """The mesh buffer with every vertex's bone indices (joint numbers) renumbered old -> new."""
+    import numpy as np
+    import za_trinity as zt
+    with open(trmsh_path, 'rb') as f:
+        mroot = zt.Table.root(f.read())
+    buf = bytearray(buf)
+    bt = zt.Table.root(buf).tables(1)
+    lut = np.arange(65536, dtype=np.int64)
+    for o, n in jmap.items():
+        lut[o] = n
+    for i, mesh in enumerate(mroot.tables(1)):
+        if i >= len(bt):
+            break
+        vbufs = bt[i].tables(1)
+        for decl in mesh.tables(3):
+            sizes = [t.u32(0) for t in decl.tables(1)]
+            for e in decl.tables(0):
+                si, usage, layer, fmt, off = e.scalar(0, 'i', -1), e.u32(1), e.u32(2), e.u32(3), e.u32(4)
+                if usage != zt.BLEND_INDEX or layer >= len(vbufs) or fmt not in (20, 22, 39):
+                    continue
+                stride = sizes[0 if si == -1 else si] if 0 <= (0 if si == -1 else si) < len(sizes) else 0
+                if not stride:
+                    continue
+                start, count = vbufs[layer].vector(0)
+                n_ = count // stride
+                arr = np.frombuffer(bytes(buf[start:start + n_ * stride]), np.uint8).reshape(n_, stride).copy()
+                dt = np.uint16 if fmt == 39 else np.uint8
+                width = 8 if fmt == 39 else 4
+                col = np.ascontiguousarray(arr[:, off:off + width]).view('<u2' if fmt == 39 else 'u1')
+                new = lut[col.astype(np.int64)]
+                if new.max() > np.iinfo(dt).max:
+                    raise PlayAsError('Too many bones for this mesh\'s bone index format.')
+                arr[:, off:off + width] = new.astype('<u2' if fmt == 39 else 'u1').view(np.uint8).reshape(n_, width)
+                buf[start:start + n_ * stride] = arr.tobytes()
+    return bytes(buf)
+
+
 def collapsed_buffer(trmsh_path):
     """(buffer file name, bytes) of a mesh's .trmbf with every vertex's position and bone weights set to zero."""
     import za_trinity as zt
@@ -186,6 +224,14 @@ def make(root, mod, char_rel, hide_parts=True, log=None):
     player = json.loads(zm.to_json(os.path.join(root, *BASE_DIR.split('/'), 'p0_base.trskl'), skl_sch))
     char = json.loads(zm.to_json(os.path.join(src, skl_name), skl_sch))
     skel, jmap = player_order_skeleton(player, char)
+    import za_trinity as zt
+    for m_ in mdl.get('Meshes') or []:          # vertices name their bones by joint number: renumber them too
+        mp = os.path.join(src, m_['PathName'])
+        with open(mp, 'rb') as f:
+            bname = zt.Table.root(f.read()).string(2)
+        with open(os.path.join(src, bname), 'rb') as f:
+            data = f.read()
+        mod.add_bytes('%s/%s' % (BASE_DIR, bname), renumber_joints(mp, data, jmap))
     for name in (skl_name, 'p0_base.trskl'):
         zm.from_json(json.dumps(skel), skl_sch, mod.path_for('%s/%s' % (BASE_DIR, name)))
     for m_ in mdl.get('Meshes') or []:
