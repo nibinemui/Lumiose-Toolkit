@@ -277,6 +277,11 @@ class MapTab:
         ttk.Button(bf, text='Duplicate', command=self.duplicate).pack(side='left', padx=3)
         ttk.Button(bf, text='Delete', command=self.delete).pack(side='left')
         ttk.Button(bf, text='Zoom to', command=self.zoom_to_sel).pack(side='left', padx=3)
+        cf = self.create_frame = ttk.LabelFrame(side, text='Empty spot')
+        self.create_var = tk.StringVar()
+        ttk.Label(cf, textvariable=self.create_var, style='Dim.TLabel').pack(anchor='w', padx=4)
+        ttk.Button(cf, text='Create Spawn Point…', command=self.create_spawn_point).pack(anchor='w', padx=4, pady=4)
+        self.empty_spot = None
         ef = self.enc_frame = ttk.LabelFrame(side, text='Encounters at this spawn (Pokémon spawns)')
         self.enc_tree = ttk.Treeview(ef, columns=('lv', 'w', 'shared'), height=4, selectmode='browse')
         for col, txt, w in (('#0', 'Pokémon', 150), ('lv', 'Levels', 60), ('w', 'Weight', 50), ('shared', 'Used by', 60)):
@@ -406,7 +411,9 @@ class MapTab:
         for key, stem in (('enc', 'encount_data_array'), ('spawner', 'pokemon_spawner_data_array'),
                           ('ib_spawner', 'item_ball_spawner_data_array'), ('ib_items', 'item_ball_item_data_array'),
                           ('rp_spawner', 'random_pop_item_spawner_data_array'),
-                          ('rp_items', 'random_pop_item_table_data_array')):
+                          ('rp_items', 'random_pop_item_table_data_array'),
+                          ('wg_spawner', 'wazagimmick_spawner_data_array'),
+                          ('npc_spawner', 'placement_npc_spawner_data_array')):
             try:
                 p = glob.glob(os.path.join(root, 'world', '**', stem + '.bin'), recursive=True)[0]
                 tables[key] = DataTable(p, root, romfs)
@@ -573,6 +580,13 @@ class MapTab:
                 d.line((sx, sy, sx - math.sin(a) * 18, sy - math.cos(a) * 18), fill=(255, 255, 0), width=2)
             except (IndexError, KeyError):
                 self.sel = None
+        if self.empty_spot is not None and not self.sel:          # the spot a new point would go
+            try:
+                sx, sy = self.to_screen(*w2m(self.cal, *self.empty_spot))
+                d.line((sx - 9, sy, sx + 9, sy), fill=(255, 255, 0), width=2)
+                d.line((sx, sy - 9, sx, sy + 9), fill=(255, 255, 0), width=2)
+            except Exception:  # noqa: BLE001
+                pass
         self.photo = ImageTk.PhotoImage(img)
         self.canvas.delete('map')
         self.canvas.create_image(0, 0, image=self.photo, anchor='nw', tags='map')
@@ -640,6 +654,8 @@ class MapTab:
             x, y, h = self._click
             if abs(e.x - x) < 4 and abs(e.y - y) < 4:
                 self.sel = h
+                # an empty spot: remembered for "Create Spawn Point"
+                self.empty_spot = None if h else tuple(round(v, 2) for v in m2w(self.cal, *self.to_map(e.x, e.y)))
                 self.show_sel()
                 self.redraw()
         self.drag = None
@@ -694,7 +710,10 @@ class MapTab:
         if self.sel:
             L, gi, si = self.sel
             name = L.data['values'][gi]['root'][si].get('Name')
-        for frame, on in ((self.enc_frame, name in self.spawner_by_obj),
+        if self.empty_spot is not None and not self.sel:
+            self.create_var.set('X %.1f, Z %.1f - nothing placed here yet' % self.empty_spot)
+        for frame, on in ((self.create_frame, self.empty_spot is not None and not self.sel),
+                          (self.enc_frame, name in self.spawner_by_obj),
                           (self.item_frame, name in self.item_spawner_by_obj)):
             if on and not frame.winfo_ismapped():
                 frame.pack(fill='x', pady=(6, 2), before=self.info)
@@ -1208,14 +1227,14 @@ class MapTab:
         self.app.status_var.set('Match %d of %d' % (i + 1, len(order)))
 
     # ---------------- new spawn points ----------------
-    def find_scene(self, name):
+    def find_scene(self, name, pattern='*pokemon*spawner*.trscn'):
         """Game path of the scene file that places spawn point `name` (searched once, then remembered)."""
         cache = self.__dict__.setdefault('scene_of', {})
         if name in cache:
             return cache[name]
         root = os.path.normpath(self.app.root_var.get())
         key = name.encode()
-        first = sorted(glob.glob(os.path.join(root, 'world', 'ik_scene', '**', '*pokemon*spawner*.trscn'), recursive=True))
+        first = sorted(glob.glob(os.path.join(root, 'world', 'ik_scene', '**', pattern), recursive=True))
         rest = sorted(glob.glob(os.path.join(root, 'world', 'ik_scene', '**', '*spawner*.trscn'), recursive=True))
         for path in first + [x for x in rest if x not in first]:
             rel = os.path.relpath(path, root).replace(os.sep, '/')
@@ -1378,6 +1397,13 @@ class MapTab:
         self.dirty_var.set('%d table(s) and %d scene(s) changed - not saved yet' % (n, len(self.scene_dirty)))
         self.app.status_var.set('Added spawn point %s (%s, levels %d-%d) 3 m from %s - tick Edit mode to drag it into place, then '
                                 'Save to mod.' % (new, self.species_label(dev), lo, max(lo, hi), old))
+
+    def create_spawn_point(self):
+        """The step-by-step menu for a new point at the clicked empty spot."""
+        if self.empty_spot is None:
+            return
+        import za_mapcreate
+        za_mapcreate.open_menu(self, *self.empty_spot)
 
     def forget_new_point(self, name):
         """A spawn point added this session was deleted again: drop its scene entry, spawner and encounter too."""
