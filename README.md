@@ -371,6 +371,8 @@ The first time you open it, the tab builds its list of every sound and song (abo
 - **Create Spawn Point**: click an empty spot and press **Create Spawn Point…** to add a Pokémon spawner, item ball,
   random items, move gimmick, NPC or **Hyperspace portal** there (a portal goes against the nearest building wall).
 - **Hyperspace portals**: their own layer; move, turn or delete them like other points.
+- **Hyperspace spawns…**: the Pokémon Hyperspace brings, by zone type and rank - change, add or remove them.
+- Points the current mod added are drawn black.
 - **Item balls and random items**: edit item, count and weight under *Contents*. Use **Make unique** first if the item table is shared with other points.
 - **Interiors, dungeons and zones**: pick one from **Area**. Its points are shown on a 10 m grid. To use a floor map as the background:
   1. Choose it under **Background** (the lab and sewer floors are included).
@@ -483,6 +485,8 @@ Lumiose Toolkit/
   za_dataedit.py          Game data tab (schema-driven table editor)
   za_pokedit.py           Pokémon data tab
   za_map.py               Map tab
+  za_mapcreate.py         Create Spawn Point (new spawns, NPCs, move gimmicks, Hyperspace portals)
+  za_hyperspace.py        Hyperspace spawns window
   za_mated.py             material colour editor
   za_colours.py           clothing colour editor, custom colours (colour wheel), pattern textures window
   za_conflicts.py         mod conflict check (own mods, load order, mods installed in ZA Recomp)
