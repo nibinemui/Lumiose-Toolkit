@@ -149,6 +149,110 @@ def player_joint_map(player, char):
     return out
 
 
+SKIP_NEAREST = ('chara_root', 'origin', 'bag', 'bangle', 'look', 'left_attach', 'right_attach')
+
+
+def rebound_weights(trmsh_path, buf, char_trskl, player_trskl, jmap, free):
+    """The mesh buffer skinned to the player's joints. jmap: character joint -> player joint. Weight on the
+    character's own extra bones that aren't under the head (jacket flaps, straps, cloth: `free`, a set of
+    character joints) goes to the two player bones nearest each vertex instead, so those pieces bend with the
+    hips and legs rather than swinging stiffly with one bone. Returns (bytes, {mesh index: {joint: weight sum}})."""
+    import numpy as np
+    import za_trinity as zt
+    pk = zt.Skeleton(player_trskl)
+    pw = pk.world_matrices()
+    cand = [b for b in pk.bones if b.joint >= 0 and b.name not in SKIP_NEAREST and '_index_' not in b.name
+            and not any(k in b.name for k in ('thumb', 'middle', 'ring', 'pinky'))]
+    cpos = np.array([pw[pk.index[b.name]][:3, 3] for b in cand])
+    cj = np.array([b.joint for b in cand])
+    with open(trmsh_path, 'rb') as f:
+        mroot = zt.Table.root(f.read())
+    buf = bytearray(buf)
+    bt = zt.Table.root(buf).tables(1)
+    sums = {}
+    for i, mesh in enumerate(mroot.tables(1)):
+        if i >= len(bt):
+            break
+        vbufs = bt[i].tables(1)
+        use = sums.setdefault(i, {})
+        for decl in mesh.tables(3):
+            sizes = [t.u32(0) for t in decl.tables(1)]
+            els = [(e.scalar(0, 'i', -1), e.u32(1), e.u32(2), e.u32(3), e.u32(4)) for e in decl.tables(0)]
+
+            def column(el):
+                si, usage, layer, fmt, off = el
+                stride = sizes[0 if si == -1 else si] if 0 <= (0 if si == -1 else si) < len(sizes) else 0
+                size = zt.FMT_SIZE.get(fmt)
+                if not stride or not size or layer >= len(vbufs):
+                    return None
+                start, count = vbufs[layer].vector(0)
+                n_ = count // stride
+                arr = np.frombuffer(bytes(buf[start:start + n_ * stride]), np.uint8).reshape(n_, stride).copy()
+                return start, stride, off, size, n_, arr
+            pos = next((e for e in els if e[1] == zt.POSITION and e[3] in (51, 54)), None)
+            idx = [e for e in els if e[1] == zt.BLEND_INDEX]
+            wgt = [e for e in els if e[1] == zt.BLEND_WEIGHTS]
+            if pos is None or not idx or len(idx) != len(wgt) or any(e[3] not in (20, 22, 39) for e in idx + wgt):
+                continue
+            cp = column(pos)
+            n_ = cp[4]
+            width = 12 if pos[3] == 51 else 16
+            raw = np.ascontiguousarray(cp[5][:, pos[4]:pos[4] + width]).view('<f4').reshape(n_, width // 4)
+            P = raw[:, :3] if pos[3] == 51 else raw[:, 1:4]
+            cols_i = [column(e) for e in idx]
+            cols_w = [column(e) for e in wgt]
+            J = np.concatenate([zt._decode(np.ascontiguousarray(c[5][:, e[4]:e[4] + zt.FMT_SIZE[e[3]]]), e[3],
+                                           zt.BLEND_INDEX) for c, e in zip(cols_i, idx)], 1).astype(np.int64)
+            W = np.concatenate([zt._decode(np.ascontiguousarray(c[5][:, e[4]:e[4] + zt.FMT_SIZE[e[3]]]), e[3],
+                                           zt.BLEND_WEIGHTS) for c, e in zip(cols_w, wgt)], 1)
+            slots = J.shape[1]
+            d = np.linalg.norm(P[:, None, :] - cpos[None, :, :], axis=2)          # vertex -> candidate bones
+            near = np.argsort(d, axis=1)[:, :2]
+            nd = np.take_along_axis(d, near, 1)
+            share = (1.0 / np.maximum(nd, 1e-4))
+            share /= share.sum(1, keepdims=True)
+            newJ = np.zeros_like(J)
+            newW = np.zeros_like(W)
+            for v in range(n_):
+                acc = {}
+                for k in range(slots):
+                    w = float(W[v, k])
+                    if w <= 0:
+                        continue
+                    j = int(J[v, k])
+                    if j in free:
+                        for t in range(2):
+                            jj = int(cj[near[v, t]])
+                            acc[jj] = acc.get(jj, 0.0) + w * float(share[v, t])
+                    else:
+                        jj = jmap.get(j, 0)
+                        acc[jj] = acc.get(jj, 0.0) + w
+                top = sorted(acc.items(), key=lambda x: -x[1])[:slots]
+                tot = sum(w for _, w in top) or 1.0
+                for k, (jj, w) in enumerate(top):
+                    newJ[v, k], newW[v, k] = jj, w / tot
+                    use[jj] = use.get(jj, 0.0) + w / tot
+            # back into the file, in each column's own layout (stored order W,X,Y,Z = logical 3,0,1,2)
+            for g, (ci, e) in enumerate(zip(cols_i, idx)):
+                part = newJ[:, 4 * g:4 * g + 4][:, [3, 0, 1, 2]]
+                data = np.ascontiguousarray(part.astype('<u2' if e[3] == 39 else 'u1')).view(np.uint8).reshape(n_, -1)
+                start, stride, off, size, _, arr = ci
+                arr[:, off:off + size] = data
+                buf[start:start + n_ * stride] = arr.tobytes()
+                cols_w[g] = column(wgt[g])                    # the same rows may hold both columns
+            for g, (cw_, e) in enumerate(zip(cols_w, wgt)):
+                part = newW[:, 4 * g:4 * g + 4][:, [3, 0, 1, 2]]
+                if e[3] == 39:
+                    q = np.rint(part * 65535).astype('<u2')
+                else:
+                    q = np.rint(part * 255).astype('u1')
+                data = np.ascontiguousarray(q).view(np.uint8).reshape(n_, -1)
+                start, stride, off, size, _, arr = column(e)
+                arr[:, off:off + size] = data
+                buf[start:start + n_ * stride] = arr.tobytes()
+    return bytes(buf), sums
+
+
 def renumber_joints(trmsh_path, buf, jmap):
     """The mesh buffer with every vertex's bone indices (joint numbers) renumbered old -> new."""
     import numpy as np
@@ -402,6 +506,21 @@ def make(root, mod, char_rel, hide_parts=True, log=None, reorder=False, bind_pla
         import za_trinity as zt
         jmap = player_joint_map(player, char)
         pjn = {x['JointInfoIndex']: x['Name'] for x in player['TransformNodes'] if x.get('JointInfoIndex') is not None}
+        # the character's extra bones outside the head (jacket flaps, straps, cloth): skinned by nearness
+        pnames = {x['Name'] for x in player['TransformNodes']}
+        cn = char['TransformNodes']
+
+        def under_head(node):
+            hops = 0
+            while node is not None and hops < 64:
+                if node['Name'] == 'head':
+                    return True
+                pi = node.get('ParentNodeIndex')
+                node = cn[pi] if pi is not None and 0 <= pi < len(cn) else None
+                hops += 1
+            return False
+        free = {x['JointInfoIndex'] for x in cn if x.get('JointInfoIndex') is not None and x['Name'] not in pnames
+                and not under_head(x)}
         names = {x['Name']: pjn.get(jmap.get(x['JointInfoIndex'])) for x in char['TransformNodes']
                  if x.get('JointInfoIndex') is not None}
         # a character taller or shorter than the player: its mesh is brought to the player's height so its joints
@@ -424,27 +543,39 @@ def make(root, mod, char_rel, hide_parts=True, log=None, reorder=False, bind_pla
                                         os.path.join(root, *BASE_DIR.split('/'), 'p0_base.trskl'), ratio, names)
             elif ratio != 1.0:
                 data = scaled_positions(mp, data, 1.0 / ratio)
-            data = renumber_joints(mp, data, jmap)
+            data, sums = rebound_weights(mp, data, os.path.join(src, skl_name),
+                                         os.path.join(root, *BASE_DIR.split('/'), 'p0_base.trskl'), jmap, free)
             mod.add_bytes('%s/%s' % (BASE_DIR, bname), data)
             msch = zm.schema_for(mp)
             md = json.loads(zm.to_json(mp, msch))
-            for mesh in md.get('Meshes') or []:
-                # the list of joints a mesh uses: each joint once, like the game's own meshes (several of the
-                # character's bones can become the same player bone - their weights are added up)
-                merged = {}
-                for bw in mesh.get('boneWeight') or []:
-                    j = jmap.get(bw.get('RigIndex', 0), 0)
-                    merged[j] = merged.get(j, 0.0) + float(bw.get('RigWeight', 0.0))
-                mesh['boneWeight'] = [{'RigIndex': j, 'RigWeight': w} for j, w in merged.items()]
+            for k, mesh in enumerate(md.get('Meshes') or []):
+                # the joints a mesh uses, each once, like the game's own meshes
+                used = sums.get(k) or {}
+                if used:
+                    mesh['boneWeight'] = [{'RigIndex': j, 'RigWeight': float(w)}
+                                          for j, w in sorted(used.items(), key=lambda x: -x[1])]
+                else:
+                    merged = {}
+                    for bw in mesh.get('boneWeight') or []:
+                        j = jmap.get(bw.get('RigIndex', 0), 0)
+                        merged[j] = merged.get(j, 0.0) + float(bw.get('RigWeight', 0.0))
+                    mesh['boneWeight'] = [{'RigIndex': j, 'RigWeight': w} for j, w in merged.items()]
             zm.from_json(json.dumps(md), msch, mod.path_for('%s/%s' % (BASE_DIR, m_['PathName'])))
         mdl2 = dict(mdl, Skeleton={'PathName': 'p0_base.trskl'})
         zm.from_json(json.dumps(mdl2), sch, mod.path_for(BASE_MDL))
         if ratio != 1.0:                         # only the root bone's scale changes; bones and order stay the same
-            import copy
-            sk = copy.deepcopy(player)
-            root_node = next(x for x in sk['TransformNodes'] if x['Name'] == 'chara_root')
-            root_node['Transform_']['Scale'] = {'X': ratio, 'Y': ratio, 'Z': ratio}
-            zm.from_json(json.dumps(sk), skl_sch, mod.path_for('%s/p0_base.trskl' % BASE_DIR))
+            # patched in the original file's bytes: a round trip through the schema loses part of this file
+            # (and a skeleton missing it crashes the game)
+            import struct
+            sp = os.path.join(root, *BASE_DIR.split('/'), 'p0_base.trskl')
+            with open(sp, 'rb') as f:
+                raw_sk = bytearray(f.read())
+            rn = zt.Table.root(raw_sk).tables(1)[0]
+            srt = rn.table(1)
+            if rn.string(0) != 'chara_root' or srt is None or not srt.off(0):
+                raise PlayAsError("The player skeleton has an unexpected layout - can't set the height.")
+            struct.pack_into('<3f', raw_sk, srt.pos + srt.off(0), ratio, ratio, ratio)
+            mod.add_bytes('%s/p0_base.trskl' % BASE_DIR, bytes(raw_sk))
             say('own height: %.0f%% of the player (the skeleton is scaled from its root)' % (ratio * 100))
         moved = sum(1 for o, n_ in jmap.items() if next((x['Name'] for x in char['TransformNodes']
                                                          if x.get('JointInfoIndex') == o), '') not in
