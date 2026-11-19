@@ -172,6 +172,7 @@ class Layer:
 # position (data offset 80) and a Rotation property sheet whose yaw (degrees) is at offset 96
 GATE_SCENES = 'world/ik_scene/field/area/t1/sub_scene/t1_gimmick/t1_dim_gate_spawner'
 GATE_POS, GATE_YAW = 80, 96
+SHOW_PORTALS = False        # the portal layer waits until new portals are seen working in game
 _GATE_NAME = re.compile(rb'(?:[a-z0-9]+_gate_[A-Za-z0-9_]+|pos_t\d+_Ev_d\d+_\d+)(?=\0)')
 
 
@@ -371,7 +372,7 @@ class MapTab:
         ttk.Checkbutton(side, text='Show Pokémon icons on Pokémon spawn points (the most likely one)',
                         variable=self.show_icons, command=self.redraw).pack(anchor='w')
         self.icon_cache = {}
-        ttk.Button(side, text='Hyperspace spawns…', command=self.hyperspace_spawns).pack(anchor='w', pady=(4, 0))
+        ttk.Button(side, text='Hyperspace Pokémon…', command=self.hyperspace_spawns).pack(anchor='w', pady=(4, 0))
 
         ttk.Label(side, text='Selected point', style='Head.TLabel').pack(anchor='w', pady=(10, 2))
         g = ttk.Frame(side)
@@ -493,10 +494,11 @@ class MapTab:
                         layers.append(Layer(p, root, romfs))
                     except Exception:  # noqa: BLE001
                         pass
-                try:
-                    layers.append(PortalLayer(root, romfs))
-                except Exception:  # noqa: BLE001
-                    pass
+                if SHOW_PORTALS:
+                    try:
+                        layers.append(PortalLayer(root, romfs))
+                    except Exception:  # noqa: BLE001
+                        pass
                 species, tables = self.load_spawn_info(root, romfs)
                 self.app.q.put(lambda: self.loaded_ok(base, layers, species, tables))
             except Exception as e:  # noqa: BLE001
@@ -1591,7 +1593,7 @@ class MapTab:
     def hyperspace_spawns(self):
         """Which Pokémon Hyperspace brings, by zone type and rank."""
         if not self.loaded or not self.tables:
-            messagebox.showinfo('Hyperspace spawns', 'Wait until the map has loaded.')
+            messagebox.showinfo('Hyperspace Pokémon', 'Wait until the map has loaded.')
             return
         import za_hyperspace
         za_hyperspace.open_window(self)

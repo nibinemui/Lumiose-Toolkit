@@ -39,7 +39,7 @@ KINDS = {
 }
 # kinds left out of the menu for now: new NPCs can't say or do anything of their own yet (that needs the game's
 # event scripts), and new random-item spots didn't show up in game. Their code stays for later.
-HIDDEN_KINDS = {'npc', 'random'}
+HIDDEN_KINDS = {'npc', 'random', 'portal'}     # (portals: not seen opening in game yet)
 
 
 # ---- table helpers ------------------------------------------------------------------------------------------

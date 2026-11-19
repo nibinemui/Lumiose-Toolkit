@@ -1,4 +1,4 @@
-"""Hyperspace spawns: which Pokémon appear in Hyperspace Lumiose, by the zone's type and the player's rank.
+"""Hyperspace Pokémon: which Pokémon appear in Hyperspace Lumiose, by the zone's type and the player's rank.
 
 The game picks a Hyperspace zone's type (one of the 18) and uses the player's rank (1-5). For each type and rank,
 dimension_wild_pokemon_array lists spawn patterns (one is picked by weight); each pattern names Pokémon spawners
@@ -85,13 +85,13 @@ def own_copy(mt, spawner, info):
 
 
 def open_window(mt):
-    """The Hyperspace spawns editor (needs the Map tab loaded)."""
+    """The Hyperspace Pokémon editor (needs the Map tab loaded)."""
     if not mt.tables.get('dim_wild') or not mt.tables.get('spawner') or not mt.tables.get('enc'):
-        messagebox.showinfo('Hyperspace spawns', 'The Hyperspace spawn tables could not be read.')
+        messagebox.showinfo('Hyperspace Pokémon', 'The Hyperspace spawn tables could not be read.')
         return None
     app = mt.app
     w = tk.Toplevel(app)
-    w.title('Hyperspace spawns')
+    w.title('Hyperspace Pokémon')
     w.transient(app)
     w.geometry('780x700')
     f = ttk.Frame(w, padding=10)
@@ -237,13 +237,13 @@ def open_window(mt):
             dev, form, lo, hi, al = species_no(), int(form_v.get()), int(lo_v.get()), int(hi_v.get()), \
                 float(al_v.get())
         except (ValueError, tk.TclError) as ex:
-            messagebox.showerror('Hyperspace spawns', str(ex) or 'Check the numbers.', parent=w)
+            messagebox.showerror('Hyperspace Pokémon', str(ex) or 'Check the numbers.', parent=w)
             return
         n = users(mt).get(info['encountDataId'], 1)
         e = mt.enc_by_id[info['encountDataId']]
         if n > 1:
             ans = messagebox.askyesnocancel(
-                'Hyperspace spawns', 'These numbers are used by %d Hyperspace spawners.\n\nYes: change all of them\n'
+                'Hyperspace Pokémon', 'These numbers are used by %d Hyperspace spawners.\n\nYes: change all of them\n'
                 'No: change only this one' % n, parent=w)
             if ans is None:
                 return
@@ -267,13 +267,13 @@ def open_window(mt):
     def add():
         it = selected()
         if not it:
-            messagebox.showinfo('Hyperspace spawns', 'Select a Pokémon of the spawner to add one to.', parent=w)
+            messagebox.showinfo('Hyperspace Pokémon', 'Select a Pokémon of the spawner to add one to.', parent=w)
             return
         s, info = it
         try:
             dev = species_no()
         except ValueError as ex:
-            messagebox.showerror('Hyperspace spawns', str(ex), parent=w)
+            messagebox.showerror('Hyperspace Pokémon', str(ex), parent=w)
             return
         new_info = copy.deepcopy(info)
         s.setdefault('encountDataInfoList', []).append(new_info)
@@ -294,7 +294,7 @@ def open_window(mt):
         s, info = it
         lst = s.get('encountDataInfoList') or []
         if len(lst) <= 1:
-            messagebox.showinfo('Hyperspace spawns', 'A spawner needs at least one Pokémon - change it instead.',
+            messagebox.showinfo('Hyperspace Pokémon', 'A spawner needs at least one Pokémon - change it instead.',
                                 parent=w)
             return
         lst.remove(info)
