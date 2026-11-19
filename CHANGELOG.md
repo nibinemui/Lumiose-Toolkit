@@ -43,7 +43,7 @@
 - Smaller fixes: the Map and Pokémon data tabs retry loading after an error, creating an item while a generic table is open, Show in Explorer / Copy path on text results, extracting from text results, JSON export failures, 3D viewer checkboxes before the model has loaded, a broken mod.json (kept as mod.json.bak).
 
 ### Note
-- Port a Pokémon, new battle music and Play as a character are experimental (their windows say so): some things may not work properly or look incorrect. Test them with a copy of your save.
+- Port a Pokémon, Create Spawn Point, Hyperspace Pokémon, new battle music and Play as a character are experimental (their windows say so): some things may not work properly or look incorrect. Test them with a copy of your save.
 - Porting is new: the recipe was proven in game with Cyndaquil (spawns, battles, can be caught, moves properly), but test every ported Pokémon with a copy of your save. A save that has a ported Pokémon needs the mod installed to load.
 
 ## 1.6.2 - 2026-11-17

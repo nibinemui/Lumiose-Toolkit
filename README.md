@@ -36,6 +36,10 @@ on it), a modded Switch (Atmosphere) or an emulator.
 
 ## Features
 
+Features marked **(experimental)** show a warning in their window: some things may not work properly or look
+incorrect. They are Port a Pokémon (and its icons), Create Spawn Point, Hyperspace Pokémon, new battle music, Play as a
+character, glTF model import and sound replacement. Test what they make with a copy of your save before sharing a mod.
+
 ### Browse & extract
 - **Search by in-game name**: Pokémon (`pikachu`, `25`), clothing (`v-neck t-shirt`), or any file/folder name. Small typos are fine.
 - **Search the game's text**: every line of dialogue, item and move names in any language; click a result to jump to that line. **Search all text…** searches every language at once and shows the whole line.
@@ -80,7 +84,7 @@ on it), a modded Switch (Atmosphere) or an emulator.
 - **Pattern textures**: *Edit pattern textures…* lists every texture of a clothing pattern (base, layer mask, palette, normal map…) with a preview, explains what each one does, marks textures shared with other patterns or other items, and opens them for live editing.
 - **Game text**: in-app editor with search, highlighted `[VAR …]` codes and multi-line text. Export/import as a text file also works.
 - **Pokémon data** (`personal_array`): types, abilities, base stats, EV yield, catch rate, growth rate, gender, egg groups, size, level-up moves, evolutions, TM moves and egg moves.
-- **Port a Pokémon**: bring a Pokémon from a Scarlet/Violet dump into Z-A as a new Pokémon in a free species slot (model, animations, Z-A materials, species data, moves, alpha move, cry, wild behaviour, Pokédex entry, spawns), with icons rendered in Z-A's style.
+- **Port a Pokémon** (experimental): bring a Pokémon from a Scarlet/Violet dump into Z-A as a new Pokémon in a free species slot (model, animations, Z-A materials, species data, moves, alpha move, cry, wild behaviour, Pokédex entry, spawns), with icons rendered in Z-A's style.
 - **Game data tab**: a table editor for:
   - **Moves**: power, accuracy, PP, type, category, priority, status effects, stat changes and every flag.
   - **Items**: price, max stack and TM move.
@@ -96,15 +100,25 @@ on it), a modded Switch (Atmosphere) or an emulator.
   - Move, rotate, duplicate and delete points.
   - Edit the **encounters** at a spawn: species, levels and weight.
   - **Add spawn point…**: a new Pokémon spawn point with the Pokémon and levels you pick, placed by dragging.
+  - **Create Spawn Point…** (experimental): click any empty spot to add a Pokémon spawner (species, form, levels,
+    size, always an alpha; always, by day or at night), an item ball or a move gimmick (Mega Shard crystals,
+    Hyperspace boxes, breakable rocks, vines, sludge). Megas and other forms never seen in the wild get their normal
+    form's wild behaviour.
+  - **Hyperspace Pokémon…** (experimental): which Pokémon Hyperspace Lumiose brings for each zone type and rank -
+    change them, their levels and alpha chance, or add and remove Pokémon.
+  - **Show Pokémon icons**: each Pokémon spawn point shows the icon of the Pokémon most likely to appear there.
+  - Points your current mod added are drawn black, so they stand out from the game's own.
   - Edit the **contents of item balls** and random items, with "Make unique" so other spots aren't affected.
   - Pick any **interior, dungeon or zone** from the Area list. Optionally lay a dungeon floor map underneath and align it; the alignment is saved per area.
 - **Audio tab**: every song, jingle, sound effect, Pokémon cry, voice and ambience sound (over 14,000), searchable by
   name, with its type. Play, export and **replace** them with any audio file (WAV, MP3, OGG, FLAC, M4A…), with
-  volume, loudness matching and loop points. **Add as new battle music…** adds a song to the "Battle BGM" list
-  of online Private Battles as a new entry, and can make it the music of every trainer battle.
-- **Play as a character** (Mods tab): the player becomes one of the game's characters (18 named characters and 93
-  trainer and townsfolk outfits), fitted to the player's skeleton; the player's own face, hair and clothes are hidden.
-- **Experimental**:
+  volume, loudness matching and loop points. **Add as new battle music…** (experimental) adds a song to the
+  "Battle BGM" list of online Private Battles as a new entry, and can make it the music of every trainer battle
+  (it still fades out and plays the victory jingle at the end).
+- **Play as a character** (Mods tab, experimental): the player becomes one of the game's characters (18 named
+  characters and 93 trainer and townsfolk outfits), fitted to the player's skeleton; the player's own face, hair and
+  clothes are hidden. **Show in 3D** shows each one first.
+- **Also experimental**:
   - Import an edited glTF back into a model. Tangents are recomputed from the UVs, each vertex keeps its strongest bone
     influences, and it warns when a part ends up on the other side of the body from the bones it follows (e.g. a
     mirrored wing), about unknown bones and about materials left without triangles. A file from a different model is
@@ -115,6 +129,8 @@ on it), a modded Switch (Atmosphere) or an emulator.
 ### Mods
 - Mod projects with name, author, version and description; "Add original to mod" copies any file into a mod for hand editing. Renaming a mod renames its folder too.
 - **Merging**: when several mods change the same game data table or text file, building or installing them together merges them row by row instead of one mod overwriting the other.
+- **Merge mods…**: combine several of your mods into one new mod, merged the same way (the mods themselves stay as they are).
+- **Select several mods** with Shift / Ctrl + click and delete them all at once (**Delete…** or the Delete key).
 - **New clothing items**: make a new, buyable item from any existing one (its own model copy, ids, name and shop), without replacing anything in the game. They work everywhere in the program: Search, Try on, Show in 3D and Edit colours.
 - **New hairstyles**: make a new hairstyle from any existing one (its own model and hair animations, id, name and salons).
 - **Check new items**: checks a mod's new clothing items and hairstyles before you share it (ids, files, names in every language, shops and salons).
@@ -290,7 +306,7 @@ Pick a Pokémon on the left, edit it, then press **Save changes to current mod**
 - Evolutions are one per line: `method level argument species form`.
 - TM moves and egg moves can be move names or numbers.
 
-#### Port a Pokémon from Scarlet/Violet
+#### Port a Pokémon from Scarlet/Violet (experimental)
 **Port a Pokémon from Scarlet/Violet…** (below the list) adds a Pokémon from your own Scarlet/Violet dump to the
 current mod as a new Pokémon. Z-A has species data for every Pokémon up to #1010 but only uses 364; a Pokémon whose
 data it has but doesn't use is a **free slot** - nothing in the game is replaced.
@@ -359,6 +375,12 @@ The first time you open it, the tab builds its list of every sound and song (abo
   a copy of the 0.9 GB `Stream.pck`. Songs get their new length, so they don't cut off. Every replacement is checked
   by playing the rebuilt bank back. PCM is bigger than the game's compressed audio (about 10 MB per minute of stereo).
 - **Restore original** puts the game's sound back. **History** on the Mods tab keeps every version too.
+- **Add as new battle music…** (experimental): pick an audio file, then give the song a name. It becomes a new entry
+  in the **Battle BGM** list of online Private Battles (the only battles that list is used for), unlocked from the
+  start; none of the game's songs is replaced. Say **Yes** when asked about trainer battles to also make it the music
+  of every trainer battle (Battle Zones and trainers who challenge you): it goes into the trainer theme's own intro and
+  loop, so battles still end the game's way (the music fades out and the victory jingle plays). Volume, loudness
+  matching and loop points work as for replacing.
 
 ### Map tab
 - **Navigate**: mouse wheel zooms, dragging pans, clicking selects a point. *Find* searches point names and switches to the right area automatically.
@@ -368,10 +390,25 @@ The first time you open it, the tab builds its list of every sound and song (abo
   into your mod are listed too) and the levels. The new point appears 3 m away with its own encounter; tick **Edit
   mode** to drag it into place. Saving writes its position, spawner, encounter and its entry in the area's scene file
   (the scene file is what makes the game place it). Spawn points of interiors without a scene file can't be copied.
-- **Create Spawn Point**: click an empty spot and press **Create Spawn Point…** to add a Pokémon spawner, item ball
-  or move gimmick there.
-- **Hyperspace Pokémon…**: the Pokémon Hyperspace brings, by zone type and rank - change, add or remove them.
-- Points the current mod added are drawn black.
+- **Create Spawn Point** (experimental): click an empty spot and press **Create Spawn Point…**. A short menu asks
+  what goes there:
+  - a **Pokémon spawner**: species, form, levels, size (locked to the biggest while **Always an alpha** is ticked) and
+    when it appears - always, only by day or only at night;
+  - an **item ball**: item and count, also always / by day / at night;
+  - a **move gimmick**: Mega Shard crystals, Hyperspace boxes, breakable rocks, thorny vines or sludge.
+
+  The new point copies the nearest point of that kind (a Wild Zone's spawner only inside that zone) - its area, scene
+  file and height - and gets its own data. Check its height (Y), tick **Edit mode** to drag it, then save. A Mega or
+  other form never seen in the wild gets its normal form's wild behaviour, so it moves and fights instead of standing
+  still. New NPCs and Hyperspace portals are planned for a later update.
+- **Hyperspace Pokémon…** (experimental): pick a zone type (the 18 types) and rank (1-5) to see its spawn patterns,
+  their spawners and each Pokémon's levels, alpha chance and spot (floating or on the ground). Change a Pokémon (for
+  that spawner only, or everywhere it is shared), its levels and alpha chance, or add and remove Pokémon. A Mega or
+  other form never seen in the wild gets its normal form's wild behaviour.
+- **Show Pokémon icons**: each Pokémon spawn point shows the icon of the Pokémon most likely to appear there (ported
+  Pokémon too).
+- Points the current mod added are drawn black, ringed in their layer's colour. The map reloads when you switch the
+  current mod.
 - **Item balls and random items**: edit item, count and weight under *Contents*. Use **Make unique** first if the item table is shared with other points.
 - **Interiors, dungeons and zones**: pick one from **Area**. Its points are shown on a 10 m grid. To use a floor map as the background:
   1. Choose it under **Background** (the lab and sewer floors are included).
@@ -390,6 +427,9 @@ On the **Mods** tab:
 1. Select your mod and fill in its details. You can see and remove its files there.
 2. Use **History / compare / restore…** (or double-click a file) to see every saved version, compare it, or roll it back.
 3. Add the mods you want to the **load order**. When two mods change the same **game data table** (shops, items, clothing, moves…) or **text file**, they are **merged**: rows each mod adds are all kept, and only a field both change differently goes to the higher mod (the build log lists it). For other files (models, textures, sounds) the top one wins. Identical copies are never a conflict. Merging happens when you build or install the mods **together** - mods installed separately in ZA Recomp still replace each other's files. To keep a combination as one mod, use **Merge mods…** (under My mods): it makes a new mod from the mods you tick, merged the same way. **Check conflicts** opens a list of every file that more than one mod changes. It covers your mods, the load order and the mods installed in ZA Recomp / Lumiose Online, and shows which version the game uses.
+   **Play as a character…** (experimental) makes the player one of the game's characters: pick one (**Show in 3D**
+   shows it), then **Put into current mod**; **Remove from mod** puts the player back. Things a character holds in its
+   hands are left out unless you tick *Keep what the character holds*.
    **Check new items** checks the selected mod's new clothing items and hairstyles (ids, files, names, shops) and
    writes the result to the build log. **Test checklist…** lists what to check in the game for that mod - tick what
    works, then copy or save it for whoever tests with you.
@@ -428,7 +468,12 @@ That index is made for exactly the mods in the package, so **build one combined 
 
 ## Known limits
 
-- **In-game confirmation**: clothing colour edits and replacing songs are confirmed working in Lumiose Online; other features are tested in the program but not yet confirmed in-game. Custom clothing colours (widened palettes) are new and need an in-game check. glTF model import and sound replacement are marked experimental. Test them before sharing a mod.
+- **In-game confirmation**: clothing colour edits and replacing songs are confirmed working in Lumiose Online. Ported
+  Pokémon, new spawn points (Pokémon by day or night, Megas, item balls, Mega Shard crystals), trainer battle music
+  and Hyperspace Pokémon edits were tested in game for 2.0. Custom clothing colours (widened palettes) are new and
+  need an in-game check. The features marked (experimental) - Port a Pokémon, Create Spawn Point, Hyperspace Pokémon,
+  new battle music, Play as a character, glTF model import and sound replacement - may not work properly or look
+  incorrect in some cases. Test them with a copy of your save before sharing a mod.
 - **Viewer approximations**: eye effects and special shaders (hologram, fur, emission) are simplified. Clothing is shown in its rest pose unless you use *Try on player body*.
 - **Interior and dungeon areas**: these reuse coordinates near the world origin, so they are told apart by the area code in point names. Floor-map backgrounds must be aligned by hand once per area.
 - **Duplicated map points**: a copy only spawns something if the spawner data tables have an entry with that name.

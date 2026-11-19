@@ -2,26 +2,35 @@ Lumiose Toolkit
 ===============
 
 Double-click "Lumiose Toolkit.exe" (release download) or "Lumiose Toolkit.bat" (running from source).
-The first start opens "Import game files" to unpack your game dump. The window has five tabs:
-Browse & extract, Mods, Map, Pokémon data and Game data. "Dark mode" (top right) switches the theme.
+The first start opens "Import game files" to unpack your game dump. The window has six tabs:
+Browse & extract, Mods, Map, Pokémon data, Game data and Audio. "Dark mode" (top right) switches the theme.
 README.md is the full manual (features, installing, troubleshooting).
 
 WHAT'S NEW IN 2.0.0
 -------------------
-  * Port a Pokemon (Pokemon data tab): bring a Pokemon from your Scarlet/Violet dump into Z-A as a new
-    Pokemon in a free species slot - model, animations, materials for Z-A, species data, moves, alpha
-    move, cry (or your own sound), wild behaviour, optional Pokedex entry and wild-zone spawns.
-  * Icons in Z-A's style for ported Pokemon: pick a pose, get the normal and shiny icons.
-  * Map tab: "Add spawn point..." - a new Pokemon spawn point next to the selected one, with the
-    Pokemon and levels you pick. Tick Edit mode to drag it into place, then save.
+  Features marked EXPERIMENTAL show a warning in their window: some things may not work properly
+  or look incorrect. Test what they make with a copy of your save.
+  * EXPERIMENTAL - Port a Pokemon (Pokemon data tab): bring a Pokemon from your Scarlet/Violet dump
+    into Z-A as a new Pokemon in a free species slot - model, animations, materials for Z-A, species
+    data, moves, alpha move, cry (or your own sound), wild behaviour, optional Pokedex entry and
+    wild-zone spawns. Then icons in Z-A's style: pick a pose, fine-tune it in the icon editor.
+  * EXPERIMENTAL - Map tab: "Create Spawn Point..." - click an empty spot and add a Pokemon spawner
+    (species, form, levels, size, always an alpha; always / by day / at night), an item ball or a move
+    gimmick (Mega Shard crystals, Hyperspace boxes, rocks, vines, sludge). Megas get wild behaviour.
+  * EXPERIMENTAL - Map tab: "Hyperspace Pokemon..." - which Pokemon Hyperspace brings for each zone
+    type and rank: change them, their levels and alpha chance, add or remove them.
+  * Map tab: "Show Pokemon icons" on spawn points; points your mod added are drawn black.
+    "Add spawn point..." still copies a selected Pokemon spawn point.
+  * EXPERIMENTAL - Audio tab: "Add as new battle music..." - your song as a new entry in the
+    "Battle BGM" list of online Private Battles, and if you like the music of every trainer battle.
+  * EXPERIMENTAL - Mods tab: "Play as a character..." - the player becomes one of the game's
+    characters (18 named ones, 93 trainer and townsfolk outfits).
   * Search all text... (Browse & extract): every line of game text in one language or all of them,
     double-click to edit the line.
-  * Audio tab: "Add as new battle music..." - your song as a new entry in the "Battle BGM" list of online Private Battles.
-  * Mods tab: "Play as a character..." - the player becomes one of the game's characters.
-  * Mods tab: "Merge mods..." - several of your mods combined into one new mod.
+  * Mods tab: "Merge mods..." - several of your mods combined into one new mod. Shift / Ctrl + click
+    selects several mods to delete at once.
   * Many fixes: tabs no longer save an old copy of a table into another mod, closing asks about
     unsaved changes, safer installs, imports, updates and history, sound and text fixes.
-  * Test ported Pokemon with a copy of your save.
 
 WHAT'S NEW IN 1.6.2
 -------------------
@@ -223,6 +232,10 @@ Area: Lumiose City, or any interior / dungeon / zone (they reuse coordinates nea
 and are told apart by the area code in point names). Their points are drawn on a 10 m grid, or on
 a dungeon floor map chosen under Background and aligned once (saved in map_calibration.json).
 A duplicated point only spawns something if the spawner data tables have an entry with that name.
+New points: "Add spawn point..." copies the selected Pokémon spawn point; "Create Spawn Point..."
+(experimental) adds a Pokémon spawner, item ball or move gimmick at an empty spot you click.
+"Hyperspace Pokémon..." (experimental) edits which Pokémon Hyperspace brings. "Show Pokémon icons"
+puts each spawn point's Pokémon on the map; points your current mod added are drawn black.
 
 
 RESTORING FILES THE ORIGINAL EXPORT SKIPPED
