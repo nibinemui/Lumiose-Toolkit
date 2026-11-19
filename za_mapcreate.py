@@ -31,14 +31,10 @@ KINDS = {
                 'An object Pokémon moves interact with (rocks, boxes, crates...).'),
     'npc': ('NPC', 'placement_npc_spawner_transform_array', 'npc_spawner', '*placement_npc_spawner*.trscn',
             'A person standing here: their look, when they appear, and how they behave.'),
-    'portal': ('Hyperspace Portal', 'hyperspace_gates', 'gates', '*dim_gate_spawner*.trscn',
-               'A Hyperspace portal spot against the nearest wall. It joins the game\'s portals, which open a few '
-               'at a time at random.'),
 }
-# kinds left out of the menu for now: new NPCs can't say or do anything of their own yet (that needs the game's
-# event scripts), and new portals weren't seen opening in game yet. Their code stays for later. (New random-item
-# spots were dropped: item balls do that job.)
-HIDDEN_KINDS = {'npc', 'portal'}
+# kinds left out of the menu (none at the moment). New random-item spots were dropped (item balls do that job), and
+# so were new Hyperspace portals: the game only opens portals from its own lottery, which couldn't be steered.
+HIDDEN_KINDS = set()
 
 
 # ---- table helpers ------------------------------------------------------------------------------------------
@@ -276,6 +272,16 @@ def create(mt, kind, x, z, spec):
         s['appearingConditionList'] = [c for c in s.get('appearingConditionList') or []
                                        if c.get('spawnerObjectInfoList')][:1]
     APPLY[kind](mt, s, new, spec)
+    if kind == 'npc' and spec.get('say'):               # its own lines (and gift): a talk trigger + text, saved later
+        import za_npctalk
+        extra = mt.__dict__.setdefault('extra_files', {})
+        try:
+            files = za_npctalk.write_talk(os.path.normpath(mt.app.root_var.get()), mt.romfs, extra, s['id'],
+                                          spec['say'], spec.get('item'), spec.get('count', 1), spec.get('once'),
+                                          spec.get('after', ''))
+        except za_npctalk.TalkError as e:
+            raise ValueError(str(e))
+        extra.update(files)
     rr.insert(i + 1, s)
     table.dirty = True
     # 4. scene(s): the template's chunk tree, renamed, with fresh ids for chunks that belong only to it, moved.
@@ -320,195 +326,6 @@ def create(mt, kind, x, z, spec):
     mt.index_spawn_tables()
     mt.spawn_info = {n: mt.encounter_lines(n) for n in mt.spawner_by_obj}
     mt.sel = (L, gi, si + 1)
-    return new, old
-
-
-# ---- Hyperspace portals --------------------------------------------------------------------------------------
-
-PORTAL_LIFT = 1.5           # m above the ground, like the game's portals
-PORTAL_OFF_WALL = 1.0       # m in front of the wall (the game's sit a median 0.9 m from the map's building edge)
-WALL_SEARCH = 25.0          # m: how far to look for a wall
-
-
-def _buildings(mt):
-    """Building pixels of the city map, worked out once: the pink-tan blocks, and the darker outline where it
-    borders one (the same outline colour also draws park and road edges, which aren't walls)."""
-    if '_buildings' not in mt.__dict__:
-        mt.__dict__['_buildings'] = building_mask(mt.city_base)
-    return mt.__dict__['_buildings']
-
-
-def building_mask(img):
-    import numpy as np
-    a = np.asarray(img.convert('RGB')).astype(np.int16)
-    r, g, b = a[..., 0], a[..., 1], a[..., 2]
-    fill = (r >= 205) & (r - b >= 30) & (r - g >= 15)
-    line = (r >= 135) & (r <= 175) & (g >= 125) & (g <= 160) & (b >= 120) & (b <= 150) & (r >= b)
-    near = fill.copy()
-    for _ in range(3):                                  # the outline right around a block
-        n = near.copy()
-        n[1:] |= near[:-1]
-        n[:-1] |= near[1:]
-        n[:, 1:] |= near[:, :-1]
-        n[:, :-1] |= near[:, 1:]
-        near = n
-    return fill | (line & near)
-
-
-def wall_snap(mt, x, z):
-    """(x, z, yaw) of a spot just in front of the building wall nearest to (x, z), facing away from the wall
-    (yaw in the game's convention: atan2 of the facing's X and Z), or None when no wall is near."""
-    import math
-    import numpy as np
-    import za_map
-    bld = _buildings(mt)
-    cal = za_map.city_cal(bld.shape[1])
-    mx, my = za_map.w2m(cal, x, z)
-    rad = int(WALL_SEARCH * cal['scale'])
-    x0, y0 = max(0, int(mx) - rad), max(0, int(my) - rad)
-    win = bld[y0:int(my) + rad + 1, x0:int(mx) + rad + 1]
-    if not win.size or not win.any():
-        return None
-    inner = win.copy()                                  # edge = building pixel next to open ground
-    inner[1:-1, 1:-1] = win[1:-1, 1:-1] & win[:-2, 1:-1] & win[2:, 1:-1] & win[1:-1, :-2] & win[1:-1, 2:]
-    ys, xs = np.nonzero(win & ~inner)
-    if not len(xs):
-        return None
-    xs, ys = xs + x0, ys + y0
-    k = int(np.argmin((xs - mx) ** 2 + (ys - my) ** 2))
-    ex, ey = int(xs[k]), int(ys[k])
-    if math.hypot(ex - mx, ey - my) > rad:
-        return None
-    s = 6                                               # facing: away from the building's local mass
-    patch = bld[max(0, ey - s):ey + s + 1, max(0, ex - s):ex + s + 1]
-    yy, xx = np.mgrid[max(0, ey - s) - ey:min(bld.shape[0], ey + s + 1) - ey,
-                      max(0, ex - s) - ex:min(bld.shape[1], ex + s + 1) - ex]
-    nx, ny = -float((xx * patch).sum()), -float((yy * patch).sum())
-    if nx == 0 and ny == 0:                             # flat spot of the edge: face the clicked spot
-        nx, ny = mx - ex, my - ey
-    n = math.hypot(nx, ny) or 1.0
-    wx, wz = (nx / n) / cal['sx'], (ny / n) / cal['sz']
-    exw, ezw = za_map.m2w(cal, ex + 0.5, ey + 0.5)
-    return exw + wx * PORTAL_OFF_WALL, ezw + wz * PORTAL_OFF_WALL, math.degrees(math.atan2(wx, wz))
-
-
-def _gate_rows(mt):
-    t = mt.tables.get('gates')
-    return [r for g in (t.data.get('values') or []) for r in (g.get('root') or [])] if t else []
-
-
-def double_gate_counts(mt):
-    """Twice the game's number of portals open at once (from the game's own counts, so doing it again changes
-    nothing). Far more than that stops the game opening any random portal."""
-    t = mt.tables.get('gate_counts')
-    if t is None:
-        return
-    game = json.loads(zm.to_json(t.path, zm.schema_for(t.path)))
-    orig = {r.get('progressId'): r for g in game.get('values') or [] for r in (g.get('root') or [g])}
-    for g in t.data.get('values') or []:
-        for r in g.get('root') or [g]:
-            o = orig.get(r.get('progressId'))
-            if not o:
-                continue
-            for k in ('wildMinCount', 'wildMaxCount', 'battleMinCount', 'battleMaxCount', 'areaGateMinCount',
-                      'areaGateMaxCount', 'totalGateMinCount', 'totalGateMaxCount'):
-                if o.get(k):
-                    r[k] = o[k] * 2
-            for it, io in zip(r.get('rankItems') or [], o.get('rankItems') or []):
-                for k in ('minCount', 'maxCount'):
-                    if io.get(k):
-                        it[k] = io[k] * 2
-    t.dirty = True
-
-
-def create_portal(mt, kind, x, z, spec):
-    """A new Hyperspace portal spot at the wall nearest (x, z): an entry in its district's scene file (built from
-    the nearest ordinary portal's) and its portal row (opens when the game's own portals do)."""
-    L = layer_for(mt, 'portal')
-    if L is None or mt.tables.get('gates') is None:
-        raise ValueError('The Hyperspace portal data could not be read.')
-    spot = wall_snap(mt, x, z)
-    if spot is None:
-        raise ValueError('No building wall within %d m of this spot - click closer to a building.' % WALL_SEARCH)
-    px, pz, yaw = spot
-    rows = {r.get('gateSpawnerId'): r for r in _gate_rows(mt)}
-    ordinary = [p for _, _, p in L.points()
-                if re.search(r'_gate_point_\d\d$', p.get('Name', '')) and p['Name'] in rows
-                and 'never_condition' not in json.dumps(rows[p['Name']])
-                and 'za_battlezone' not in json.dumps(rows[p['Name']])]
-    if not ordinary:
-        raise ValueError('No ordinary Hyperspace portal to build from was found.')
-    p = min(ordinary, key=lambda q: (_pos(q)[0] - px) ** 2 + (_pos(q)[2] - pz) ** 2)
-    old, rel = p['Name'], p['_scene']
-    new = new_name(old, taken_names(mt) | set(rows))
-    if not new:
-        raise ValueError('No free name left for a new portal.')
-    import za_map
-    chunks = mt.scene(rel)[0]['Chunks']
-    ci = next((i for i, c in enumerate(chunks) if za_map.gate_name(c) == old), None)
-    if ci is None:
-        raise ValueError("Could not find %s in its scene file." % old)
-    # the nearest real portal's height when it is close (points around can be on roofs: a test got 18.8 m for a
-    # street at 1.4 m), else the ground around plus the portals' usual lift
-    if (_pos(p)[0] - px) ** 2 + (_pos(p)[2] - pz) ** 2 <= 40.0 ** 2:
-        y = _pos(p)[1]
-    else:
-        y = ground_height(mt, px, pz, _pos(p)[1] - PORTAL_LIFT) + PORTAL_LIFT
-    ids = []
-
-    def all_ids(cs):
-        for c in cs:
-            ids.append(c.get('Id'))
-            all_ids(c.get('Children') or [])
-    all_ids(chunks)
-    unique = {k for k in ids if ids.count(k) == 1}
-    used = set(ids)
-    rng = random.Random(hash(new) & 0xFFFFFFFF)
-
-    def fresh(c):
-        b = bytes(c.get('Data', []))
-        if old.encode() + b'\0' in b:
-            c['Data'] = list(b.replace(old.encode() + b'\0', new.encode() + b'\0'))
-        if c.get('Id') in unique:
-            nid = rng.getrandbits(64)
-            while nid in used:
-                nid = rng.getrandbits(64)
-            used.add(nid)
-            c['Id'] = nid
-        for ch in c.get('Children') or []:
-            fresh(ch)
-    nc = copy.deepcopy(chunks[ci])
-    fresh(nc)
-    b = bytearray(nc['Data'])
-    struct.pack_into('<3f', b, za_map.GATE_POS, px, y, pz)
-    nc['Data'] = list(b)
-    sheet = za_map.gate_yaw_sheet(nc)
-    if sheet:
-        kb = bytearray(sheet['Data'])
-        struct.pack_into('<f', kb, za_map.GATE_YAW, yaw)
-        sheet['Data'] = list(kb)
-    chunks.insert(ci + 1, nc)
-    mt.__dict__.setdefault('scene_dirty', set()).add(rel)
-    mt.__dict__.setdefault('new_points', {})[new] = [(rel, za_map.GATE_POS)]
-    # the map point
-    pts = L.data['values'][0]['root']
-    si = pts.index(p) + 1
-    pts.insert(si, {'Name': new, 'Position': {'X': float(px), 'Y': float(y), 'Z': float(pz)},
-                    'Rotation': {'Y': float(yaw)}, '_scene': rel})
-    # the portal row: opens under the same conditions as the game's own portals
-    t = mt.tables['gates']
-    row = copy.deepcopy(rows[old])
-    row['gateSpawnerId'] = new
-    row.pop('isDynamicCondition', None)
-    for g in t.data.get('values') or []:
-        rr = g.get('root')
-        if rr is not None and rows[old] in rr:
-            rr.insert(rr.index(rows[old]) + 1, row)
-            break
-    t.dirty = True
-    if spec.get('more'):
-        double_gate_counts(mt)
-    mt.sel = (L, 0, si)
     return new, old
 
 
@@ -890,7 +707,7 @@ def open_menu(mt, x, z):
 
     def finish(kind, spec):
         try:
-            new, old = (create_portal if kind == 'portal' else create)(mt, kind, x, z, spec)
+            new, old = create(mt, kind, x, z, spec)
         except ValueError as e:
             messagebox.showerror('Create spawn point', str(e), parent=w)
             return
@@ -1026,32 +843,6 @@ def open_menu(mt, x, z):
                     raise ValueError('Pick an object from the list.')
                 return {'gimmick': types[gb.get()]}
             nav(kind, spec)
-        elif kind == 'portal':
-            spot = wall_snap(mt, x, z)
-            if spot:
-                import math
-                ttk.Label(g, wraplength=470, justify='left', text=(
-                    'The portal goes against the nearest building wall: X %.1f, Z %.1f (%.0f m from where you '
-                    'clicked), facing away from the wall.' % (spot[0], spot[1], math.hypot(spot[0] - x, spot[1] - z)))
-                          ).grid(row=0, column=0, columnspan=2, sticky='w')
-            else:
-                ttk.Label(g, style='Warn.TLabel', wraplength=470, justify='left', text=(
-                    'No building wall within %d m of this spot - go back and click closer to a building.'
-                    % WALL_SEARCH)).grid(row=0, column=0, columnspan=2, sticky='w')
-            more = tk.BooleanVar(value=True)
-            ttk.Checkbutton(g, text='Twice as many portals open at once (makes yours more likely to be open)',
-                            variable=more).grid(row=1, column=0, columnspan=2, sticky='w', pady=(8, 0))
-            ttk.Label(g, style='Dim.TLabel', wraplength=470, justify='left', text=(
-                'Portals appear once the Mega Dimension story has opened Hyperspace. The game opens a few of its '
-                'portal spots at a time at random, and where a portal leads is its own random pick - a new spot '
-                'can\'t be forced open or given a destination. (Far more than twice as many open portals stops '
-                'the game opening any.)')).grid(row=2, column=0, columnspan=2, sticky='w', pady=6)
-
-            def spec():
-                if not spot:
-                    raise ValueError('No building wall near this spot - click closer to a building.')
-                return {'more': more.get()}
-            nav(kind, spec)
         elif kind == 'npc':
             looks = dict(npc_looks(os.path.normpath(app.root_var.get())))
             names = list(looks)
@@ -1065,15 +856,59 @@ def open_menu(mt, x, z):
             tb = ttk.Combobox(g, values=list(acts), width=52, state='readonly')
             tb.set(NPC_BEHAVIOURS[1][0])
             tb.grid(row=2, column=1, sticky='w', pady=2)
+            import za_npctalk
+
+            def textbox(row, height):
+                t = tk.Text(g, width=54, height=height, wrap='word', undo=True, borderwidth=1, relief='solid')
+                try:
+                    c = app.theme_colours()
+                    t.configure(background=c['field'], foreground=c['fg'], insertbackground=c['fg'],
+                                selectbackground=c['sel'], selectforeground=c['selfg'])
+                except Exception:  # noqa: BLE001
+                    pass
+                t.grid(row=row, column=1, sticky='w', pady=2)
+                return t
+            ttk.Label(g, text='What they say:').grid(row=3, column=0, sticky='nw', pady=(6, 0))
+            say = textbox(3, 5)
+            ttk.Label(g, style='Dim.TLabel', text='A blank line starts a new text box. Leave it empty for an NPC '
+                                                  'who says nothing.').grid(row=4, column=1, sticky='w')
+            root = os.path.normpath(app.root_var.get())
+            givable = za_npctalk.item_ids(root)
+            items = ['(nothing)'] + ['%s (#%d)' % (n, i) for i, n in sorted(mt.item_names.items()) if n and i in givable]
+            gf = ttk.Frame(g)
+            gf.grid(row=5, column=1, sticky='w', pady=(6, 2))
+            ttk.Label(g, text='Gives:').grid(row=5, column=0, sticky='w', pady=(6, 2))
+            it = ttk.Combobox(gf, values=items, width=34)
+            it.set('(nothing)')
+            it.pack(side='left')
+            filtered(it, items)
+            cnt = tk.IntVar(value=1)
+            ttk.Label(gf, text='  How many:').pack(side='left')
+            ttk.Spinbox(gf, from_=1, to=99, textvariable=cnt, width=4).pack(side='left')
+            once = tk.BooleanVar(value=True)
+            ttk.Checkbutton(g, text='Only the first time you talk to them (the item too); after that they say:',
+                            variable=once).grid(row=6, column=1, sticky='w', pady=(6, 0))
+            after = textbox(7, 3)
             ttk.Label(g, style='Dim.TLabel', wraplength=460, justify='left', text=(
-                'What they say comes from the game\'s scripts, so a new NPC may have nothing to say. Custom lines and '
-                'item gifts need the game\'s event scripts and can\'t be set here yet.')).grid(
-                row=3, column=0, columnspan=2, sticky='w', pady=4)
+                'Leave this empty to hear the same lines again (without the item). Experimental: the lines go into '
+                'every language; NPCs talk once your save has reached the first side quests.')).grid(
+                row=8, column=1, sticky='w', pady=(2, 4))
 
             def spec():
                 if ab.get() not in looks:
                     raise ValueError('Pick who it is from the list.')
-                return {'asset': looks[ab.get()], 'when': when.get(), 'talk': acts[tb.get()]}
+                item = None
+                if it.get() not in ('', '(nothing)'):
+                    m = re.search(r'#(\d+)\)\s*$', it.get())
+                    if not m or int(m.group(1)) not in givable:
+                        raise ValueError('Pick the item from the list, or (nothing).')
+                    item = int(m.group(1))
+                text = say.get('1.0', 'end').strip()
+                if item is not None and not text:
+                    raise ValueError('Write what they say when they give the item.')
+                return {'asset': looks[ab.get()], 'when': when.get(), 'talk': acts[tb.get()], 'say': text,
+                        'item': item, 'count': int(cnt.get()), 'once': once.get(),
+                        'after': after.get('1.0', 'end').strip()}
             nav(kind, spec)
     step1()
     w.bind('<Escape>', lambda e: w.destroy())

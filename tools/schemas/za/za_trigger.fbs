@@ -1,0 +1,16 @@
+// Z-A event triggers (ik_event/bin/trigger/**/trigger_*.bin): what happens when you talk to an NPC, a scene ends...
+// Layout worked out for Lumiose Toolkit from the game's own files (all 240 rebuild byte for byte).
+// Command Type 3 = a line of dialogue [speaker, text file, label, window], 11 = give an item [ITEMID_x, count],
+// 8 = set a flag, 9 = set a work value, 22 = run a scene; condition Op 0 = always, 1 = equal, 2 = not equal, 5 = at least.
+namespace ZA;
+
+table TriggerCondition { Name:string; Op:int; Params:[string]; }
+table TriggerConditionGroup { Conditions:[TriggerCondition]; }   // all must hold
+table TriggerCommand { Type:int; Params:[string]; }
+table TriggerCommandGroup { Commands:[TriggerCommand]; }
+table TriggerEntry { ConditionGroups:[TriggerConditionGroup]; CommandGroups:[TriggerCommandGroup]; }  // any group
+table TriggerItem { Kind:int; Target:[string]; Entries:[TriggerEntry]; }
+table Trigger { Item:TriggerItem; }
+table TriggerFile { Triggers:[Trigger]; }
+
+root_type TriggerFile;

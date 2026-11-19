@@ -87,6 +87,8 @@ def schema_for(path):
         if os.path.isfile(p):
             return p
     n = ZA_SCHEMAS.get(os.path.basename(path).lower())
+    if n is None and re.match(r'trigger_.+\.bin$', os.path.basename(path).lower()):
+        n = 'za_trigger.fbs'                       # event triggers (ik_event/bin/trigger)
     if n is None and not os.path.basename(path).lower().startswith('p0_face'):
         n = ZA_EXT_SCHEMAS.get(e)
     if n and os.path.isfile(os.path.join(SCHEMAS, 'za', n)):

@@ -103,9 +103,9 @@ save before sharing a mod.
   - Edit the **encounters** at a spawn: species, levels and weight.
   - **Add spawn point…**: a new Pokémon spawn point with the Pokémon and levels you pick, placed by dragging.
   - **Create Spawn Point…** (experimental): click any empty spot to add a Pokémon spawner (species, form, levels,
-    size, always an alpha; always, by day or at night), an item ball or a move gimmick (Mega Shard crystals,
-    Hyperspace boxes, breakable rocks, vines, sludge). Megas and other forms never seen in the wild get their normal
-    form's wild behaviour.
+    size, always an alpha; always, by day or at night), an item ball, a move gimmick (Mega Shard crystals,
+    Hyperspace boxes, breakable rocks, vines, sludge) or an **NPC with its own lines** who can give an item (every time
+    or only the first time). Megas and other forms never seen in the wild get their normal form's wild behaviour.
   - **Hyperspace Pokémon…** (experimental): which Pokémon Hyperspace Lumiose brings for each zone type and rank -
     change them, their levels and alpha chance, or add and remove Pokémon.
   - **Encounter overview…** (experimental): every wild Pokémon in one sortable, searchable list - where it appears, how
@@ -400,12 +400,16 @@ The first time you open it, the tab builds its list of every sound and song (abo
   - a **Pokémon spawner**: species, form, levels, size (locked to the biggest while **Always an alpha** is ticked) and
     when it appears - always, only by day or only at night;
   - an **item ball**: item and count, also always / by day / at night;
-  - a **move gimmick**: Mega Shard crystals, Hyperspace boxes, breakable rocks, thorny vines or sludge.
+  - a **move gimmick**: Mega Shard crystals, Hyperspace boxes, breakable rocks, thorny vines or sludge;
+  - an **NPC**: who it is, when it's there, how it behaves, **what they say** (a blank line starts a new text box) and
+    an item they **give** - every time, or **only the first time** you talk to them, with other lines after that. It
+    works like the game's own NPCs (a talk trigger, no event script); the lines go into every language. NPCs talk once
+    your save has reached the first side quests.
 
   The new point copies the nearest point of that kind (a Wild Zone's spawner only inside that zone) - its area, scene
   file and height - and gets its own data. Check its height (Y), tick **Edit mode** to drag it, then save. A Mega or
   other form never seen in the wild gets its normal form's wild behaviour, so it moves and fights instead of standing
-  still. New NPCs and Hyperspace portals are planned for a later update.
+  still.
 - **Hyperspace Pokémon…** (experimental): pick a zone type (the 18 types) and rank (1-5) to see its spawn patterns,
   their spawners and each Pokémon's levels, alpha chance and spot (floating or on the ground). Change a Pokémon (for
   that spawner only, or everywhere it is shared), its levels and alpha chance, or add and remove Pokémon. A Mega or
@@ -543,7 +547,8 @@ Lumiose Toolkit/
   za_dataedit.py          Game data tab (schema-driven table editor)
   za_pokedit.py           Pokémon data tab
   za_map.py               Map tab
-  za_mapcreate.py         Create Spawn Point (new spawns, item balls, move gimmicks; NPCs and portals for later)
+  za_mapcreate.py         Create Spawn Point (new spawns, item balls, move gimmicks, NPCs)
+  za_npctalk.py           what a new NPC says and gives (talk trigger + lines in every language)
   za_hyperspace.py        Hyperspace Pokémon window
   za_encounters.py        Encounter overview window (every wild Pokémon in one list)
   za_mated.py             material colour editor
