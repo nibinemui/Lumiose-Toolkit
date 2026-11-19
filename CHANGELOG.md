@@ -41,7 +41,6 @@
 - **Live texture editing:** two edits into the same file no longer overwrite each other, an edited PNG that wasn't imported yet is no longer replaced without asking, and textures of different archives no longer share one PNG.
 - **Deleting a mod** no longer quietly makes another mod the current one, and says so when some files couldn't be deleted. Unsaved mod details are no longer cleared by a refresh.
 - **Sounds:** a replaced sound in a bank is no longer left marked as streamed, a replace that fails its check is undone, a failed package rebuild keeps the mod's package, and selecting and playing a sound at once no longer plays a half-decoded file. Decoded sounds from earlier sessions are cleaned up.
-- **Port a Pokémon:** ported Pokémon no longer blink out of sight (their body was given a shader setting Z-A never uses, which it doesn't draw), and their eyes are rebuilt as Z-A eyes with their highlight instead of flat black dots; the final check now catches materials Z-A can't draw. A failed step leaves the mod as it was, porting the same Pokémon again keeps its Pokédex entry and spawn points, "Use as is" can't write an older icon, the male model comes before the female one, and the icon renderer's temporary files are cleaned up.
 - Smaller fixes: the Map and Pokémon data tabs retry loading after an error, creating an item while a generic table is open, Show in Explorer / Copy path on text results, extracting from text results, JSON export failures, 3D viewer checkboxes before the model has loaded, a broken mod.json (kept as mod.json.bak).
 
 ### Note
