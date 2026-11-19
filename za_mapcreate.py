@@ -450,6 +450,9 @@ def _apply_npc(mt, s, new, spec):
             tags = spec.get('talk')
             if tags is not None and tags != 'keep':
                 o['tagInfoList'] = [{'tag': t} for t in tags]
+                # the copied NPC's action (e.g. 3703: townsfolk chatting, gesturing all the time) goes too: the new
+                # NPC just stands - unless "like the NPC it was copied from" keeps everything
+                o['aiInfo'] = {k: v for k, v in (o.get('aiInfo') or {}).items() if k not in ('actionId', 'popActionId')}
 
 
 APPLY = {'pokemon': _apply_pokemon, 'itemball': _apply_itemball, 'gimmick': _apply_gimmick, 'npc': _apply_npc}
