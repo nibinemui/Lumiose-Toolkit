@@ -557,7 +557,76 @@ def port_model(root, sv, mod, species, host_folder, sv_folder=None, log=print):
             rep['stand_ins'].append('%s_%s' % (code, nm))
     rep['stand_ins'] = sorted(set(rep['stand_ins']))
     log('animation slots: %d files, stand-ins for %d' % (len(wanted), len(rep['stand_ins'])))
+    # 5. turns that Z-A can finish
+    rep['turns'] = fix_turns(root, mod, rel_dir, stem)
+    if rep['turns']:
+        log('turn animations given their turn: ' + ', '.join(rep['turns']))
     return rep
+
+
+TURNS = ('turn_r090', 'turn_l090', 'turnmove01_r090', 'turnmove01_l090')
+TRANM = os.path.join(ZA_SCHEMAS, 'trinity', 'tranm.fbs')
+
+
+def _origin_yaw(path):
+    """Degrees the clip turns its origin bone from the first to the last frame."""
+    import math
+    import za_trinity as zt
+    r = zt.Animation(path).tracks.get('origin', {}).get('r')
+    if r is None or len(r[1]) < 2:
+        return 0.0
+
+    def yaw(q):
+        x, y, z, w = (float(v) for v in q)
+        return math.degrees(math.atan2(2 * (w * y + x * z), 1 - 2 * (y * y + x * x)))
+    return yaw(r[1][-1]) - yaw(r[1][0])
+
+
+def fix_turns(root, mod, rel_dir, stem):
+    """Z-A turns a Pokémon by its turn animations' origin bone (0 -> +-90 degrees over the clip) and replays the turn
+    until it has turned. Scarlet/Violet turn clips keep the origin still, so the ported Pokémon was stuck turning on the
+    spot. Each such clip gets the origin rotation of Pikachu's same clip, stretched to the clip's length.
+    Returns the clips changed."""
+    pika = os.path.join(root, 'ik_pokemon', 'data', 'pm0025', 'pm0025_00_00')
+    done = []
+    for name in TURNS:
+        rel = next((f for f in mod.files() if f.startswith(rel_dir + '/') and f.endswith('_%s.tranm' % name)), None)
+        tpl = next((os.path.join(pika, f) for f in sorted(os.listdir(pika)) if f.endswith('_%s.tranm' % name)), None)
+        if not rel or not tpl:
+            continue
+        path = mod.path_for(rel)
+        if abs(_origin_yaw(path)) > 10:
+            continue                                     # already turns
+        t = json.loads(zm.to_json(tpl, TRANM))
+        src = next((x for x in t['SkeletalAnimation_']['Tracks'] if x['BoneName'] == 'origin'), None)
+        if not src:
+            continue
+        kind, ch = src.get('RotationChannel_type'), src.get('RotationChannel') or {}
+        if kind == 'FramedRotationTrack':
+            keys, vals = list(range(len(ch['Values']))), ch['Values']
+        elif kind in ('Keyed16RotationTrack', 'Keyed8RotationTrack'):
+            keys, vals = ch['Keys'], ch['Values']
+        else:
+            continue
+        d = json.loads(zm.to_json(path, TRANM))
+        n_src = max(t['Info'].get('FrameCount', 1) - 1, 1)
+        n_dst = max(d['Info'].get('FrameCount', 1) - 1, 1)
+        out = {}
+        for k, v in zip(keys, vals):
+            out[min(round(k * n_dst / n_src), n_dst)] = v
+        keyed = {'Keys': sorted(out), 'Values': [out[k] for k in sorted(out)]}
+        tracks = d['SkeletalAnimation_'].setdefault('Tracks', [])
+        dst = next((x for x in tracks if x['BoneName'] == 'origin'), None)
+        if dst is None:
+            dst = {'BoneName': 'origin',
+                   'ScaleChannel_type': 'FixedVectorTrack', 'ScaleChannel': {'Value': {'X': 1.0, 'Y': 1.0, 'Z': 1.0}},
+                   'TranslateChannel_type': 'FixedVectorTrack',
+                   'TranslateChannel': {'Value': {'X': 0.0, 'Y': 0.0, 'Z': 0.0}}}
+            tracks.insert(0, dst)
+        dst['RotationChannel_type'], dst['RotationChannel'] = 'Keyed16RotationTrack', keyed
+        zm.from_json(json.dumps(d), TRANM, path)
+        done.append(name)
+    return done
 
 
 _RAGDOLL = {}
