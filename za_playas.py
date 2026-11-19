@@ -45,7 +45,7 @@ NAMES = {'tr0003_00_hotel_manager': 'AZ', 'tr0004_00_f': 'L / Lysandre', 'tr0005
          'tr1001_00_ca': 'Ansha', 'tr1001_01_ca': 'Ansha (apron)'}
 # characters are brought to the player's height; ones much taller or shorter than the player (AZ, Ivor, children)
 # look odd squeezed or stretched to it, so they aren't offered
-MIN_SIZE, MAX_SIZE = 0.85, 1.25
+MIN_SIZE, MAX_SIZE = 0.85, 1.15      # (Lysandre 1.23 and the 1.19 'fm' / 'gm' bodies looked odd)
 NOT_PLAYABLE = {'1001'}          # Ansha
 MAX_JOINT_GAP = 0.085         # m: how far a character's joints may sit from the player's (at the player's height)
 ACCESSORY_BONES = ('bag', 'bangle', 'left_attach', 'right_attach')     # attachment points, not the body
@@ -147,8 +147,16 @@ def characters(root):
             out.append(('%s  -  tr%s' % (label, m.group(1)), '%s/%s' % (d, f)))
     # trainers and townsfolk the game builds from parts (body types that fit the player)
     npcs = []
+    body_ok = {}
     for f, body in npc_list(root):
-        if body in NPC_BODIES_THAT_FIT:
+        if body not in body_ok:                 # the same height rule as the named characters
+            try:
+                r = size_ratio(os.path.join(root, 'ik_chara', 'model_cc_base', body, body + '_base.trskl'),
+                               os.path.join(root, *BASE_DIR.split('/'), 'p0_base.trskl'))
+                body_ok[body] = body in NPC_BODIES_THAT_FIT and MIN_SIZE <= r <= MAX_SIZE
+            except Exception:  # noqa: BLE001
+                body_ok[body] = False
+        if body_ok[body]:
             try:
                 npcs.append((npc_label(root, f), os.path.relpath(f, root).replace(os.sep, '/')))
             except Exception:  # noqa: BLE001

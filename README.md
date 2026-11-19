@@ -102,7 +102,7 @@ on it), a modded Switch (Atmosphere) or an emulator.
   name, with its type. Play, export and **replace** them with any audio file (WAV, MP3, OGG, FLAC, M4A…), with
   volume, loudness matching and loop points. **Add as new battle music…** adds a song to the "Battle BGM" list
   of online Private Battles as a new entry, and can make it the music of every trainer battle.
-- **Play as a character** (Mods tab): the player becomes one of the game's characters (19 named characters and 133
+- **Play as a character** (Mods tab): the player becomes one of the game's characters (18 named characters and 93
   trainer and townsfolk outfits), fitted to the player's skeleton; the player's own face, hair and clothes are hidden.
 - **Experimental**:
   - Import an edited glTF back into a model. Tangents are recomputed from the UVs, each vertex keeps its strongest bone
