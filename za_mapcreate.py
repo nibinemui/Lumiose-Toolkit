@@ -448,7 +448,12 @@ def create_portal(mt, kind, x, z, spec):
     ci = next((i for i, c in enumerate(chunks) if za_map.gate_name(c) == old), None)
     if ci is None:
         raise ValueError("Could not find %s in its scene file." % old)
-    y = ground_height(mt, px, pz, _pos(p)[1] - PORTAL_LIFT) + PORTAL_LIFT
+    # the nearest real portal's height when it is close (points around can be on roofs: a test got 18.8 m for a
+    # street at 1.4 m), else the ground around plus the portals' usual lift
+    if (_pos(p)[0] - px) ** 2 + (_pos(p)[2] - pz) ** 2 <= 40.0 ** 2:
+        y = _pos(p)[1]
+    else:
+        y = ground_height(mt, px, pz, _pos(p)[1] - PORTAL_LIFT) + PORTAL_LIFT
     ids = []
 
     def all_ids(cs):
