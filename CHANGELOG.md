@@ -1,6 +1,6 @@
 # Patch notes
 
-## 2.0.0 - 2026-11-17
+## 2.0.0 - 2026-11-18
 
 ### New
 - **Port a Pokémon** (Pokémon data tab → **Port a Pokémon from Scarlet/Violet…**): brings a Pokémon from your Scarlet/Violet dump into Legends: Z-A as a new Pokémon, in a species slot Z-A has data for but doesn't use - nothing in the game is replaced. It lists every Pokémon in the dump that has a free slot (about 140, e.g. Cyndaquil, Oshawott, Wooper, Tauros, Mew), and in one go writes:
