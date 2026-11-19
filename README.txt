@@ -234,7 +234,9 @@ a dungeon floor map chosen under Background and aligned once (saved in map_calib
 A duplicated point only spawns something if the spawner data tables have an entry with that name.
 New points: "Add spawn point..." copies the selected Pokémon spawn point; "Create Spawn Point..."
 (experimental) adds a Pokémon spawner, item ball or move gimmick at an empty spot you click.
-"Hyperspace Pokémon..." (experimental) edits which Pokémon Hyperspace brings. "Show Pokémon icons"
+"Hyperspace Pokémon..." (experimental) edits which Pokémon Hyperspace brings. "Encounter overview..."
+(experimental) lists every wild Pokémon - where, levels, weight, chance, alpha, day or night - and
+edits levels, weight and alpha chance in the list. "Show Pokémon icons"
 puts each spawn point's Pokémon on the map; points your current mod added are drawn black.
 
 
