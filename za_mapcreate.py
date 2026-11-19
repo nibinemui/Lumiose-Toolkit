@@ -544,9 +544,9 @@ def _apply_pokemon(mt, s, new, spec):
     elif spec.get('when') == 'night':
         info['appearedTimeCondition'] = 2
     s['encountDataInfoList'] = [info]
-    # the copied spawner may only work in some weather, time or story point: the new one always does (or only at
-    # night, if asked)
-    s['activationCondition'] = _when(spec) if spec.get('when') == 'night' else copy.deepcopy(FORCE)
+    # the copied spawner may only work in some weather, time or story point: the new one always does (or only by
+    # day / at night, if asked - the encounter's time mark alone let a day-only Pokémon show at night)
+    s['activationCondition'] = _when(spec)
     if 'activationConditionForUi' in s:
         s['activationConditionForUi'] = copy.deepcopy(FORCE)
 
