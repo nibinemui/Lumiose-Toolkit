@@ -1,5 +1,10 @@
 # Patch notes
 
+## Unreleased
+
+### New
+- **Encounter overview…** (Map tab, experimental): every Pokémon the game's spawners bring, in one list - Pokémon, form, where (Wild Zone, district streets, Lysandre Labs, the Sewers, Hyperspace by zone type and rank, boss battles and story events), how many spawn points, levels, weight, chance, alpha chance, day or night, and other conditions (weather, story progress). Click a heading to sort, search by any word ("wild zone 1", "pikachu night", "alpha"), or show one kind of place. Identical spawn points are counted in one row (untick to see each one). Double-click Levels, Weight or Alpha to change it in the list, or select several rows and change them together; when other spawn points share an encounter you choose to change them too or give the selected ones their own copy. Double-click any other column to show the spawn point on the map (again for the next one). Changes go into the Map tab's tables and are saved with its "Save changes to current mod".
+
 ## 2.0.0 - 2026-11-18
 
 ### New

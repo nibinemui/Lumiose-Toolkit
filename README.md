@@ -37,8 +37,9 @@ on it), a modded Switch (Atmosphere) or an emulator.
 ## Features
 
 Features marked **(experimental)** show a warning in their window: some things may not work properly or look
-incorrect. They are Port a Pokémon (and its icons), Create Spawn Point, Hyperspace Pokémon, new battle music, Play as a
-character, glTF model import and sound replacement. Test what they make with a copy of your save before sharing a mod.
+incorrect. They are Port a Pokémon (and its icons), Create Spawn Point, Hyperspace Pokémon, the encounter overview, new
+battle music, Play as a character, glTF model import and sound replacement. Test what they make with a copy of your
+save before sharing a mod.
 
 ### Browse & extract
 - **Search by in-game name**: Pokémon (`pikachu`, `25`), clothing (`v-neck t-shirt`), or any file/folder name. Small typos are fine.
@@ -106,6 +107,9 @@ character, glTF model import and sound replacement. Test what they make with a c
     form's wild behaviour.
   - **Hyperspace Pokémon…** (experimental): which Pokémon Hyperspace Lumiose brings for each zone type and rank -
     change them, their levels and alpha chance, or add and remove Pokémon.
+  - **Encounter overview…** (experimental): every wild Pokémon in one sortable, searchable list - where it appears, how
+    many spawn points, levels, weight, chance, alpha chance, day or night. Change levels, weight and alpha chance right
+    in the list (several rows at once too); double-click a row to show its spawn point on the map.
   - **Show Pokémon icons**: each Pokémon spawn point shows the icon of the Pokémon most likely to appear there.
   - Points your current mod added are drawn black, so they stand out from the game's own.
   - Edit the **contents of item balls** and random items, with "Make unique" so other spots aren't affected.
@@ -405,6 +409,15 @@ The first time you open it, the tab builds its list of every sound and song (abo
   their spawners and each Pokémon's levels, alpha chance and spot (floating or on the ground). Change a Pokémon (for
   that spawner only, or everywhere it is shared), its levels and alpha chance, or add and remove Pokémon. A Mega or
   other form never seen in the wild gets its normal form's wild behaviour.
+- **Encounter overview…** (experimental): one row per Pokémon and place (untick *One row per Pokémon and place* for one
+  row per spawn point) with form, where (Wild Zone, district streets, Lysandre Labs, the Sewers, Hyperspace by zone type
+  and rank, boss battles and story events), spawn points, levels (*+N*: levels the spawner adds), weight, chance (how
+  often it is picked at its spawn point among the Pokémon that can appear at the same time), alpha chance, day / night
+  and other conditions. Click a heading to sort; *Search* needs every word, and a number after a word goes with it
+  ("wild zone 1" is only Wild Zone 1). Double-click Levels, Weight or Alpha to edit it in place, or select rows and use
+  the fields below. If other spawn points share the encounter you are asked: change them too, or give the selected ones
+  their own copy. Double-click any other column to jump to the spawn point on the map. Edits go into the Map tab and
+  are saved with **Save changes to current mod** (in either window).
 - **Show Pokémon icons**: each Pokémon spawn point shows the icon of the Pokémon most likely to appear there (ported
   Pokémon too).
 - Points the current mod added are drawn black, ringed in their layer's colour. The map reloads when you switch the
@@ -472,7 +485,7 @@ That index is made for exactly the mods in the package, so **build one combined 
   Pokémon, new spawn points (Pokémon by day or night, Megas, item balls, Mega Shard crystals), trainer battle music
   and Hyperspace Pokémon edits were tested in game for 2.0. Custom clothing colours (widened palettes) are new and
   need an in-game check. The features marked (experimental) - Port a Pokémon, Create Spawn Point, Hyperspace Pokémon,
-  new battle music, Play as a character, glTF model import and sound replacement - may not work properly or look
+  the encounter overview, new battle music, Play as a character, glTF model import and sound replacement - may not work properly or look
   incorrect in some cases. Test them with a copy of your save before sharing a mod.
 - **Viewer approximations**: eye effects and special shaders (hologram, fur, emission) are simplified. Clothing is shown in its rest pose unless you use *Try on player body*.
 - **Interior and dungeon areas**: these reuse coordinates near the world origin, so they are told apart by the area code in point names. Floor-map backgrounds must be aligned by hand once per area.
@@ -531,6 +544,7 @@ Lumiose Toolkit/
   za_map.py               Map tab
   za_mapcreate.py         Create Spawn Point (new spawns, item balls, move gimmicks; NPCs and portals for later)
   za_hyperspace.py        Hyperspace Pokémon window
+  za_encounters.py        Encounter overview window (every wild Pokémon in one list)
   za_mated.py             material colour editor
   za_colours.py           clothing colour editor, custom colours (colour wheel), pattern textures window
   za_conflicts.py         mod conflict check (own mods, load order, mods installed in ZA Recomp)

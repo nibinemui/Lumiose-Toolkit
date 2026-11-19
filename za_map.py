@@ -372,7 +372,10 @@ class MapTab:
         ttk.Checkbutton(side, text='Show Pokémon icons on Pokémon spawn points (the most likely one)',
                         variable=self.show_icons, command=self.redraw).pack(anchor='w')
         self.icon_cache = {}
-        ttk.Button(side, text='Hyperspace Pokémon…', command=self.hyperspace_spawns).pack(anchor='w', pady=(4, 0))
+        hb = ttk.Frame(side)
+        hb.pack(anchor='w', pady=(4, 0))
+        ttk.Button(hb, text='Encounter overview…', command=self.encounter_overview).pack(side='left')
+        ttk.Button(hb, text='Hyperspace Pokémon…', command=self.hyperspace_spawns).pack(side='left', padx=(6, 0))
 
         ttk.Label(side, text='Selected point', style='Head.TLabel').pack(anchor='w', pady=(10, 2))
         g = ttk.Frame(side)
@@ -547,6 +550,7 @@ class MapTab:
 
     # ---------------- encounter helpers ----------------
     def index_spawn_tables(self):
+        self.spawn_version = getattr(self, 'spawn_version', 0) + 1      # windows showing encounters read them again
         self.enc_by_id, self.spawner_by_obj, self.enc_users = {}, {}, {}
         enc, sp = self.tables.get('enc'), self.tables.get('spawner')
         if enc:
@@ -1124,6 +1128,7 @@ class MapTab:
         self._after_encounter_edit(None)
 
     def _after_encounter_edit(self, select):
+        self.spawn_version = getattr(self, 'spawn_version', 0) + 1
         self.spawn_info = {n: self.encounter_lines(n) for n in self.spawner_by_obj}
         self.show_sel()
         if select is not None and self.enc_tree.exists(str(select)):
@@ -1589,6 +1594,14 @@ class MapTab:
             return
         import za_mapcreate
         za_mapcreate.open_menu(self, *self.empty_spot)
+
+    def encounter_overview(self):
+        """Every Pokémon the spawners bring, in one sortable, searchable, editable list."""
+        if not self.loaded or not self.tables:
+            messagebox.showinfo('Encounter overview', 'Wait until the map has loaded.')
+            return
+        import za_encounters
+        za_encounters.open_window(self)
 
     def hyperspace_spawns(self):
         """Which Pokémon Hyperspace brings, by zone type and rank."""
