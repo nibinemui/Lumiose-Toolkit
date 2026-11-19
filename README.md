@@ -83,6 +83,7 @@ character, glTF model import and sound replacement. Test what they make with a c
   - **Custom colours**: *Custom colour…* opens a colour wheel with a hex code box, so you can use any colour, not just the palette's. Other clothing that shares the palette keeps its exact colours (see [Custom clothing colours](#custom-clothing-colours)). *New - not yet confirmed in-game.*
 - **Pattern textures**: *Edit pattern textures…* lists every texture of a clothing pattern (base, layer mask, palette, normal map…) with a preview, explains what each one does, marks textures shared with other patterns or other items, and opens them for live editing.
 - **Game text**: in-app editor with search, highlighted `[VAR …]` codes and multi-line text. Export/import as a text file also works.
+- **Text in every language**: *Apply to all languages…* in the text editor changes one line in every language at once - one new text for all, or one per language - and saves them all into the current mod.
 - **Pokémon data** (`personal_array`): types, abilities, base stats, EV yield, catch rate, growth rate, gender, egg groups, size, level-up moves, evolutions, TM moves and egg moves.
 - **Port a Pokémon** (experimental): bring a Pokémon from a Scarlet/Violet dump into Z-A as a new Pokémon in a free species slot (model, animations, Z-A materials, species data, moves, alpha move, cry, wild behaviour, Pokédex entry, spawns), with icons rendered in Z-A's style.
 - **Game data tab**: a table editor for:

@@ -1,5 +1,13 @@
 # Patch notes
 
+## Unreleased
+
+### New
+- **Text in every language** (text editor → pick a line → **Apply to all languages…**): change a line of game text once and save it in every language the game has. The window shows the line's text now in each language; type one new text and press **Put in every language**, or give a language its own text. Only that line changes - every other line of each file stays exactly as it was - and all the languages are saved into the current mod in one go (History keeps the old versions). It warns when a language loses `[VAR …]` codes, and asks before replacing a copy another window or tool saved meanwhile.
+
+### Fixed
+- **Text editor:** the window title shows the language again (it showed the folder name), and saving asks first when the mod's copy of the file changed since the editor read it.
+
 ## 2.0.0 - 2026-11-18
 
 ### New
