@@ -1,5 +1,5 @@
-"""Map tab: create a new spawn point where you clicked - a Pokémon spawner, an item ball, random items, a move
-gimmick or an NPC - through a short step-by-step menu.
+"""Map tab: create a new spawn point where you clicked - a Pokémon spawner, an item ball, a move gimmick or
+an NPC - through a short step-by-step menu.
 
 Every kind of point is four pieces: its position (a *_spawner_transform row), its spawner row ("id_" + name, or
 the NPC's own id), what it spawns (an encounter, an item table, a gimmick type or an NPC look) and its entry in
@@ -27,8 +27,6 @@ KINDS = {
                 'A wild Pokémon appears here: species, form, levels, size, alpha.'),
     'itemball': ('Item Ball', 'itemball_spawner_transform_array', 'ib_spawner', '*item_ball_spawner*.trscn',
                  'A Poké Ball item on the ground with the item and count you pick.'),
-    'random': ('Random Items', 'random_pop_item_spawner_transform_array', 'rp_spawner', '*random_pop_item_spawner*.trscn',
-               'Sparkling items that pop up again and again, picked from a list by weight.'),
     'gimmick': ('Move Gimmick', 'wazagimmick_spawner_transform_array', 'wg_spawner', '*waza_gimmick*.trscn',
                 'An object Pokémon moves interact with (rocks, boxes, crates...).'),
     'npc': ('NPC', 'placement_npc_spawner_transform_array', 'npc_spawner', '*placement_npc_spawner*.trscn',
@@ -38,8 +36,9 @@ KINDS = {
                'at a time at random.'),
 }
 # kinds left out of the menu for now: new NPCs can't say or do anything of their own yet (that needs the game's
-# event scripts), and new random-item spots didn't show up in game. Their code stays for later.
-HIDDEN_KINDS = {'npc', 'random', 'portal'}     # (portals: not seen opening in game yet)
+# event scripts), and new portals weren't seen opening in game yet. Their code stays for later. (New random-item
+# spots were dropped: item balls do that job.)
+HIDDEN_KINDS = {'npc', 'portal'}
 
 
 # ---- table helpers ------------------------------------------------------------------------------------------
@@ -605,15 +604,6 @@ def _apply_itemball(mt, s, new, spec):
         s.pop('activationCondition', None)
 
 
-def _apply_random(mt, s, new, spec):
-    tid = 'lt_' + new
-    _item_table(mt, 'rp_items', tid, [(i, 1, w) for i, w in spec['items']])
-    s['tableInfoList'] = [{'tableId': tid, 'activationCondition': copy.deepcopy(FORCE)}]
-    s['activationCondition'] = _when(spec)
-    for o in s.get('appearanceSpawnerObjectInfoList') or []:
-        o['appearanceInfo'] = {'minCount': spec['min'], 'maxCount': max(spec['min'], spec['max'])}
-
-
 def _apply_gimmick(mt, s, new, spec):
     s['activationCondition'] = copy.deepcopy(FORCE)
     # the placement flags this kind of object has most often in the game (a wall crystal's flags sink a
@@ -640,8 +630,7 @@ def _apply_npc(mt, s, new, spec):
                 o['tagInfoList'] = [{'tag': t} for t in tags]
 
 
-APPLY = {'pokemon': _apply_pokemon, 'itemball': _apply_itemball, 'random': _apply_random,
-         'gimmick': _apply_gimmick, 'npc': _apply_npc}
+APPLY = {'pokemon': _apply_pokemon, 'itemball': _apply_itemball, 'gimmick': _apply_gimmick, 'npc': _apply_npc}
 
 
 # ---- choices for the menu ------------------------------------------------------------------------------------
@@ -1015,46 +1004,6 @@ def open_menu(mt, x, z):
                 if not m:
                     raise ValueError('Pick an item from the list.')
                 return {'item': int(m.group(1)), 'count': int(cnt.get()), 'when': when.get()}
-            nav(kind, spec)
-        elif kind == 'random':
-            items = ['%s (#%d)' % (n, i) for i, n in sorted(mt.item_names.items()) if n and i]
-            ttk.Label(g, text='Items that can pop up (the weight decides how often each one is picked):',
-                      wraplength=480).grid(row=0, column=0, columnspan=3, sticky='w')
-            lst = ttk.Treeview(g, columns=('w',), height=6, selectmode='browse')
-            lst.heading('#0', text='Item')
-            lst.heading('w', text='Weight')
-            lst.column('#0', width=300)
-            lst.column('w', width=70)
-            lst.grid(row=1, column=0, columnspan=3, sticky='ew', pady=4)
-            it = ttk.Combobox(g, values=items, width=28)
-            it.grid(row=2, column=0, sticky='w')
-            filtered(it, items)
-            wv = tk.IntVar(value=100)
-            ttk.Spinbox(g, from_=1, to=1000, textvariable=wv, width=6).grid(row=2, column=1, sticky='w', padx=4)
-
-            def add():
-                if re.search(r'#(\d+)\)\s*$', it.get()):
-                    lst.insert('', 'end', text=it.get(), values=(int(wv.get()),))
-            ttk.Button(g, text='Add', command=add).grid(row=2, column=2, sticky='w')
-            ttk.Button(g, text='Remove selected', command=lambda: [lst.delete(i) for i in lst.selection()]).grid(
-                row=3, column=0, sticky='w', pady=2)
-            lo, hi = tk.IntVar(value=2), tk.IntVar(value=4)
-            cf = ttk.Frame(g)
-            cf.grid(row=4, column=0, columnspan=3, sticky='w', pady=(8, 0))
-            ttk.Label(cf, text='Items shown at once:').pack(side='left')
-            ttk.Spinbox(cf, from_=1, to=10, textvariable=lo, width=4).pack(side='left', padx=4)
-            ttk.Label(cf, text='to').pack(side='left')
-            ttk.Spinbox(cf, from_=1, to=10, textvariable=hi, width=4).pack(side='left', padx=4)
-            wrow = ttk.Frame(g)
-            wrow.grid(row=5, column=0, columnspan=3, sticky='w')
-            when = when_row(wrow, 0, span=1)
-
-            def spec():
-                chosen = [(int(re.search(r'#(\d+)\)\s*$', lst.item(i, 'text')).group(1)), int(lst.item(i, 'values')[0]))
-                          for i in lst.get_children()]
-                if not chosen:
-                    raise ValueError('Add at least one item.')
-                return {'items': chosen, 'min': int(lo.get()), 'max': int(hi.get()), 'when': when.get()}
             nav(kind, spec)
         elif kind == 'gimmick':
             types = dict(gimmick_choices(mt))
