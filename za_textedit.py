@@ -49,9 +49,12 @@ class TextEditor(tk.Toplevel):
                 self.texts, self.from_mod = mod_lines, True
             except (OSError, ValueError):
                 pass
+        # the file this window's copy came from, and its state then (saving asks if it changed meanwhile)
+        self.src = m.path_for(self.rel) if self.from_mod else path
+        self.stamp = zm.file_stamp(self.src)
         self.cur = None
         self.dirty = False
-        lang = self.rel.split('/')[3] if self.rel and self.rel.startswith('ik_message/dat/') else ''
+        lang = self.rel.split('/')[2] if self.rel and self.rel.startswith('ik_message/dat/') else ''
         self.title('Edit text - %s %s' % (os.path.basename(path), '(%s)' % lang if lang else ''))
         sw, sh = self.winfo_screenwidth(), self.winfo_screenheight()
         self.geometry('%dx%d' % (min(1100, sw - 80), min(760, sh - 120)))
@@ -109,6 +112,8 @@ class TextEditor(tk.Toplevel):
         bf.pack(fill='x', pady=4)
         ttk.Button(bf, text='Apply  (Ctrl+Enter)', command=self.apply).pack(side='left')
         ttk.Button(bf, text='Revert line to original', command=self.revert).pack(side='left', padx=4)
+        if self.rel and self.rel.startswith('ik_message/dat/'):
+            ttk.Button(bf, text='Apply to all languages…', command=self.all_languages).pack(side='left')
         ttk.Label(bf, text='Line breaks become \\n.  Keep [VAR …] codes (blue) - they insert names/numbers.',
                   style='Dim.TLabel').pack(side='left', padx=8)
 
@@ -188,6 +193,39 @@ class TextEditor(tk.Toplevel):
         self.highlight()
         self.apply(quiet=True)
 
+    def all_languages(self):
+        """Open 'Apply to all languages' for the selected line."""
+        if self.cur is None:
+            messagebox.showinfo('Apply to all languages', 'Pick a line first.', parent=self)
+            return
+        import za_textsync
+        try:
+            za_textsync.open_window(self, self.cur)
+        except Exception as e:  # noqa: BLE001
+            messagebox.showerror('Apply to all languages', 'Could not read the line in every language: %s' % e,
+                                 parent=self)
+
+    def synced(self, index, news, m, before):
+        """'Apply to all languages' saved line `index` into mod m; news: {language: new text}, before: {language:
+        the mod file's state when that window read it}. This window's copy takes the new text of its own
+        language, so saving it later keeps that line."""
+        lang = self.rel.split('/')[2]
+        if lang not in news or not self.winfo_exists():
+            return
+        self.texts[index] = news[lang]
+        target = m.path_for(self.rel)
+        same = os.path.normcase(os.path.abspath(self.src)) == os.path.normcase(os.path.abspath(target))
+        if (same and self.stamp == before.get(lang)) or (not self.from_mod and before.get(lang) is None):
+            # nothing else wrote the file in between: this copy now matches the mod's
+            self.src, self.stamp, self.from_mod = target, zm.file_stamp(target), True
+        if self.cur == index:
+            self.edit.delete('1.0', 'end')
+            self.edit.insert('1.0', news[lang].replace('\\n', '\n'))
+            self.highlight()
+        self.fill()
+        if self.cur is not None and self.tree.exists(str(self.cur)):
+            self.tree.selection_set(str(self.cur))
+
     def save(self):
         self.apply(quiet=True)
         m = self.app.current_mod()
@@ -197,6 +235,9 @@ class TextEditor(tk.Toplevel):
             from tkinter import messagebox as mb
             mb.showinfo('Edit text', 'This file is neither in the game folder nor in the current mod, so it has no '
                         'place to be saved.', parent=self)
+            return
+        if not self.app.confirm_save_target('The text file %s' % os.path.basename(self.rel), self.src, self.stamp,
+                                            m, self.rel, parent=self):
             return
         texts, template, rel = list(self.texts), self.template, self.rel
 
@@ -211,6 +252,7 @@ class TextEditor(tk.Toplevel):
 
         def done(n):
             self.dirty = False
+            self.src, self.stamp, self.from_mod = m.path_for(rel), zm.file_stamp(m.path_for(rel)), True
             self.app.mod_changed(m, rel, '%d line(s) changed' % n)
             self.title(self.title().split(' - saved')[0] + ' - saved into "%s"' % m.name)
         self.app.run_bg('Saving ' + os.path.basename(rel), job, done)
