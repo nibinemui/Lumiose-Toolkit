@@ -223,7 +223,10 @@ def create(mt, kind, x, z, spec):
     area = getattr(mt, 'area', za_map.CITY)
     in_area = area != za_map.CITY                       # an interior or dungeon (they reuse coordinates near 0, 0)
     fallback = None
-    for _, L, gi, si, p in candidates(mt, kind, x, z)[:200]:
+    cands = candidates(mt, kind, x, z)
+    if in_area:                                         # this area's points, however far, before others
+        cands = [c for c in cands if mt.point_area.get(c[4].get('Name', '')) == area]
+    for _, L, gi, si, p in cands[:200]:
         old = p.get('Name', '')
         if not re.search(r'\d\d$', old):
             continue
@@ -231,6 +234,9 @@ def create(mt, kind, x, z, spec):
             continue                                    # only from the area on the map
         if kind == 'npc' and 'pokemon' in old:
             continue                                    # a person, not one of the NPCs' Pokémon
+        if kind == 'npc' and any(r.get('id', '').startswith('npc_main') for r in rows(table) if old in object_names(r)):
+            continue                                    # main story characters are placed by the story: a copy of
+            # one (the sewers' ju_boss) never appeared, copies of a side quest's NPC did
         if kind == 'npc' and 'npc_talk' not in old and not in_area:
             continue                                    # in the city people are copied from townsfolk, not story
             # scenes; places without townsfolk (the sewers, the labs) copy any of their NPCs
