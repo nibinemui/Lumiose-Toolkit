@@ -20,7 +20,26 @@ import za_modding as zm
 TRIGGER = 'ik_event/bin/trigger/sub/trigger_sub_0001.bin'
 TEXT = 'sub_001'                                   # script text file of the first side quest
 TEXT_DIR = 'ik_message/dat'
-CMD_TALK, CMD_GIVE, CMD_SET_WORK = 3, 11, 9
+CMD_TALK, CMD_GIVE, CMD_SET_WORK, CMD_POKEMON = 3, 11, 9, 10
+# gift Pokémon: a row of the game's Pokémon data (as its own gifts: sub_addpoke_*) handed over with command 10
+POKEDATA = 'world/ik_data/field/pokemon/pokemon_data/pokemon_data/pokemon_data_array.bin'
+PLACES = [('Lumiose City', 'MAPNAME_LUMIOSE'), ('a distant land', 'MAPNAME_TOOKUHANARETATOTI'),
+          ('the Pokémon Research Lab', 'MAPNAME_Lab'), ('the Lumiose Museum', 'MAPNAME_Museum'),
+          ('Hyperspace Lumiose', 'MAPNAME_DIM'), ('the Kalos region', 'MAPNAME_KAROSU')]
+
+
+def gift_row(gid, species, form=0, level=5, perfect=False, moves=()):
+    """A gift Pokémon's row: species, form, level, all IVs 31 if perfect, up to 4 move numbers (0 = the moves it
+    knows at that level). The ball is the game's usual one: gifts have no ball field."""
+    iv = 31 if perfect else -1
+    row = {'id': gid, 'devNo': int(species), 'minLevel': int(level), 'maxLevel': int(level), 'sex': -1,
+           'formNo': int(form), 'rare': 536870911, 'tokusei': 255, 'seikaku': -1, 'talentScale': 128,
+           'talentVNum': 6 if perfect else 0, 'oyabunProbability': 0.0, 'oyabunAdditionalLevel': 0,
+           'talentValue': {k: iv for k in ('hp', 'atk', 'def', 'spAtk', 'spDef', 'agi')}}
+    moves = [int(m) for m in moves if m][:4]
+    if moves:
+        row['wazaList'] = {'waza%d' % (i + 1): (moves[i] if i < len(moves) else 0) for i in range(4)}
+    return row
 END = '[VAR 0114(125)]'                            # how the game ends each of these lines
 SCHEMA = os.path.join(zm.SCHEMAS, 'za', 'za_trigger.fbs')
 _cache = {}
@@ -177,10 +196,12 @@ def _languages(root):
                   if os.path.isfile(os.path.join(base, d, 'script', TEXT + '.dat'))) if os.path.isdir(base) else []
 
 
-def write_talk(root, romfs, pending, npc, say, item=None, count=1, once=False, after=''):
+def write_talk(root, romfs, pending, npc, say, item=None, count=1, once=False, after='', pokemon=None,
+               place='MAPNAME_LUMIOSE'):
     """Files {rel: bytes} giving NPC `npc` (its placement id) these lines (and item), stacked on `pending` (files
     already waiting to be saved). item = item number or None; once = the lines + item only the first time, then
-    `after` (or the same lines without the item)."""
+    `after` (or the same lines without the item). pokemon = gift_row() keywords (species, form, level, perfect,
+    moves) to also give a Pokémon, met at `place` (a MAPNAME_ label)."""
     import za_newitem
     first = boxes(say)
     later = boxes(after) or first
@@ -221,7 +242,28 @@ def write_talk(root, romfs, pending, npc, say, item=None, count=1, once=False, a
         d['Triggers'] = [t for t in d.get('Triggers') or []
                          if npc not in ((t.get('Item') or {}).get('Target') or [])]
         talk = [{'Type': CMD_TALK, 'Params': [npc, TEXT, lab, '1']} for lab in labels_first]
-        gift = [{'Type': CMD_GIVE, 'Params': [ids[item], str(max(1, int(count)))]}] if item is not None else []
+        gift = []
+        if pokemon:
+            gid = 'addpoke_lt_' + tag
+            game_table = os.path.join(root, *POKEDATA.split('/'))
+            schema = zm.schema_for(game_table)
+            src = os.path.join(td, 'pokedata.bin')
+            with open(src, 'wb') as f:
+                f.write(_read(POKEDATA, root, romfs, pending))
+            pd = json.loads(zm.to_json(src, schema))
+            groups = pd.get('values') or []
+            for g in groups:
+                if 'root' in g:
+                    g['root'] = [r for r in g['root'] if r.get('id') != gid]
+            (groups[0].setdefault('root', []) if groups and 'root' in groups[0] else groups).append(
+                gift_row(gid, **pokemon))
+            dst = os.path.join(td, 'pokedata_out.bin')
+            zm.from_json(json.dumps(pd), schema, dst)
+            with open(dst, 'rb') as f:
+                out[POKEDATA] = f.read()
+            gift.append({'Type': CMD_POKEMON, 'Params': [gid, 'NONE', 'NONE', 'NONE', place]})
+        if item is not None:
+            gift.append({'Type': CMD_GIVE, 'Params': [ids[item], str(max(1, int(count)))]})
         if once:
             work = free_work(root, [v for k, v in pending.items() if k.endswith('.bin')])
             entries = [

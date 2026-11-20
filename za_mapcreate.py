@@ -219,12 +219,20 @@ def create(mt, kind, x, z, spec):
     template = None
     zones = _zones(mt) if kind == 'pokemon' else {}
     here = _zone_at(mt, zones, x, z) if kind == 'pokemon' else None
-    for _, L, gi, si, p in candidates(mt, kind, x, z)[:80]:
+    import za_map
+    area = getattr(mt, 'area', za_map.CITY)
+    in_area = area != za_map.CITY                       # an interior or dungeon (they reuse coordinates near 0, 0)
+    for _, L, gi, si, p in candidates(mt, kind, x, z)[:200]:
         old = p.get('Name', '')
         if not re.search(r'\d\d$', old):
             continue
-        if kind == 'npc' and 'npc_talk' not in old:
-            continue                                    # people are copied from townsfolk, not story scenes
+        if in_area and mt.point_area.get(old) != area:
+            continue                                    # only from the area on the map
+        if kind == 'npc' and 'pokemon' in old:
+            continue                                    # a person, not one of the NPCs' Pokémon
+        if kind == 'npc' and 'npc_talk' not in old and not in_area:
+            continue                                    # in the city people are copied from townsfolk, not story
+            # scenes; places without townsfolk (the sewers, the labs) copy any of their NPCs
         if kind == 'pokemon':                           # a Wild Zone spawner only inside its zone, and only
             if zones.get(old) != here:                  # spawners outside zones outside them
                 continue
@@ -278,7 +286,8 @@ def create(mt, kind, x, z, spec):
         try:
             files = za_npctalk.write_talk(os.path.normpath(mt.app.root_var.get()), mt.romfs, extra, s['id'],
                                           spec['say'], spec.get('item'), spec.get('count', 1), spec.get('once'),
-                                          spec.get('after', ''))
+                                          spec.get('after', ''), spec.get('pokemon'),
+                                          spec.get('place', 'MAPNAME_LUMIOSE'))
         except za_npctalk.TalkError as e:
             raise ValueError(str(e))
         extra.update(files)
