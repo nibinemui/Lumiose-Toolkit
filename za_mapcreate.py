@@ -222,6 +222,7 @@ def create(mt, kind, x, z, spec):
     import za_map
     area = getattr(mt, 'area', za_map.CITY)
     in_area = area != za_map.CITY                       # an interior or dungeon (they reuse coordinates near 0, 0)
+    fallback = None
     for _, L, gi, si, p in candidates(mt, kind, x, z)[:200]:
         old = p.get('Name', '')
         if not re.search(r'\d\d$', old):
@@ -238,8 +239,15 @@ def create(mt, kind, x, z, spec):
                 continue
         rel = mt.find_scene(old, KINDS[kind][3])
         if rel:
+            if in_area and '/area/%s/' % area not in rel:
+                # named for this area but placed by another place's scene (an office, a story scene): only if
+                # nothing in this area's own scene folder can be copied
+                fallback = fallback or (L, gi, si, p, rel)
+                continue
             template = (L, gi, si, p, rel)
             break
+    if template is None and in_area:
+        template = fallback
     if template is None:
         raise ValueError('No %s near here can be copied (none is placed by a scene file the toolkit can find).'
                          % KINDS[kind][0].lower())
