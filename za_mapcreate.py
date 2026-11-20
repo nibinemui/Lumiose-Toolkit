@@ -287,6 +287,8 @@ def create(mt, kind, x, z, spec):
                                              if o.get('objectName') == new]
         s['appearingConditionList'] = [c for c in s.get('appearingConditionList') or []
                                        if c.get('spawnerObjectInfoList')][:1]
+        for c in s['appearingConditionList']:
+            c['id'] = 'id_0'        # its only condition: a story NPC's 'id_5_5' kept the copy from appearing
     APPLY[kind](mt, s, new, spec)
     if kind == 'npc' and spec.get('say'):               # its own lines (and gift): a talk trigger + text, saved later
         import za_npctalk
