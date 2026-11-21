@@ -162,7 +162,7 @@ def characters(root):
             except Exception:  # noqa: BLE001
                 continue
     # Pokémon whose bones share the player's names (experimental: they walk like a person, at a person's height)
-    pokemon = [('%s  -  Pokémon (experimental)' % name, rel) for rel, name in sorted(POKEMON.items(), key=lambda x: x[1])
+    pokemon = [('%s  -  Pokémon (joke option, experimental)' % name, rel) for rel, name in sorted(POKEMON.items(), key=lambda x: x[1])
                if os.path.isfile(os.path.join(root, *rel.split('/'), os.path.basename(rel) + '.trmdl'))]
     return out + sorted(npcs) + pokemon
 

@@ -104,8 +104,8 @@ save before sharing a mod.
   - **Add spawn point…**: a new Pokémon spawn point with the Pokémon and levels you pick, placed by dragging.
   - **Create Spawn Point…** (experimental): click any empty spot to add a Pokémon spawner (species, form, levels,
     size, always an alpha; always, by day or at night), an item ball, a move gimmick (Mega Shard crystals,
-    Hyperspace boxes, breakable rocks, vines, sludge) or an **NPC with its own lines** who can give an item (every time
-    or only the first time). Megas and other forms never seen in the wild get their normal form's wild behaviour.
+    Hyperspace boxes, breakable rocks, vines, sludge) or an **NPC with its own name and lines** who can give an item
+    and/or a Pokémon (every time or only the first time). Megas and other forms never seen in the wild get their normal form's wild behaviour.
   - **Hyperspace Pokémon…** (experimental): which Pokémon Hyperspace Lumiose brings for each zone type and rank -
     change them, their levels and alpha chance, or add and remove Pokémon.
   - **Encounter overview…** (experimental): every wild Pokémon in one sortable, searchable list - where it appears, how
@@ -121,7 +121,7 @@ save before sharing a mod.
   "Battle BGM" list of online Private Battles as a new entry, and can make it the music of every trainer battle
   (it still fades out and plays the victory jingle at the end).
 - **Play as a character** (Mods tab, experimental): the player becomes one of the game's characters (18 named
-  characters, 93 trainer and townsfolk outfits, or Delibird - a Pokémon that walks like a person), fitted to the
+  characters, 93 trainer and townsfolk outfits, or Delibird as a joke option - a Pokémon that walks like a person), fitted to the
   player's skeleton; the player's own face, hair and clothes are hidden. **Show in 3D** shows each one first.
 - **Also experimental**:
   - Import an edited glTF back into a model. Tangents are recomputed from the UVs, each vertex keeps its strongest bone
@@ -401,8 +401,10 @@ The first time you open it, the tab builds its list of every sound and song (abo
     when it appears - always, only by day or only at night;
   - an **item ball**: item and count, also always / by day / at night;
   - a **move gimmick**: Mega Shard crystals, Hyperspace boxes, breakable rocks, thorny vines or sludge;
-  - an **NPC**: who it is, when it's there, how it behaves, **what they say** (a blank line starts a new text box) and
-    an item they **give** - every time, or **only the first time** you talk to them, with other lines after that. It
+  - an **NPC**: who it is, when it's there, how it behaves, its **name** (shown over its text boxes), **what they say**
+    (a blank line starts a new text box) and what they **give** - an item and/or a Pokémon (**Gives a Pokémon…**:
+    species, form, level, all IVs 31, up to four moves) - every time, or **only the first time** you talk to them,
+    with other lines after that. It
     works like the game's own NPCs (a talk trigger, no event script); the lines go into every language. NPCs talk once
     your save has reached the first side quests.
 

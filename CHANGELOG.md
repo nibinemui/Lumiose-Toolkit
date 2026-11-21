@@ -3,9 +3,11 @@
 ## Unreleased
 
 ### New
-- **NPCs that talk** (Map tab → **Create Spawn Point…** → NPC, experimental): a new NPC can now have **its own lines** (a blank line starts a new text box) and **give an item** - every time, or **only the first time** you talk to them, with other lines after that. No event script is needed: it's a talk trigger, the game's own way of making NPCs talk, plus the lines in every language. Most items can be given (those whose name the game's event data uses). NPCs talk once your save has reached the first side quests.
-- **Give an NPC a name**: the **Name** box puts it over the NPC's text boxes and on its "talk" prompt. Without one, an NPC wearing a named look of the game's (e.g. "Old Man") shows that name, and other townsfolk show none - as the game's own.
-- **Play as Delibird** (Mods tab → Play as a character…, experimental): Delibird is at the end of the list. Its bones share the player's names, so the player's own animations move it - it walks and runs like a person (wings as arms) at a person's height. It looks a little goofy.
+- **New NPCs** (Map tab → **Create Spawn Point…** → NPC, experimental): put a person anywhere - in the city, in interiors and in dungeons like the Sewers. Pick who it looks like (any townsperson or trainer look), when it appears (always, by day or at night) and how it behaves; a new NPC just stands and turns to you when you talk to it.
+  - **Its own lines** (a blank line starts a new text box), in every language. No event script is needed: it's a talk trigger, the game's own way of making NPCs talk. NPCs talk once your save has reached the first side quests.
+  - **A name** (the **Name** box): shown on its "talk" prompt and over its text boxes. Without one, an NPC wearing a named look of the game's (e.g. "Old Man") shows that name, and other townsfolk show none - as the game's own.
+  - **Gifts**: an **item** (most items - those whose name the game's event data uses) and/or a **Pokémon** (**Gives a Pokémon…**: species, form, level, all IVs 31, up to four moves Z-A has, and where it was met; it comes in the game's usual ball). Every time, or **only the first time** you talk to it, with other lines after that.
+- **Play as Delibird** (Mods tab → Play as a character…, a joke option, experimental): Delibird is at the end of the list. Its bones share the player's names, so the player's own animations move it - it walks and runs like a person (wings as arms) at a person's height. It looks a little goofy.
 - The townsfolk talk table (`ik_event/bin/npc_talk_data/npc_talk_data.bin`) has a schema for reading and editing it as JSON.
 - Event trigger files (`ik_event/bin/trigger/…`) can be read and edited as JSON like other data files.
 - **Text in every language** (text editor → pick a line → **Apply to all languages…**): change a line of game text once and save it in every language the game has. The window shows the line's text now in each language; type one new text and press **Put in every language**, or give a language its own text. Only that line changes - every other line of each file stays exactly as it was - and all the languages are saved into the current mod in one go (History keeps the old versions). It warns when a language loses `[VAR …]` codes, and asks before replacing a copy another window or tool saved meanwhile.
@@ -15,7 +17,7 @@
 - Create Spawn Point: making new Hyperspace portals is dropped (the game only opens portals from its own lottery, which couldn't be steered), and so are new random-item sparkles (item balls do that job).
 
 ### Fixed
-- **Create Spawn Point:** a new point faces the way you turn it in game (its rotation is now written into the area's scene file; before, it kept the facing of the point it was copied from). A talking NPC's text boxes no longer all say "Tracie".
+- **Create Spawn Point:** a new point faces the way you turn it in game (its rotation is now written into the area's scene file; before, it kept the facing of the point it was copied from).
 - **Text editor:** the window title shows the language again (it showed the folder name), and saving asks first when the mod's copy of the file changed since the editor read it.
 
 ## 2.0.0 - 2026-11-18

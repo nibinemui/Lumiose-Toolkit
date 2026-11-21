@@ -24,7 +24,7 @@ WHAT'S NEW IN 2.0.0
   * EXPERIMENTAL - Audio tab: "Add as new battle music..." - your song as a new entry in the
     "Battle BGM" list of online Private Battles, and if you like the music of every trainer battle.
   * EXPERIMENTAL - Mods tab: "Play as a character..." - the player becomes one of the game's
-    characters (18 named ones, 93 trainer and townsfolk outfits) - or Delibird.
+    characters (18 named ones, 93 trainer and townsfolk outfits) - or Delibird (joke option).
   * Search all text... (Browse & extract): every line of game text in one language or all of them,
     double-click to edit the line.
   * Mods tab: "Merge mods..." - several of your mods combined into one new mod. Shift / Ctrl + click

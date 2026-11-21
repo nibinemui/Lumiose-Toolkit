@@ -17,6 +17,7 @@ import struct
 import tkinter as tk
 from tkinter import messagebox, ttk
 
+import za_formats as zf
 import za_modding as zm
 
 FORCE = [{'element': [{'param': [{'condition': 'force_condition'}]}]}]
@@ -706,6 +707,131 @@ def npc_talk_tags(mt):
 
 # ---- the menu ------------------------------------------------------------------------------------------------
 
+_MOVES = {}
+
+
+def gift_moves(root):
+    """['Move name (#n)'] of the moves Z-A can use (a gift's moves), by name."""
+    if root not in _MOVES:
+        try:
+            with open(os.path.join(root, 'ik_message', 'dat', 'English', 'common', 'wazaname.dat'), 'rb') as f:
+                names = dict(enumerate(zf.decode_msg(f.read())))
+        except (OSError, ValueError):
+            names = {}
+        try:
+            import za_portmon
+            usable = za_portmon.usable_moves(root)[0]
+        except Exception:  # noqa: BLE001
+            usable = set(names)
+        _MOVES[root] = sorted(('%s (#%d)' % (n, i) for i, n in names.items() if i and n and i in usable),
+                              key=str.lower)
+    return _MOVES[root]
+
+
+def gift_summary(mt, gift):
+    """'Honedge, level 100, all IVs 31, 4 moves' for the NPC page."""
+    name = next((s.rsplit(' (#', 1)[0] for s in mt.species_names if s.endswith('(#%d)' % gift['species'])),
+                '#%d' % gift['species'])
+    bits = [name + (' (form %d)' % gift['form'] if gift.get('form') else ''), 'level %d' % gift['level']]
+    if gift.get('perfect'):
+        bits.append('all IVs 31')
+    if gift.get('moves'):
+        bits.append('%d move%s' % (len(gift['moves']), '' if len(gift['moves']) == 1 else 's'))
+    return ', '.join(bits)
+
+
+def gift_window(mt, parent, current):
+    """A small window to pick the Pokémon an NPC gives. Returns its settings, {} for none, None if cancelled."""
+    import za_npctalk
+    root = os.path.normpath(mt.app.root_var.get())
+    w = tk.Toplevel(parent)
+    w.title('Gives a Pokémon')
+    w.transient(parent)
+    bg = ttk.Style(w).lookup('TFrame', 'background') or None
+    if bg:
+        w.configure(background=bg)
+    g = ttk.Frame(w, padding=14)
+    g.pack(fill='both', expand=True)
+    out = {}
+
+    def box(row, label, values, width=34, value=''):
+        ttk.Label(g, text=label).grid(row=row, column=0, sticky='w', pady=2)
+        b = ttk.Combobox(g, values=values, width=width)
+        b.grid(row=row, column=1, columnspan=3, sticky='w', pady=2)
+        b.set(value)
+
+        def f(_e=None):
+            q = b.get().lower()
+            b.configure(values=[v for v in values if q in v.lower()][:500] if q else values)
+        b.bind('<KeyRelease>', f)
+        return b
+    species = list(mt.species_names)
+    cur_sp = next((s for s in species if current and s.endswith('(#%d)' % current['species'])), '')
+    sp = box(0, 'Pokémon:', species, value=cur_sp)
+    form = tk.IntVar(value=(current or {}).get('form', 0))
+    ttk.Label(g, text='Form:').grid(row=1, column=0, sticky='w')
+    ttk.Spinbox(g, from_=0, to=30, textvariable=form, width=5).grid(row=1, column=1, sticky='w', pady=2)
+    level = tk.IntVar(value=(current or {}).get('level', 5))
+    ttk.Label(g, text='Level:').grid(row=2, column=0, sticky='w')
+    ttk.Spinbox(g, from_=1, to=100, textvariable=level, width=5).grid(row=2, column=1, sticky='w', pady=2)
+    perfect = tk.BooleanVar(value=(current or {}).get('perfect', False))
+    ttk.Checkbutton(g, text='All IVs 31 (perfect)', variable=perfect).grid(row=3, column=1, columnspan=3,
+                                                                           sticky='w', pady=(2, 6))
+    moves = ['(its own moves)'] + gift_moves(root)
+    have = [next((m for m in moves if m.endswith('(#%d)' % n)), '') for n in (current or {}).get('moves') or []]
+    mboxes = [box(4 + i, 'Move %d:' % (i + 1), moves, value=(have[i] if i < len(have) else '(its own moves)'))
+              for i in range(4)]
+    ttk.Label(g, style='Dim.TLabel', wraplength=380, justify='left', text=(
+        'All four empty: the moves it knows at that level; with some picked, it knows only those. Only moves Z-A '
+        'has are listed. It comes in the game\'s usual ball (gifts have no ball choice).')).grid(row=8, column=1, columnspan=3, sticky='w', pady=(2, 6))
+    places = dict(za_npctalk.PLACES)
+    cur_place = next((k for k, v in places.items() if v == (current or {}).get('place')), za_npctalk.PLACES[0][0])
+    pl = box(9, 'Met in:', list(places), value=cur_place)
+    pl.configure(state='readonly')
+
+    def ok():
+        m = re.search(r'#(\d+)\)?\s*$', sp.get())
+        if not m:
+            messagebox.showerror('Gives a Pokémon', 'Pick a Pokémon from the list.', parent=w)
+            return
+        picked = []
+        for b in mboxes:
+            v = b.get().strip()
+            if v and v != '(its own moves)':
+                mm = re.search(r'#(\d+)\)\s*$', v)
+                if not mm or v not in moves:
+                    messagebox.showerror('Gives a Pokémon', 'Pick each move from the list (or leave it empty).',
+                                         parent=w)
+                    return
+                picked.append(int(mm.group(1)))
+        try:
+            out.update({'species': int(m.group(1)), 'form': int(form.get()), 'level': max(1, min(100, int(level.get()))),
+                        'perfect': bool(perfect.get()), 'moves': picked, 'place': places[pl.get()]})
+        except (ValueError, tk.TclError):
+            messagebox.showerror('Gives a Pokémon', 'Check the numbers.', parent=w)
+            return
+        w.destroy()
+    res = {'v': None}
+    bar = ttk.Frame(g)
+    bar.grid(row=10, column=0, columnspan=4, sticky='e', pady=(10, 0))
+
+    def done():
+        ok()
+        if out:
+            res['v'] = out
+
+    def none():
+        res['v'] = {}
+        w.destroy()
+    ttk.Button(bar, text='OK', command=done).pack(side='right')
+    ttk.Button(bar, text='No Pokémon', command=none).pack(side='right', padx=6)
+    ttk.Button(bar, text='Cancel', command=w.destroy).pack(side='right')
+    w.bind('<Escape>', lambda e: w.destroy())
+    w.grab_set()
+    parent.wait_window(w)
+    return res['v']
+
+
 def open_menu(mt, x, z):
     """Step 1: what to create. Step 2: its options. Then it is created and selected."""
     app = mt.app
@@ -930,14 +1056,29 @@ def open_menu(mt, x, z):
             cnt = tk.IntVar(value=1)
             ttk.Label(gf, text='  How many:').pack(side='left')
             ttk.Spinbox(gf, from_=1, to=99, textvariable=cnt, width=4).pack(side='left')
+            # a gift Pokémon: picked in its own small window, summed up here
+            gift = {}
+            pf = ttk.Frame(g)
+            pf.grid(row=7, column=1, sticky='w', pady=(4, 0))
+            gift_txt = tk.StringVar(value='(no Pokémon)')
+
+            def pick_pokemon():
+                pick = gift_window(mt, w, gift)
+                if pick is not None:
+                    gift.clear()
+                    gift.update(pick)
+                    gift_txt.set(gift_summary(mt, gift) if gift else '(no Pokémon)')
+            ttk.Button(pf, text='Gives a Pokémon…', command=pick_pokemon).pack(side='left')
+            ttk.Label(pf, textvariable=gift_txt, style='Dim.TLabel').pack(side='left', padx=6)
             once = tk.BooleanVar(value=True)
-            ttk.Checkbutton(g, text='Only the first time you talk to them (the item too); after that they say:',
-                            variable=once).grid(row=7, column=1, sticky='w', pady=(6, 0))
-            after = textbox(8, 3)
+            ttk.Checkbutton(g, text='Only the first time you talk to them (the gifts too); after that they say:',
+                            variable=once).grid(row=8, column=1, sticky='w', pady=(6, 0))
+            after = textbox(9, 3)
             ttk.Label(g, style='Dim.TLabel', wraplength=460, justify='left', text=(
-                'Leave this empty to hear the same lines again (without the item). Experimental: the lines go into '
+                'Leave this empty to hear the same lines again (without the gifts). Experimental: the lines go into '
                 'every language; NPCs talk once your save has reached the first side quests.')).grid(
-                row=9, column=1, sticky='w', pady=(2, 4))
+                row=10, column=1, sticky='w', pady=(2, 4))
+            w.geometry('560x660')
 
             def spec():
                 if ab.get() not in looks:
@@ -949,11 +1090,13 @@ def open_menu(mt, x, z):
                         raise ValueError('Pick the item from the list, or (nothing).')
                     item = int(m.group(1))
                 text = say.get('1.0', 'end').strip()
-                if item is not None and not text:
-                    raise ValueError('Write what they say when they give the item.')
+                if (item is not None or gift) and not text:
+                    raise ValueError('Write what they say when they give the gift.')
+                poke = {k: gift[k] for k in ('species', 'form', 'level', 'perfect', 'moves')} if gift else None
                 return {'asset': looks[ab.get()], 'when': when.get(), 'talk': acts[tb.get()], 'say': text,
                         'item': item, 'count': int(cnt.get()), 'once': once.get(),
-                        'after': after.get('1.0', 'end').strip(), 'name': nm.get().strip()}
+                        'after': after.get('1.0', 'end').strip(), 'name': nm.get().strip(), 'pokemon': poke,
+                        'place': gift.get('place', 'MAPNAME_LUMIOSE')}
             nav(kind, spec)
     step1()
     w.bind('<Escape>', lambda e: w.destroy())
