@@ -1684,13 +1684,20 @@ class MapTab:
         self.app.wait_window(w)
         return out.get('v')
 
-    def _move_in_scene(self, rel, name, off, x, y, z, dirty):
+    def _move_in_scene(self, rel, name, off, x, y, z, dirty, rot=None):
+        """Write a new point's position (and its rotation, in degrees, when given) into its scene entry. The entry
+        holds the position, then the rotation in radians, then the scale - the game turns the NPC by these."""
+        import math
         import struct
         for c in self.scenes[rel][0]['Chunks']:
             if name.encode() in bytes(c.get('Data', [])):
                 b = bytearray(c['Data'])
-                if struct.unpack_from('<3f', b, off) != struct.unpack('<3f', struct.pack('<3f', x, y, z)):
-                    struct.pack_into('<3f', b, off, x, y, z)
+                want = bytes(struct.pack('<3f', x, y, z))
+                if rot is not None and len(b) >= off + 24 and \
+                        all(abs(v) <= 6.3 for v in struct.unpack_from('<3f', b, off + 12)):
+                    want += struct.pack('<3f', *(math.radians(float(rot.get(k, 0.0))) for k in 'XYZ'))
+                if bytes(b[off:off + len(want)]) != want:
+                    b[off:off + len(want)] = want
                     c['Data'] = list(b)
                     dirty.add(rel)
                 break
@@ -1703,7 +1710,7 @@ class MapTab:
             for rel, off in _spots(info):
                 if pt is None or rel not in self.__dict__.get('scenes', {}):
                     continue
-                self._move_in_scene(rel, name, off, *_pos(pt), dirty=scene_dirty)
+                self._move_in_scene(rel, name, off, *_pos(pt), dirty=scene_dirty, rot=pt.get('Rotation') or {})
         for L in [x for x in self.layers if x.dirty and getattr(x, 'is_scene', False)]:
             L.write_into(self, scene_dirty)                # portals live in scene files, not a table
             L.dirty = False

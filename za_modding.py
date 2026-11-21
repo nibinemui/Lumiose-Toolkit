@@ -60,7 +60,8 @@ ZA_SCHEMAS = {'bgm_command.bin': 'za_bgm_command.fbs', 'waza_array.bin': 'za_waz
               'shop_item_lineup.bin': 'za_shop_item_lineup.fbs', 'shop_dress_up_lineup.bin': 'za_shop_dressup_lineup.fbs',
               'shop_hair_make_lineup.bin': 'za_shop_dressup_lineup.fbs',
               'dress_up_group_data.bin': 'za_dress_up_group_data.fbs', 'hair_make_data.bin': 'za_hair_make_data.fbs',
-              'pokedex_contents_data.bin': 'za_pokedex_contents.fbs', 'wild_single.data.bin': 'za_wild_single_catalog.fbs'}
+              'pokedex_contents_data.bin': 'za_pokedex_contents.fbs', 'wild_single.data.bin': 'za_wild_single_catalog.fbs',
+              'npc_talk_data.bin': 'za_npc_talk.fbs'}
 # player customisation files, by extension (faces use another layout and are left out)
 ZA_EXT_SCHEMAS = {'ccdata': 'za_ccdata.fbs', 'ccdatam': 'za_ccdatam.fbs'}
 

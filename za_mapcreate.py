@@ -295,6 +295,16 @@ def create(mt, kind, x, z, spec):
                                        if c.get('spawnerObjectInfoList')][:1]
         for c in s['appearingConditionList']:
             c['id'] = 'id_0'        # its only condition: a story NPC's 'id_5_5' kept the copy from appearing
+    if kind == 'npc' and (spec.get('name') or '').strip():     # a name of its own: its own copy of the look
+        import za_npctalk
+        extra = mt.__dict__.setdefault('extra_files', {})
+        try:
+            aid, _label, files = za_npctalk.write_name(os.path.normpath(mt.app.root_var.get()), mt.romfs, extra,
+                                                       spec['asset'], s['id'], spec['name'])
+        except za_npctalk.TalkError as e:
+            raise ValueError(str(e))
+        extra.update(files)
+        spec = dict(spec, asset=aid)
     APPLY[kind](mt, s, new, spec)
     if kind == 'npc' and spec.get('say'):               # its own lines (and gift): a talk trigger + text, saved later
         import za_npctalk
@@ -303,7 +313,7 @@ def create(mt, kind, x, z, spec):
             files = za_npctalk.write_talk(os.path.normpath(mt.app.root_var.get()), mt.romfs, extra, s['id'],
                                           spec['say'], spec.get('item'), spec.get('count', 1), spec.get('once'),
                                           spec.get('after', ''), spec.get('pokemon'),
-                                          spec.get('place', 'MAPNAME_LUMIOSE'))
+                                          spec.get('place', 'MAPNAME_LUMIOSE'), spec['asset'])
         except za_npctalk.TalkError as e:
             raise ValueError(str(e))
         extra.update(files)
@@ -896,16 +906,23 @@ def open_menu(mt, x, z):
                     pass
                 t.grid(row=row, column=1, sticky='w', pady=2)
                 return t
-            ttk.Label(g, text='What they say:').grid(row=3, column=0, sticky='nw', pady=(6, 0))
-            say = textbox(3, 5)
+            ttk.Label(g, text='Name:').grid(row=3, column=0, sticky='w', pady=(6, 0))
+            nm = tk.StringVar()
+            nf = ttk.Frame(g)
+            nf.grid(row=3, column=1, sticky='w', pady=(6, 0))
+            ttk.Entry(nf, textvariable=nm, width=30).pack(side='left')
+            ttk.Label(nf, style='Dim.TLabel', text='  shown over what they say (empty: the look\'s own name, if it has one)').pack(
+                side='left')
+            ttk.Label(g, text='What they say:').grid(row=4, column=0, sticky='nw', pady=(6, 0))
+            say = textbox(4, 5)
             ttk.Label(g, style='Dim.TLabel', text='A blank line starts a new text box. Leave it empty for an NPC '
-                                                  'who says nothing.').grid(row=4, column=1, sticky='w')
+                                                  'who says nothing.').grid(row=5, column=1, sticky='w')
             root = os.path.normpath(app.root_var.get())
             givable = za_npctalk.item_ids(root)
             items = ['(nothing)'] + ['%s (#%d)' % (n, i) for i, n in sorted(mt.item_names.items()) if n and i in givable]
             gf = ttk.Frame(g)
-            gf.grid(row=5, column=1, sticky='w', pady=(6, 2))
-            ttk.Label(g, text='Gives:').grid(row=5, column=0, sticky='w', pady=(6, 2))
+            gf.grid(row=6, column=1, sticky='w', pady=(6, 2))
+            ttk.Label(g, text='Gives:').grid(row=6, column=0, sticky='w', pady=(6, 2))
             it = ttk.Combobox(gf, values=items, width=34)
             it.set('(nothing)')
             it.pack(side='left')
@@ -915,12 +932,12 @@ def open_menu(mt, x, z):
             ttk.Spinbox(gf, from_=1, to=99, textvariable=cnt, width=4).pack(side='left')
             once = tk.BooleanVar(value=True)
             ttk.Checkbutton(g, text='Only the first time you talk to them (the item too); after that they say:',
-                            variable=once).grid(row=6, column=1, sticky='w', pady=(6, 0))
-            after = textbox(7, 3)
+                            variable=once).grid(row=7, column=1, sticky='w', pady=(6, 0))
+            after = textbox(8, 3)
             ttk.Label(g, style='Dim.TLabel', wraplength=460, justify='left', text=(
                 'Leave this empty to hear the same lines again (without the item). Experimental: the lines go into '
                 'every language; NPCs talk once your save has reached the first side quests.')).grid(
-                row=8, column=1, sticky='w', pady=(2, 4))
+                row=9, column=1, sticky='w', pady=(2, 4))
 
             def spec():
                 if ab.get() not in looks:
@@ -936,7 +953,7 @@ def open_menu(mt, x, z):
                     raise ValueError('Write what they say when they give the item.')
                 return {'asset': looks[ab.get()], 'when': when.get(), 'talk': acts[tb.get()], 'say': text,
                         'item': item, 'count': int(cnt.get()), 'once': once.get(),
-                        'after': after.get('1.0', 'end').strip()}
+                        'after': after.get('1.0', 'end').strip(), 'name': nm.get().strip()}
             nav(kind, spec)
     step1()
     w.bind('<Escape>', lambda e: w.destroy())

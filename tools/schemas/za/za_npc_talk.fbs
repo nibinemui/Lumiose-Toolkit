@@ -1,0 +1,15 @@
+// Z-A townsfolk talk (ik_event/bin/npc_talk_data/npc_talk_data.bin): what an NPC says when you talk to it, without
+// an event trigger. Layout worked out for Lumiose Toolkit from the game's own file.
+// Per NPC (its placement id): entries checked in order, the first whose conditions hold is used. Talk = the lines
+// in the text box (label, script text file, window '0'/'1'/'11'); Speech = speech bubbles shown nearby (Distance m).
+// Condition Op 0 = always, 1 = equal, 2 = not equal, 5 = at least (as in event triggers).
+namespace ZA;
+
+table TalkCondition { Name:string; Op:int; Params:[string]; }
+table TalkConditionGroup { Conditions:[TalkCondition]; }   // all must hold
+table TalkLine { Label:string; File:string; Window:string; Field3:int; Field4:int; Distance:float; Field6:float; }
+table TalkEntry { ConditionGroups:[TalkConditionGroup]; Talk:[TalkLine]; Speech:[TalkLine]; }  // any group
+table NpcTalk { Npc:string; Entries:[TalkEntry]; }
+table NpcTalkFile { Npcs:[NpcTalk]; }
+
+root_type NpcTalkFile;
