@@ -6,6 +6,22 @@ The first start opens "Import game files" to unpack your game dump. The window h
 Browse & extract, Mods, Map, Pokémon data, Game data and Audio. "Dark mode" (top right) switches the theme.
 README.md is the full manual (features, installing, troubleshooting).
 
+WHAT'S NEW IN 2.1.0
+-------------------
+  Features marked EXPERIMENTAL show a warning in their window: some things may not work properly
+  or look incorrect. Test what they make with a copy of your save.
+  * EXPERIMENTAL - Map tab: "Create Spawn Point..." now makes NPCs - in the city, interiors and
+    dungeons: their look, when they appear, their own lines (every language), a name over their
+    text box, and gifts: an item and/or a Pokemon (species, form, level, all IVs 31, four moves),
+    every time or only the first time you talk to them.
+  * Text editor: "Apply to all languages..." - change a line once and save it in every language.
+  * EXPERIMENTAL - Map tab: "Encounter overview..." - every Pokemon the spawners bring in one list:
+    sort, search, change levels, weight and alpha chance, jump to a spawn point on the map.
+  * EXPERIMENTAL - Mods tab: "Play as a character..." - Delibird is in the list (joke option).
+  * Event trigger files and the NPC talk table open as JSON.
+  * Fixed: new points face the way you set them; the text editor's title shows the language.
+    Making new Hyperspace portals and random-item sparkles is dropped.
+
 WHAT'S NEW IN 2.0.0
 -------------------
   Features marked EXPERIMENTAL show a warning in their window: some things may not work properly
@@ -24,7 +40,7 @@ WHAT'S NEW IN 2.0.0
   * EXPERIMENTAL - Audio tab: "Add as new battle music..." - your song as a new entry in the
     "Battle BGM" list of online Private Battles, and if you like the music of every trainer battle.
   * EXPERIMENTAL - Mods tab: "Play as a character..." - the player becomes one of the game's
-    characters (18 named ones, 93 trainer and townsfolk outfits) - or Delibird (joke option).
+    characters (18 named ones, 93 trainer and townsfolk outfits).
   * Search all text... (Browse & extract): every line of game text in one language or all of them,
     double-click to edit the line.
   * Mods tab: "Merge mods..." - several of your mods combined into one new mod. Shift / Ctrl + click

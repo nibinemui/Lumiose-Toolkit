@@ -1,6 +1,6 @@
 # Patch notes
 
-## Unreleased
+## 2.1.0 - 2026-11-20
 
 ### New
 - **New NPCs** (Map tab → **Create Spawn Point…** → NPC, experimental): put a person anywhere - in the city, in interiors and in dungeons like the Sewers. Pick who it looks like (any townsperson or trainer look), when it appears (always, by day or at night) and how it behaves; a new NPC just stands and turns to you when you talk to it.
