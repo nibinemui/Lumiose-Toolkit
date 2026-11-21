@@ -121,8 +121,8 @@ save before sharing a mod.
   "Battle BGM" list of online Private Battles as a new entry, and can make it the music of every trainer battle
   (it still fades out and plays the victory jingle at the end).
 - **Play as a character** (Mods tab, experimental): the player becomes one of the game's characters (18 named
-  characters and 93 trainer and townsfolk outfits), fitted to the player's skeleton; the player's own face, hair and
-  clothes are hidden. **Show in 3D** shows each one first.
+  characters, 93 trainer and townsfolk outfits, or Delibird - a Pokémon that walks like a person), fitted to the
+  player's skeleton; the player's own face, hair and clothes are hidden. **Show in 3D** shows each one first.
 - **Also experimental**:
   - Import an edited glTF back into a model. Tangents are recomputed from the UVs, each vertex keeps its strongest bone
     influences, and it warns when a part ends up on the other side of the body from the bones it follows (e.g. a

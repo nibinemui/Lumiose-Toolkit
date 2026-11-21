@@ -161,7 +161,43 @@ def characters(root):
                 npcs.append((npc_label(root, f), os.path.relpath(f, root).replace(os.sep, '/')))
             except Exception:  # noqa: BLE001
                 continue
-    return out + sorted(npcs)
+    # Pokémon whose bones share the player's names (experimental: they walk like a person, at a person's height)
+    pokemon = [('%s  -  Pokémon (experimental)' % name, rel) for rel, name in sorted(POKEMON.items(), key=lambda x: x[1])
+               if os.path.isfile(os.path.join(root, *rel.split('/'), os.path.basename(rel) + '.trmdl'))]
+    return out + sorted(npcs) + pokemon
+
+
+POKEMON = {'ik_pokemon/data/pm0225/pm0225_00_00': 'Delibird'}    # Pokémon proven in game as the player
+POKEMON_FILES = ('.trmdl', '.trskl', '.trmsh', '.trmbf', '.trmtr', '.trmmt', '.bntx')    # the model only
+
+
+def pokemon_folder(root, char_rel, tmp):
+    """A Pokémon's model (POKEMON) laid out as a character folder in `tmp`: its bones share the player's names
+    (waist, spine, arms, legs), so the player's animations move it. Textures outside its folder are named by a
+    path relative to it; the player's folder sits one level higher, so those paths are re-aimed (missed, the game
+    waits for the texture forever and the save never loads)."""
+    import posixpath
+    import shutil
+    src = os.path.join(root, *char_rel.split('/'))
+    num = re.search(r'pm(\d{4})', char_rel).group(1)
+    out = os.path.join(tmp, 'tr9%s_00_%s' % (num[1:], POKEMON[char_rel].lower()))
+    os.makedirs(out, exist_ok=True)
+    for f in os.listdir(src):
+        p = os.path.join(src, f)
+        if os.path.isfile(p) and f.endswith(POKEMON_FILES):
+            shutil.copy(p, os.path.join(out, 'tr9%s_00.trmdl' % num[1:] if f.endswith('.trmdl') else f))
+    for f in os.listdir(out):
+        if f.endswith('.trmtr'):
+            p = os.path.join(out, f)
+            sch = zm.schema_for(p)
+            d = json.loads(zm.to_json(p, sch))
+            for m in d.get('Materials') or []:
+                for t in m.get('Textures') or []:
+                    if (t.get('File') or '').startswith('../'):
+                        t['File'] = posixpath.relpath(posixpath.normpath(posixpath.join(char_rel, t['File'])),
+                                                      BASE_DIR)
+            zm.from_json(json.dumps(d), sch, p)
+    return out
 
 
 def npc_folder(root, char_rel, tmp):
@@ -821,6 +857,15 @@ def make(root, mod, char_rel, hide_parts=True, log=None, reorder=False, bind_pla
          fit=True, nearest_weights=False, keep_held=False):
     """Make `mod` turn the player into the character in game folder `char_rel` (from characters())."""
     say = log or (lambda s: None)
+    if char_rel in POKEMON:                              # a Pokémon: its model as a character folder first
+        import shutil
+        import tempfile
+        tmp = tempfile.mkdtemp(prefix='playas_')
+        try:
+            return make(root, mod, pokemon_folder(root, char_rel, tmp), hide_parts, log, reorder, bind_player,
+                        own_height, fit, nearest_weights, keep_held)
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
     if char_rel.endswith('.ccdata'):                     # a part-built NPC: assembled first, then like the others
         import shutil
         import tempfile
@@ -1256,6 +1301,9 @@ def open_window(app):
                     msg = str(e)
                     app.q.put(lambda: status.set('Could not show it: ' + msg))
             threading.Thread(target=work, daemon=True).start()
+            return
+        if c[1] in POKEMON:                              # a Pokémon: its own model
+            app.open_viewer(os.path.join(root, *c[1].split('/'), os.path.basename(c[1]) + '.trmdl'), with_mod=False)
             return
         stem = re.match(r'^(tr\d{4}_\d\d)', os.path.basename(c[1])).group(1)
         app.open_viewer(os.path.join(root, *c[1].split('/'), stem + '.trmdl'), with_mod=False)
